@@ -18,6 +18,7 @@ import {
   type ValidationIssue
 } from '@ricenote/shared';
 import type { Plugin } from '@ricenote/plugin-sdk';
+import type { RiceNoteConfig } from '../config/loader.js';
 
 export interface LoadedPlugin {
   manifest: PluginManifest;
@@ -47,6 +48,17 @@ const manifestValidator = createManifestValidator();
 /** 扫描插件目录并完成 Manifest 结构与取值校验。 */
 export function discoverPlugins(pluginsDir: string): DiscoveryResult {
   return discoverPluginsFrom([pluginsDir]);
+}
+
+/**
+ * 插件发现根目录：官方目录 + 第三方安装目录 + 配置登记的本地开发目录。
+ *
+ * 抽出来的原因：内核启动、`pnpm validate`、`pnpm plugin *`、安装向导都依赖
+ * "在哪里找插件"这同一个答案，各写一份迟早会出现"某条路径少扫了一个根目录"
+ * 这类只在特定命令下暴露的差异。
+ */
+export function pluginDiscoveryRoots(config: RiceNoteConfig): string[] {
+  return [config.paths.pluginsDir, config.paths.pluginsInstallDir, ...config.paths.localPluginDirs];
 }
 
 /**

@@ -15,6 +15,7 @@
     "dev": "tsx watch src/index.ts",
     "migrate": "tsx src/cli/index.ts migrate",
     "validate": "tsx src/cli/index.ts validate",
+    "setup": "tsx src/cli/index.ts setup",
     "plugin": "tsx src/cli/index.ts plugin",
     "theme": "tsx src/cli/index.ts theme"
   },

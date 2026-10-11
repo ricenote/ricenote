@@ -14,6 +14,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import {
+  APP_VERSION,
   AuditLogger,
   createDatabaseAdapter,
   createLogger,
@@ -23,6 +24,7 @@ import {
   MigrationCoordinator,
   PluginInstallRunner,
   PluginStore,
+  pluginDiscoveryRoots,
   readPluginMigrations,
   RestartCoordinator,
   resolveRootDir,
@@ -35,6 +37,7 @@ import {
 import type { PluginJobDto } from '@ricenote/shared';
 import { HtmlCache } from '@ricenote/core';
 import { runValidate } from './validate.js';
+import { runSetup } from './setup.js';
 
 const DIM = '\u001b[2m';
 const RESET = '\u001b[0m';
@@ -43,8 +46,9 @@ const RED = '\u001b[31m';
 const YELLOW = '\u001b[33m';
 
 /** 插件根目录列表：官方插件目录 + 第三方安装目录 + 配置登记的本地开发目录。 */
+/** 插件发现根目录（与内核启动、validate、向导共用同一个定义）。 */
 function pluginRoots(config: RiceNoteConfig): string[] {
-  return [config.paths.pluginsDir, config.paths.pluginsInstallDir, ...config.paths.localPluginDirs];
+  return pluginDiscoveryRoots(config);
 }
 
 function printHelp(): void {
@@ -84,8 +88,12 @@ RiceNote CLI
 
 async function main(): Promise<number> {
   const [, , command, subCommand, ...rest] = process.argv;
-  // 与 HTTP 入口一致：向上查找项目根，兼容 pnpm 从包目录运行脚本
-  const rootDir = resolveRootDir();
+  /*
+   * 与 HTTP 入口一致：向上查找项目根，兼容 pnpm 从包目录运行脚本。
+   * `--root-dir` 可显式指定根目录（安装向导指向空白目录做演练、CI 隔离环境）。
+   */
+  const explicitRoot = process.argv.find((item) => item.startsWith('--root-dir='))?.slice(11);
+  const rootDir = explicitRoot ? explicitRoot : resolveRootDir();
 
   if (!command || command === 'help' || command === '--help' || command === '-h') {
     printHelp();
@@ -98,9 +106,14 @@ async function main(): Promise<number> {
       return runValidate({
         rootDir,
         pluginsDirs: pluginRoots(config),
-        themesDir: config.paths.themesDir
+        themesDir: config.paths.themesDir,
+        officialDir: config.paths.pluginsDir,
+        appVersion: APP_VERSION
       });
     }
+    case 'setup':
+      // 安装向导自带交互与错误呈现，这里只管把参数原样交给它
+      return runSetup(rootDir, [subCommand, ...rest].filter((item): item is string => Boolean(item)));
     case 'migrate':
       return runMigrate(rootDir);
     case 'plugin':

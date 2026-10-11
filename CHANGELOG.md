@@ -9,6 +9,50 @@
 
 插件安装从"上传压缩包"扩展为**三路来源 + 统一编排 + 任务队列**（ADR-015）。
 
+### Added（安装向导与官方插件 npm 分发，ADR-016）
+
+- **`pnpm setup` 安装向导**（零新增依赖，`node:readline/promises`）：
+  环境检查 → 数据库（**不存在时自动建库**，库名做标识符白名单校验）→ 站点与管理员信息
+  → 生成 `.env`（随机 `SESSION_SECRET`；非交互模式下自动生成初始管理员密码并仅显示一次）
+  → 执行 Core 迁移 → **勾选要安装的官方插件并从 npm 安装** → 首次启动完成初始化 → 结果摘要。
+  支持 `--yes`（推荐档）、`--plugins=`、`--from-manifest`、`--skip-install`、`--no-scripts`、
+  `--db-url=` / `--db-*`、`--site-*`、`--admin-*`、`--root-dir=`；无 TTY 自动降级为非交互；
+  **可重入**（已有 `.env` 作为默认值、已装插件跳过）。
+- **推荐插件清单**（`packages/shared/manifests/plugin-catalog.json` + Schema +
+  `getPluginCatalog()`）：随主程序发布，记录每个官方插件的 npm 包名、推荐版本、
+  分类（必需/推荐/可选/示例）、显示名与描述、能力与依赖。安装向导、后台目录、
+  `pnpm validate` 与发布脚本读同一份数据。
+- **扩展中心「官方插件目录」**（`GET /api/admin/plugins/catalog`）：未安装的官方插件
+  可一键安装、已装版本低于推荐版本时提示"可更新"并支持更新；沿用安装任务面板
+  （步骤条 + 等宽日志 + 失败原因）。
+- **官方插件变为可独立发布的 npm 包**：11 个插件去除 `private`、补齐
+  `files`/`publishConfig.access=public`/`license`/`repository`，`manifest.version`
+  与 `package.json.version` 全量对齐（修掉 5 处历史漂移）。
+- `scripts/release-plugins.mjs` + `pnpm release:plugins`：**先校验后发布**
+  （版本三处一致、包名与目录一致、`files` 完整、宿主包未写成普通依赖、
+  `dist` 与后台界面产物存在），按依赖顺序逐包发布；`--dry-run` / `--only=` 可用。
+- `RICENOTE_PLUGINS` 声明式清单（`包名@区间`）：由向导写出，用于"重建环境可复现"；
+  启动期**只核对不安装**，缺件或版本不符会给出可执行命令。
+- `.env.example` 增补插件安装相关配置说明（`RICENOTE_PLUGINS`、`RICENOTE_LOCAL_PLUGINS`、
+  私有源与脚本开关）；README 安装章节改为"向导优先"。
+- 测试 +34 项：官方插件目录与发布形态、目录视图三种状态、安装向导参数解析与
+  `.env` 增量写入、凭据生成与库名校验，以及**离线端到端**（本地静态 registry +
+  真实 CLI 安装 → 落盘 → 声明式清单 → 管理员创建）。
+
+### Changed（同上）
+
+- `PluginSummary` 新增 `official`（属于官方插件目录），与 `builtin`（随仓库分发、
+  不可卸载）分离：从 npm 安装的官方插件显示"官方"徽章但**可更新、可卸载**。
+- 安装编排的 `prepare` 阶段新增两条判据：**拒绝**把宿主提供的包写成普通依赖的包；
+  对"没有 `src/` 也没有 `tsconfig.json`"的包跳过依赖安装与构建（从 npm 装的官方插件即此形态）。
+- 插件发现根目录抽成 `pluginDiscoveryRoots(config)`，内核启动、`validate`、
+  `plugin` 命令与安装向导共用同一个定义。
+- `pnpm validate` 新增「官方插件目录」校验（11 项）：条目与仓库实际形态一致
+  （版本三处一致、包名一致、可发布形态、能力白名单一致），
+  并提示未进目录的开发中插件。
+- 启动期未初始化时给出引导：缺 `.env` 或库结构未建时输出 `pnpm setup`，
+  而不是让用户从数据库错误栈里反推。
+
 ### Added
 
 - **三种安装来源**：`registry`（npm 包，可带版本区间；自动解析普通依赖、按语义化版本检查更新）、

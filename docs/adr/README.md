@@ -19,6 +19,7 @@
 | [ADR-013](ADR-013-navigation-ownership.md) | 顶部导航栏由独立插件 `rice.navigation` 拥有，导航项只引用内容 ID | 已接受 |
 | [ADR-014](ADR-014-plugin-owned-admin-ui.md) | 插件自带后台界面 + 后台界面 SDK（零构建、动态挂载、单 Vue 实例） | 已接受 |
 | [ADR-015](ADR-015-plugin-sources-and-install-orchestration.md) | 插件三路来源（npm/Git/本地）、三段式安装编排与任务队列（修订 ADR-007） | 已接受 |
+| [ADR-016](ADR-016-official-plugin-npm-distribution.md) | 官方插件 npm 分发、推荐清单与 `ricenote setup` 安装向导 | 已接受 |
 
 ## 说明书「待定项」的默认取值（M0–M2 实现依据）
 
@@ -75,3 +76,11 @@ v0.4.0「插件平台化」进一步把**后台界面**交还给插件，并重�
 - ADR-015：插件安装从"ZIP 上传"扩展为 npm Registry / Git 仓库 / 本地目录三路来源，
   统一 `resolve → prepare → commit` 编排（失败必回滚）+ 任务队列与实时日志；
   ZIP 降级为本地来源的一种入口（修订 ADR-007 的白名单与"非目标"口径）
+
+v0.5.0「安装与分发」把安装过程与官方插件分发一起收口：官方插件改为独立 npm 包，
+装什么、装哪个版本由**推荐清单**统一掌握，全新部署由一条 `pnpm setup` 完成。
+
+- ADR-016：官方插件 npm 分发（`@ricenote/plugin-*`）+ 推荐插件清单作为唯一事实来源；
+  `builtin`（随仓库分发，不可卸载）与 `official`（属于官方目录，可更新可卸载）分离；
+  新增 `ricenote setup` 安装向导（自动建库、随机密钥、勾选安装、首次初始化）与
+  `RICENOTE_PLUGINS` 声明式清单（启动期只核对不安装）

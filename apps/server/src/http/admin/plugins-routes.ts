@@ -11,6 +11,7 @@ import type { FastifyInstance } from 'fastify';
 import { ErrorCode, RiceNoteError, type PluginInstallRequest } from '@ricenote/shared';
 import {
   PLUGIN_ZIP_GUARD,
+  buildCatalogView,
   parsePackageSpec,
   validateGitRepo,
   type JobSource,
@@ -265,6 +266,20 @@ export function registerPluginRoutes(app: FastifyInstance, kernel: RiceNoteKerne
 
       reply.statusCode = 202;
       return reply.send({ data: job });
+    })
+  );
+
+  /**
+   * 官方插件目录：把「推荐清单」与「已安装状态」合并成一行行的可操作项。
+   *
+   * 合并放在服务端而不是前端：清单来自 `@ricenote/shared`（随产物发布的数据文件），
+   * 由内核解析一次即可，前端只负责渲染 —— 否则每个客户端都要自己实现
+   * "包名 → 插件 ID → 已装版本 → 是否落后于推荐版本"这段映射，迟早漂移。
+   */
+  app.get(
+    '/plugins/catalog',
+    guard(kernel, { permission: 'plugin.view' }, async ({ kernel: k, reply }) => {
+      return reply.send({ data: buildCatalogView(k.plugins.summary()) });
     })
   );
 

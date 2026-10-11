@@ -18,6 +18,7 @@ export const CONFIG_SCHEMA = {
     'paths',
     'site',
     'seedPlugins',
+    'declaredPlugins',
     'preview',
     'render',
     'pluginRegistry',
@@ -116,6 +117,10 @@ export const CONFIG_SCHEMA = {
       }
     },
     seedPlugins: {
+      type: 'array',
+      items: { type: 'string', minLength: 1 }
+    },
+    declaredPlugins: {
       type: 'array',
       items: { type: 'string', minLength: 1 }
     },

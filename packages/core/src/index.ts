@@ -29,6 +29,11 @@ export {
 export { renderStartupBanner, printStartupBanner, type StartupBannerInput } from './startup-banner.js';
 
 export { createDatabaseAdapter, DatabaseAdapter, PluginScopedDatabase, scopedTableName, type OrmHandle, type QueryRunner } from './database/adapter.js';
+export {
+  ensureDatabase,
+  validateDatabaseName,
+  type EnsureDatabaseInput
+} from './database/ensure-database.js';
 export { MigrationCoordinator, checksumOf, MIGRATION_LOCK_NAME, type MigrationSource, type MigrationOutcome } from './database/migrate-coordinator.js';
 export { CORE_MIGRATIONS, type CoreMigration } from './database/core-migrations.js';
 
@@ -65,6 +70,7 @@ export { PluginManager, shortName, type PluginManagerDeps, type PluginBootstrapR
 export {
   discoverPlugins,
   discoverPluginsFrom,
+  pluginDiscoveryRoots,
   loadPluginModule,
   readPluginMigrations,
   type LoadedPlugin,
@@ -119,6 +125,13 @@ export {
   type ResolvedAdminPage
 } from './plugins/admin-pages.js';
 export { PluginStore, type StoredPlugin } from './plugins/plugin-store.js';
+export {
+  officialCatalogEntries,
+  catalogEntryOf,
+  isOfficialPlugin,
+  updateToRecommended,
+  buildCatalogView
+} from './plugins/catalog.js';
 export {
   buildPluginSettingsGroups,
   declaredSettingKeys,

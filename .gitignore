@@ -32,6 +32,11 @@ coverage/
 .nyc_output/
 tests/.tmp/
 
+# 由 scripts/split-plugin-repos.mjs 生成的独立插件仓库。
+# 它们各自带 .git：嵌套仓库会被父仓库当成 embedded repo，反而破坏 monorepo 的版本管理，
+# 因此两者必须物理分开（生成物不入主仓库）。
+plugin-repos/
+
 # 浏览器自动化（playwright-cli）产生的快照与截图
 .playwright-cli/
 e2e-*.png

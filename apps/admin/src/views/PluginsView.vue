@@ -16,6 +16,7 @@ import { useSystemState } from '@/stores/system';
 import { useToast } from '@/stores/toast';
 import SettingsForm from '@/components/settings/SettingsForm.vue';
 import PluginInstallCard from '@/components/plugins/PluginInstallCard.vue';
+import CatalogCard from '@/components/plugins/CatalogCard.vue';
 import PluginJobPanel from '@/components/plugins/PluginJobPanel.vue';
 /** 声明式设置表单的值（键为插件声明的字段名）。 */
 const settingsValues = reactive<Record<string, unknown>>({});
@@ -152,6 +153,14 @@ const updateCheckedAt = ref('');
 const activeJob = ref<PluginJobDto | null>(null);
 const jobOpen = ref(false);
 const busyAction = ref<string | null>(null);
+/** 官方插件目录：任务结束后要重新拉取它的"已装/可更新"状态。 */
+const catalogCard = ref<InstanceType<typeof CatalogCard> | null>(null);
+
+/** 目录区块提交任务后，复用同一套任务面板呈现进度与日志。 */
+function onCatalogJob(job: PluginJobDto): void {
+  activeJob.value = job;
+  jobOpen.value = true;
+}
 
 async function loadUpdates(): Promise<void> {
   try {
@@ -209,6 +218,8 @@ function onJobFinished(finished: PluginJobDto): void {
   activeJob.value = finished;
   void load();
   void loadUpdates();
+  // 目录区块的"已安装版本/可更新"来自服务端合并视图，必须一起刷新
+  void catalogCard.value?.load();
   system.refresh().catch(() => undefined);
 }
 
@@ -266,6 +277,9 @@ onMounted(() => {
     <!-- 插件安装：三种来源（npm / Git / 本地）+ 任务实时日志 -->
     <PluginInstallCard :can-install="canInstall" @finished="onJobFinished" />
 
+    <!-- 官方插件目录：随主程序发布的推荐版本，可一键安装/更新 -->
+    <CatalogCard ref="catalogCard" :can-install="canInstall" @job="onCatalogJob" />
+
     <!-- 诊断 -->
     <Card
       v-if="failedCount > 0 || diagnostics?.invalid.length || diagnostics?.dependencyProblems.length"
@@ -305,7 +319,12 @@ onMounted(() => {
             <div class="flex flex-wrap items-center gap-2">
               <h2 class="text-sm font-semibold text-foreground">{{ plugin.name }}</h2>
               <Badge :variant="stateTone[plugin.state]">{{ stateLabel[plugin.state] }}</Badge>
-              <Badge v-if="plugin.builtin" variant="outline">官方</Badge>
+              <!--
+                「官方」与「随仓库分发」是两件事：从 npm 安装的官方插件同样显示官方徽章，
+                但它可更新、可卸载；只有随仓库分发的那份才不可卸载。
+              -->
+              <Badge v-if="plugin.official" variant="outline">官方</Badge>
+              <Badge v-if="plugin.builtin" variant="muted">随仓库分发</Badge>
               <Badge v-if="updates[plugin.id]?.updateAvailable" variant="warning">
                 可更新 {{ updates[plugin.id]?.latestVersion }}
               </Badge>

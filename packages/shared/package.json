@@ -1,9 +1,18 @@
 {
   "name": "@ricenote/shared",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.4.0",
   "type": "module",
   "description": "RiceNote 公共契约：DTO、错误码、capability 工具与 Manifest JSON Schema",
+  "homepage": "https://github.com/ricenote/ricenote",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ricenote/ricenote.git"
+  },
+  "license": "MIT",
+  "author": "RiceNote",
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -12,9 +21,18 @@
       "import": "./dist/index.js"
     },
     "./manifests/plugin.schema.json": "./manifests/plugin.schema.json",
-    "./manifests/theme.schema.json": "./manifests/theme.schema.json"
+    "./manifests/theme.schema.json": "./manifests/theme.schema.json",
+    "./manifests/settings.schema.json": "./manifests/settings.schema.json",
+    "./manifests/plugin-catalog.json": "./manifests/plugin-catalog.json",
+    "./manifests/plugin-catalog.schema.json": "./manifests/plugin-catalog.schema.json"
   },
-  "files": ["dist", "manifests"],
+  "files": [
+    "dist",
+    "manifests"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"

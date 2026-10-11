@@ -47,37 +47,53 @@ ricenote/
 
 - Node.js >= 20.11
 - pnpm >= 9
-- MySQL 8.x（本机或容器）
+- MySQL 8.x（本机或容器，**库可以不存在** —— 向导会自动创建）
 
-### 2. 安装依赖
+### 2. 安装依赖并构建
 
 ```bash
 pnpm install
-```
-
-### 3. 配置环境变量
-
-```bash
-cp .env.example .env
-# 按需修改数据库连接与 SESSION_SECRET
-```
-
-### 4. 构建并初始化
-
-```bash
 pnpm build            # 编译 Core / SDK / 官方插件 / 服务端
-pnpm migrate          # 创建 Core 元数据表并执行插件迁移
 ```
 
-### 5. 启动
+### 3. 运行安装向导（推荐）
+
+```bash
+pnpm setup
+```
+
+一条命令走完：检查环境 → 收集数据库与站点信息 → **自动建库** → 生成 `.env`
+（含随机 `SESSION_SECRET` 与管理员凭据）→ 执行内核迁移 → **勾选要安装的官方插件**
+并从 npm 安装 → 首次启动完成初始化（创建管理员）。
+
+- **必须安装**两项：`身份与认证`（缺它没有登录端点）与 `角色与权限`（缺它权限校验全拒），
+  向导中不可取消；其余官方插件默认勾选、可取消。
+- 非交互（容器与 CI）：`pnpm setup --yes`（推荐档一键装完）、
+  `--plugins=posts,pages`（指定清单）、`--from-manifest`（按 `.env` 已有清单补齐）。
+- 可重入：任何一步失败都可以修好后重跑，已完成的步骤会被跳过。
 
 ```bash
 pnpm start            # 启动服务端（默认 http://localhost:3000）
 ```
 
-首次启动时，服务端会依据 `RICENOTE_SEED_PLUGINS` 自动安装并启用官方插件，
-并按 `BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD` 创建初始管理员
+<details>
+<summary>手工安装（高级路径，不使用向导）</summary>
+
+```bash
+cp .env.example .env   # 按需修改数据库连接与 SESSION_SECRET（务必改成随机值）
+pnpm migrate           # 创建 Core 元数据表并执行插件迁移
+pnpm plugin install @ricenote/plugin-identity @ricenote/plugin-authorization
+pnpm start
+```
+
+首次启动时，服务端会依据 `RICENOTE_SEED_PLUGINS` 启用插件
+（短名，如 `identity,authorization,posts`），并按
+`BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD` 创建初始管理员
 （该用户会被自动授予 `administrator` 角色）。
+
+> 内核在启动时**只核对不安装**：若 `.env` 里的 `RICENOTE_PLUGINS` 声明了未安装的插件，
+> 日志会给出对应的安装命令。
+</details>
 
 ### 5.1 安装与更新插件（命令行）
 

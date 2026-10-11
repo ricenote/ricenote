@@ -1,16 +1,54 @@
 {
   "name": "@ricenote/plugin-media",
-  "version": "1.0.0",
-  "private": true,
+  "version": "1.2.0",
   "type": "module",
   "description": "RiceNote 媒体库插件：上传、元数据与公开访问",
+  "keywords": [
+    "ricenote",
+    "plugin"
+  ],
+  "homepage": "https://github.com/ricenote/plugin-media",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ricenote/plugin-media.git"
+  },
+  "license": "MIT",
+  "author": "RiceNote",
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "admin",
+    "migrations",
+    "manifest.json",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {
-    "@ricenote/plugin-sdk": "workspace:*",
-    "@ricenote/shared": "workspace:*"
+  "dependencies": {},
+  "peerDependencies": {
+    "@ricenote/plugin-sdk": "^0.4.0",
+    "@ricenote/shared": "^0.4.0"
+  },
+  "peerDependenciesMeta": {
+    "@ricenote/plugin-sdk": {
+      "optional": true
+    },
+    "@ricenote/shared": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ricenote/plugin-sdk": "workspace:^",
+    "@ricenote/shared": "workspace:^",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
   }
 }

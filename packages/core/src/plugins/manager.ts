@@ -20,6 +20,8 @@ import {
 import {
   ErrorCode,
   RiceNoteError,
+  findCatalogEntryByNpm,
+  satisfiesRange,
   type AdminMenuItem,
   type EffectiveSiteInfo,
   type PluginState,
@@ -38,6 +40,8 @@ import type { RouterRegistry } from '../routing/registry.js';
 import type { SlotRegistry } from '../render/slots.js';
 import type { AdminMenuRegistry } from './admin-menu.js';
 import { registerDeclaredAdminPages, resolveAdminPages } from './admin-pages.js';
+import { isOfficialPlugin } from './catalog.js';
+import { parsePackageSpec } from './install/sources.js';
 import {
   discoverPlugins,
   discoverPluginsFrom,
@@ -180,6 +184,14 @@ export class PluginManager {
         sourceById.set(id, known.source);
       }
     }
+
+    /*
+     * 声明式清单核对（`RICENOTE_PLUGINS`）：**只报告、不安装**。
+     *
+     * 重建环境时清单是"期望状态"，而实际装了什么只有这里能对照出来；
+     * 缺件与新版本都直接给出可执行的命令，避免变成"感觉少了点什么"。
+     */
+    this.reportDeclaredPlugins(config, logger);
 
     const enabledIds = new Set(
       (await this.store.list()).filter((row) => row.enabled).map((row) => row.id)
@@ -487,6 +499,56 @@ export class PluginManager {
    * 直接 `records.set(id, { id, state, enabled })` 会把附加字段悄悄抹掉
    * （来源元数据、此前记录的错误等）—— 状态迁移只应该改状态。
    */
+  /**
+   * 核对 `RICENOTE_PLUGINS` 声明与磁盘实际安装情况。
+   *
+   * 三类问题各给一条可执行提示：
+   * - 声明了但没装 → `pnpm plugin install <spec>`（或 `pnpm setup --from-manifest`）；
+   * - 已装版本不满足声明的区间 → `pnpm plugin update <id>`；
+   * - 声明了未经官方目录收录的包 → 无法把包名映射到插件 ID，只能提示一句。
+   *
+   * 刻意**不**自动安装：启动路径联网装东西会让启动时间不可预测，
+   * 失败也难定位；清单是意图声明，执行动作留给显式命令。
+   */
+  private reportDeclaredPlugins(config: RiceNoteConfig, logger: Logger): void {
+    if (config.declaredPlugins.length === 0) return;
+
+    for (const spec of config.declaredPlugins) {
+      let name: string;
+      let range: string;
+      try {
+        ({ name, range } = parsePackageSpec(spec));
+      } catch {
+        logger.warn('插件清单中存在无法解析的条目', { spec, hint: '形如 @scope/name@^1.0.0' });
+        continue;
+      }
+
+      const entry = findCatalogEntryByNpm(name);
+      if (!entry) {
+        logger.warn('插件清单声明了未经官方插件目录收录的包', { spec, package: name });
+        continue;
+      }
+
+      const installed = this.loaded.get(entry.id)?.manifest.version;
+      if (!installed) {
+        logger.warn('插件清单声明的插件尚未安装', {
+          plugin: entry.id,
+          spec,
+          hint: `执行 pnpm plugin install ${spec}`
+        });
+        continue;
+      }
+      if (range !== 'latest' && !satisfiesRange(installed, range)) {
+        logger.warn('已安装版本不满足插件清单声明', {
+          plugin: entry.id,
+          installed,
+          declared: range,
+          hint: `执行 pnpm plugin update ${entry.id}`
+        });
+      }
+    }
+  }
+
   private patchRecord(
     pluginId: string,
     patch: Partial<PluginRecord> & { state: PluginState }
@@ -539,6 +601,12 @@ export class PluginManager {
           state: (record?.state ?? 'DISCOVERED') as PluginState,
           enabled: record?.enabled ?? false,
           builtin: plugin.builtin,
+          /*
+           * `official` 与 `builtin` 是两件事（见 ADR-016）：
+           * builtin = 随仓库分发（不可卸载）；official = 属于官方插件目录
+           * （从 npm 装的官方插件也可卸载，但仍显示"官方"并参与推荐版本比较）。
+           */
+          official: isOfficialPlugin(id, record?.source),
           path: plugin.dir,
           provides,
           capabilities: plugin.manifest.capabilities ?? [],

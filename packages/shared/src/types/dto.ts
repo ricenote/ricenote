@@ -95,7 +95,15 @@ export interface PluginSummary {
   author?: string;
   state: PluginState;
   enabled: boolean;
+  /**
+   * **随仓库分发**（位于 `plugins/official`）：不可卸载，来源每次启动以仓库路径为准。
+   *
+   * 注意它**不等于"官方"**：从 npm 安装的官方插件是可卸载的普通插件，
+   * 是否官方看 `official`。
+   */
   builtin: boolean;
+  /** 属于官方插件目录（`plugin-catalog.json`）：显示"官方"徽章、参与推荐版本比较。 */
+  official?: boolean;
   path: string;
   provides: string[];
   capabilities: PluginCapability[];
@@ -105,6 +113,34 @@ export interface PluginSummary {
   updatedAt?: string;
   /** 来源元数据；内置（随仓库分发）的插件也有，类型为 `local`。 */
   source?: PluginSourceInfo;
+}
+
+/**
+ * 扩展中心「官方插件目录」的一行。
+ *
+ * 由目录清单（推荐版本）与已安装状态合并而来：`installedVersion` 为 null
+ * 表示未安装；`updateToRecommended` 走**推荐版本**口径（不是 registry 最新版本）。
+ */
+export interface CatalogPluginDto {
+  id: string;
+  npm: string;
+  /** 推荐版本（随主程序发布）。 */
+  version: string;
+  category: 'required' | 'recommended' | 'optional' | 'example';
+  label: string;
+  description: string;
+  capabilities: string[];
+  requires: string[];
+  repository: string;
+  license: string;
+  /** 已安装版本；未安装为 null。 */
+  installedVersion: string | null;
+  /** 是否已安装（含从 npm 安装与随仓库分发两种形态）。 */
+  installed: boolean;
+  /** 是否随仓库分发（不可卸载）。 */
+  builtin: boolean;
+  /** 已装版本低于推荐版本。 */
+  updateToRecommended: boolean;
 }
 
 export interface PluginToggleRequest {

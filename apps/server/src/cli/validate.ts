@@ -15,7 +15,8 @@ import {
 } from '@ricenote/shared';
 import { PLUGIN_API_VERSION } from '@ricenote/plugin-sdk';
 import { THEME_API_VERSION } from '@ricenote/theme-sdk';
-import { discoverPluginsFrom } from '@ricenote/core';
+import { APP_VERSION, discoverPluginsFrom } from '@ricenote/core';
+import { validateCatalog, type CatalogValidation } from './validate-catalog.js';
 
 const validator = createManifestValidator();
 
@@ -24,12 +25,18 @@ export interface ValidateOptions {
   /** 插件根目录列表（官方 + 第三方安装目录）。 */
   pluginsDirs: string[];
   themesDir: string;
+  /** 官方插件目录（`plugins/official`）；用于校验官方插件目录的一致性。 */
+  officialDir?: string;
+  /** 当前应用版本（默认取内核 APP_VERSION）。 */
+  appVersion?: string;
 }
 
 interface ValidationReport {
   ok: boolean;
   plugin: { total: number; valid: number; invalid: { dir: string; issues: ValidationIssue[] }[] };
   theme: { total: number; valid: number; invalid: { dir: string; issues: ValidationIssue[] }[] };
+  /** 官方插件目录（推荐版本、包名、可发布形态）的校验结果。 */
+  catalog: CatalogValidation;
 }
 
 const GREEN = '\u001b[32m';
@@ -153,9 +160,17 @@ export function validateProject(options: ValidateOptions): ValidationReport {
 
   const invalidPlugins = [...pluginIssues, ...pluginApiIssues];
   const themeResult = validateThemes(options.themesDir);
+  /*
+   * 官方插件目录一致性：官方插件一旦发到 npm 就收不回，
+   * 因此版本/包名/可发布形态的漂移必须在提交前拦住。
+   */
+  const catalogResult = validateCatalog({
+    officialDir: options.officialDir,
+    appVersion: options.appVersion ?? APP_VERSION
+  });
 
   return {
-    ok: invalidPlugins.length === 0 && themeResult.invalid.length === 0,
+    ok: invalidPlugins.length === 0 && themeResult.invalid.length === 0 && catalogResult.ok,
     plugin: {
       total: discovery.plugins.length + discovery.invalid.length,
       valid: discovery.plugins.length - pluginApiIssues.length,
@@ -165,7 +180,8 @@ export function validateProject(options: ValidateOptions): ValidationReport {
       total: themeResult.total,
       valid: themeResult.total - themeResult.invalid.length,
       invalid: themeResult.invalid
-    }
+    },
+    catalog: catalogResult
   };
 }
 
@@ -261,6 +277,28 @@ export function runValidate(options: ValidateOptions): number {
         process.stdout.write(`    ${YELLOW}${issue.path}${RESET} ${issue.message}\n`);
       }
     }
+  }
+
+  if (report.catalog.invalid.length === 0) {
+    process.stdout.write(
+      `${GREEN}✓${RESET} 官方插件目录：${report.catalog.valid}/${report.catalog.total} 通过` +
+        `${DIM}（appVersion ${report.catalog.catalogAppVersion}）${RESET}\n`
+    );
+  } else {
+    process.stdout.write(
+      `${RED}✗${RESET} 官方插件目录：${report.catalog.valid}/${report.catalog.total} 通过\n`
+    );
+    for (const item of report.catalog.invalid) {
+      process.stdout.write(`  ${RED}${item.id}${RESET} ${DIM}${item.label}${RESET}\n`);
+      for (const issue of item.issues) {
+        process.stdout.write(`    ${YELLOW}${issue.path}${RESET} ${issue.message}\n`);
+      }
+    }
+  }
+
+  // 提示不算失败：例如开发中的插件还没进目录、清单版本还没随发版更新
+  for (const note of report.catalog.notes) {
+    process.stdout.write(`  ${YELLOW}!${RESET} ${DIM}${note}${RESET}\n`);
   }
 
   process.stdout.write('\n');

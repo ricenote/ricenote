@@ -136,6 +136,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | POST | `/plugins/:id/remove` | `plugin.install` | 卸载（内置插件、存在启用依赖时拒绝） |
 | GET | `/plugins/updates` | `plugin.view` | 更新检查（本地来源标注为不可检查） |
 | GET | `/plugins/jobs`、`/plugins/jobs/:jobId` | `plugin.view` | 安装任务历史与单个任务日志 |
+| GET | `/plugins/catalog` | `plugin.view` | 官方插件目录：推荐清单 + 已装状态 + 是否落后于推荐版本（扩展中心据此渲染） |
 
 ### 2.5 后台界面与插件界面的静态托管（Core 拥有，不属于插件）
 
@@ -327,6 +328,19 @@ Core 在插件启动时读取声明并注册菜单，同时：
 | `plugin.view` | 查看插件 | 扩展中心、能力清单、安装任务与更新检查 |
 | `plugin.manage` | 启用与配置插件 | 插件启停/**设置保存** |
 | `plugin.install` | 安装、更新与卸载插件（等同授予其服务器代码执行权限） | `/plugins/install*`、`/plugins/:id/update|remove`、CLI `plugin install/update/remove`（默认仅 `administrator`） |
+
+## 9.1 安装与分发（v0.5.0，ADR-016）
+
+不属于插件扩展点，但会直接影响"插件以什么形态存在"，因此在这里留索引：
+
+| 概念 | 位置 | 说明 |
+| --- | --- | --- |
+| 推荐插件清单 | `packages/shared/manifests/plugin-catalog.json` | 官方插件的包名、推荐版本、分类（必需/推荐/可选/示例）、依赖 —— 唯一事实来源 |
+| 安装向导 | `pnpm setup`（`apps/server/src/cli/setup.ts`） | 自动建库 → 写 `.env` → 迁移 → 勾选并安装官方插件 → 首次初始化 |
+| 安装任务 | `rn_plugin_jobs` + `PluginInstallRunner` | 串行执行、进度与日志落库，后台与 CLI 共用 |
+| 声明式清单 | `.env` 的 `RICENOTE_PLUGINS` | `包名@区间` 列表；启动期**只核对不安装**，缺件给命令 |
+| `builtin` vs `official` | `PluginSummary` | 前者=随仓库分发（不可卸载），后者=属于官方目录（可更新可卸载） |
+| 发布 | `scripts/release-plugins.mjs` / `pnpm release:plugins` | 校验通过后按依赖顺序 `pnpm publish`；token 只走环境变量 |
 | `user.manage` | 管理用户与角色 | identity 用户管理、authorization 角色 |
 | `system.audit` | 查看审计日志 | `/api/admin/audit` |
 | `system.maintain` | 系统维护（日志与备份恢复） | `/logs`、`/backup*` |

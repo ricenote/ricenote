@@ -79,6 +79,18 @@ export interface RiceNoteConfig {
     defaultTheme: string;
   };
   seedPlugins: string[];
+  /**
+   * 声明式插件清单（`RICENOTE_PLUGINS`）：`包名@区间` 逗号分隔。
+   *
+   * 与 `seedPlugins` 的分工：
+   * - `seedPlugins` 是**启用名单**（首次发现时启用哪些短名），历史兼容保留；
+   * - `declaredPlugins` 是**期望安装的清单**（含 npm 包名与版本区间），由
+   *   `ricenote setup` 写出，用于"重建环境可复现"与启动期核对。
+   *
+   * 启动期**只核对不安装**：内核启动时静默联网装插件既慢又难排查，
+   * 缺什么用日志说清楚、给出命令即可。
+   */
+  declaredPlugins: string[];
   preview: { ttlSeconds: number };
   render: { cacheEnabled: boolean; cacheTtlSeconds: number };
 }
@@ -252,6 +264,10 @@ export function loadConfig(options: LoadConfigOptions = {}): RiceNoteConfig {
       defaultTheme: env('DEFAULT_THEME', 'minimal')
     },
     seedPlugins: env('RICENOTE_SEED_PLUGINS', '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0),
+    declaredPlugins: env('RICENOTE_PLUGINS', '')
       .split(',')
       .map((item) => item.trim())
       .filter((item) => item.length > 0),

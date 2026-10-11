@@ -4,10 +4,14 @@
  * 行为：
  * - 正常启动内核并挂载 HTTP 服务；
  * - 数据库不可用时不崩溃，而是启动"诊断服务"，让管理员能看到原因与修复步骤；
+ * - **未初始化时给引导**：「还没有 .env」与「库结构还没建」不是故障而是"还没装"，
+ *   因此直接输出下一步命令（`pnpm setup`），不让用户从数据库错误栈里反推；
  * - 把重启执行器注入内核，从而支持后台"一键重启"（进程内软重启，ADR-004 / ADR-012）；
  * - 收到 SIGINT/SIGTERM 时优雅关停（停止插件、释放连接池）。
  */
 
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { bootstrap, loadConfig, resolveRootDir } from '@ricenote/core';
 import { ErrorCode, isRiceNoteError } from '@ricenote/shared';
 import { renderDatabaseDownPage } from './recovery/recovery-mode.js';
@@ -76,6 +80,18 @@ async function main(): Promise<void> {
       supervisor.currentKernel.logger.error('未捕获异常', { error: error.message, stack: error.stack });
     });
   } catch (error) {
+    /*
+     * 未初始化引导：全新部署最容易撞的两件事是「还没有 .env」与「库结构还没建」。
+     * 这两类都不是故障，而是"还没装"，因此直接给出下一步命令，
+     * 而不是让用户从数据库错误栈里反推。
+     */
+    const hints = initializationHints(rootDir, error);
+    if (hints.length > 0) {
+      process.stderr.write(
+        `[ricenote] 尚未完成初始化：\n${hints.map((hint) => `  · ${hint}`).join('\n')}\n`
+      );
+    }
+
     if (isRiceNoteError(error) && error.code === ErrorCode.DB_UNAVAILABLE) {
       const reason = error.message;
       await startDiagnosticServer({
@@ -105,3 +121,24 @@ async function main(): Promise<void> {
 }
 
 void main();
+
+/**
+ * 把"尚未初始化"与"真的出故障"区分开，并给出下一步命令。
+ *
+ * 判据刻意用**可观察事实**（.env 是否存在、错误里是否提到表不存在），
+ * 而不是新加一个状态标记 —— 状态标记会在"装到一半"时撒谎。
+ */
+function initializationHints(rootDir: string, error: unknown): string[] {
+  const hints: string[] = [];
+
+  if (!existsSync(path.join(rootDir, '.env'))) {
+    hints.push('未找到 .env —— 请先执行：pnpm setup');
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  if (/doesn't exist|ER_NO_SUCH_TABLE|Unknown table|Unknown database/i.test(message)) {
+    hints.push('数据库结构尚未初始化 —— 请执行：pnpm setup（或只补结构：pnpm migrate）');
+  }
+
+  return hints;
+}

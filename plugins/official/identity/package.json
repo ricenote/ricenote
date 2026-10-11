@@ -1,16 +1,54 @@
 {
   "name": "@ricenote/plugin-identity",
   "version": "1.3.0",
-  "private": true,
   "type": "module",
   "description": "RiceNote 身份与认证插件：用户、会话与登录",
+  "keywords": [
+    "ricenote",
+    "plugin"
+  ],
+  "homepage": "https://github.com/ricenote/plugin-identity",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ricenote/plugin-identity.git"
+  },
+  "license": "MIT",
+  "author": "RiceNote",
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "admin",
+    "migrations",
+    "manifest.json",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {
-    "@ricenote/plugin-sdk": "workspace:*",
-    "@ricenote/shared": "workspace:*"
+  "dependencies": {},
+  "peerDependencies": {
+    "@ricenote/plugin-sdk": "^0.4.0",
+    "@ricenote/shared": "^0.4.0"
+  },
+  "peerDependenciesMeta": {
+    "@ricenote/plugin-sdk": {
+      "optional": true
+    },
+    "@ricenote/shared": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ricenote/plugin-sdk": "workspace:^",
+    "@ricenote/shared": "workspace:^",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
   }
 }

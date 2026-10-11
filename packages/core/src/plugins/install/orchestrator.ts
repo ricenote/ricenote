@@ -16,6 +16,7 @@
 import { randomBytes } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { isHostProvidedPackage } from '@ricenote/shared';
 import type { PluginInstallResult, PluginSourceInfo } from '@ricenote/shared';
 import type { Logger } from '../../logger.js';
 import { shortName } from '../manager.js';
@@ -177,6 +178,20 @@ async function preparePackage(root: string, ctx: PrepareContext): Promise<void> 
   }
 
   const packageJson = readPackageJson(packageJsonPath);
+
+  /*
+   * 「只含产物」的包（发布到 registry 的官方插件就是这种形态：`files` 只带
+   * dist/admin/migrations/manifest.json，源码在独立仓库里）没有 `src/`，
+   * 也没有 `tsconfig.json` —— 它们既不需要装依赖也不需要构建。
+   *
+   * 若不加这一条，`scripts.build` 会让编排去跑一遍 `install && run build`：
+   * 先下载一堆用不上的 devDependencies，再因为缺 `src/` 而失败。
+   */
+  if (!existsSync(path.join(root, 'src')) && !existsSync(path.join(root, 'tsconfig.json'))) {
+    ctx.log('该包只包含构建产物（无 src/ 与 tsconfig.json），跳过依赖安装与构建');
+    return;
+  }
+
   const scriptNames = Object.keys(packageJson.scripts ?? {});
   const needsBuild = scriptNames.includes('build');
   const dependencyCount =
@@ -200,6 +215,22 @@ async function preparePackage(root: string, ctx: PrepareContext): Promise<void> 
       ctx.log('提示：该插件声明了构建脚本，但跳过依赖安装后无法构建，请在其仓库内先构建');
     }
     return;
+  }
+
+  /*
+   * 宿主提供的包**必须**是可选 peer，不能是普通依赖。
+   *
+   * 写成 dependencies 会在插件目录内装出第二份 `@ricenote/shared` / `plugin-sdk`，
+   * 与 ADR-014 记录过的"两份 Vue → 页面空白且控制台干净"是同一类事故，
+   * 而且极难定位。这里直接拒绝安装并说明怎么改。
+   */
+  const hostProvided = hostProvidedDependencies(packageJson);
+  if (hostProvided.length > 0) {
+    throw new Error(
+      `插件包把宿主提供的包写成了普通依赖：${hostProvided.join('、')}。` +
+        '请改为 peerDependencies + peerDependenciesMeta.optional=true（宿主负责提供这些包），' +
+        '并在 devDependencies 中按普通版本区间保留它们以供本地构建。'
+    );
   }
 
   const manager = requirePackageManager(ctx.toolchain);
@@ -261,6 +292,14 @@ function hasWorkspaceProtocol(packageJson: PackageJsonShape): boolean {
   ];
   return groups.some(
     (group) => group !== undefined && Object.values(group).some((range) => range.startsWith('workspace:'))
+  );
+}
+
+/** 被错误地写成普通依赖的「宿主提供包」。 */
+function hostProvidedDependencies(packageJson: PackageJsonShape): string[] {
+  const groups = [packageJson.dependencies, packageJson.optionalDependencies];
+  return groups.flatMap((group) =>
+    group === undefined ? [] : Object.keys(group).filter((name) => isHostProvidedPackage(name))
   );
 }
 

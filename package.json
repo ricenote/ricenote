@@ -19,7 +19,10 @@
     "migrate": "pnpm --filter @ricenote/server migrate",
     "validate": "pnpm --filter @ricenote/server validate",
     "plugin": "pnpm --filter @ricenote/server plugin",
-    "theme": "pnpm --filter @ricenote/server theme"
+    "theme": "pnpm --filter @ricenote/server theme",
+    "setup": "pnpm --filter @ricenote/server setup",
+    "release:plugins": "node scripts/release-plugins.mjs",
+    "repos:plugins": "node scripts/split-plugin-repos.mjs"
   },
   "dependencies": {
     "@ricenote/plugin-sdk": "workspace:*",

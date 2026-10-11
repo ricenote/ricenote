@@ -114,7 +114,7 @@ importers:
   packages/admin-sdk:
     dependencies:
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../shared
       class-variance-authority:
         specifier: ^0.7.1
@@ -224,7 +224,7 @@ importers:
   packages/plugin-sdk:
     dependencies:
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../shared
 
   packages/shared:
@@ -246,113 +246,181 @@ importers:
   packages/theme-sdk:
     dependencies:
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../shared
 
   plugins/official/authorization:
-    dependencies:
+    devDependencies:
       '@ricenote/plugin-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/plugin-sdk
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/comments:
-    dependencies:
+    devDependencies:
       '@ricenote/plugin-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/plugin-sdk
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/hello:
-    dependencies:
+    devDependencies:
       '@ricenote/plugin-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/plugin-sdk
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/identity:
-    dependencies:
+    devDependencies:
       '@ricenote/plugin-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/plugin-sdk
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/media:
-    dependencies:
+    devDependencies:
       '@ricenote/plugin-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/plugin-sdk
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/navigation:
-    dependencies:
+    devDependencies:
       '@ricenote/plugin-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/plugin-sdk
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/pages:
     dependencies:
-      '@ricenote/plugin-sdk':
-        specifier: workspace:*
-        version: link:../../../packages/plugin-sdk
-      '@ricenote/shared':
-        specifier: workspace:*
-        version: link:../../../packages/shared
       marked:
         specifier: ^15.0.4
         version: 15.0.12
+    devDependencies:
+      '@ricenote/plugin-sdk':
+        specifier: workspace:^
+        version: link:../../../packages/plugin-sdk
+      '@ricenote/shared':
+        specifier: workspace:^
+        version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/posts:
     dependencies:
-      '@ricenote/plugin-sdk':
-        specifier: workspace:*
-        version: link:../../../packages/plugin-sdk
-      '@ricenote/shared':
-        specifier: workspace:*
-        version: link:../../../packages/shared
       marked:
         specifier: ^15.0.4
         version: 15.0.12
+    devDependencies:
+      '@ricenote/plugin-sdk':
+        specifier: workspace:^
+        version: link:../../../packages/plugin-sdk
+      '@ricenote/shared':
+        specifier: workspace:^
+        version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/search:
-    dependencies:
+    devDependencies:
       '@ricenote/plugin-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/plugin-sdk
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/seo:
-    dependencies:
+    devDependencies:
       '@ricenote/plugin-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/plugin-sdk
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/official/taxonomy:
-    dependencies:
+    devDependencies:
       '@ricenote/plugin-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/plugin-sdk
       '@ricenote/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   plugins/third-party/reading-time:
     dependencies:
