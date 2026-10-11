@@ -1,0 +1,21 @@
+{
+  "name": "@ricenote/tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 单元与集成测试",
+  "scripts": {
+    "test": "node --import tsx --test unit/*.test.ts integration/*.test.ts",
+    "test:unit": "node --import tsx --test unit/*.test.ts",
+    "test:integration": "node --import tsx --test integration/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/core": "workspace:*",
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*",
+    "@ricenote/theme-sdk": "workspace:*",
+    "adm-zip": "^0.5.16",
+    "mysql2": "^3.12.0"
+  }
+}

@@ -1,0 +1,79 @@
+# ADR-006：管理后台 UI 采用 shadcn-vue
+
+- 状态：已接受
+- 日期：2026-10-11
+
+## 背景
+
+规划说明书第 2 章硬性规定管理后台使用 **Vue 3 + Vite + Vue Router**。
+实施阶段提出"使用 shadcn/ui"的要求，但 shadcn/ui 原生面向 React，
+直接引入将导致管理后台从 Vue 3 改为 React，与说明书架构基线冲突。
+
+## 决策
+
+采用 **shadcn-vue**（shadcn/ui 的官方社区 Vue 移植版，底层为 Tailwind CSS + Reka UI），
+保持管理后台为 Vue 3，架构基线不漂移。因此**不修改说明书第 2 章**，仅以本 ADR 记录选型。
+
+同时冻结以下视觉约束（来自产品方明确要求）：
+
+| 约束 | 内容 |
+| --- | --- |
+| 主色 | **柠檬浅黄 `#FDE047`**，配深色前景以保证对比度；禁止白字压黄底 |
+| 玻璃效果 | **禁用**：不出现 `backdrop-blur`、半透明磨砂面板 |
+| 阴影 | **全站禁用**：不出现 `box-shadow` / `shadow-*` / `drop-shadow-*`；卡片层级只靠 1px 边框与背景色差 |
+| 图标 | `lucide-vue-next`，尺寸 16/18/20，描边 1.75 |
+| 动效 | 仅 `transition-colors` / `transition-transform duration-200`；`prefers-reduced-motion` 下全部关闭 |
+
+实现方式：
+
+- 设计令牌以 CSS 变量定义在 `apps/admin/src/index.css`，交由 Tailwind 主题消费；
+- shadcn-vue 组件以**源码内联**形式落在 `apps/admin/src/components/ui/*`，
+  接入时须移除组件自带的 `shadow-*` 类；
+- 组件样式禁止硬编码颜色类，一律引用令牌。
+
+## 理由
+
+- 满足"使用 shadcn"的产品诉求，同时守住说明书规定的 Vue 3 架构；
+- shadcn 的"复制到项目内"模式使组件源码可被完全定制，适合需要强制去除阴影/玻璃效果的场景；
+- Reka UI 提供无障碍（a11y）基础，避免自研组件在键盘导航与 ARIA 上出错；
+- 与 ADR-002 一致：主题（前台）与后台 UI 完全隔离，后台组件不会泄漏到主题体系。
+
+## 后果
+
+**正面**
+
+- 后台组件可深度定制且无黑盒依赖；
+- 无阴影 + 浅黄主色的"扁平利落"风格在实现层有明确、可审查的规则；
+- 与 Vue 3 生态（Vue Router、响应式）无缝集成。
+
+**负面 / 约束**
+
+- shadcn-vue 为社区移植，组件覆盖面与更新节奏滞后于 React 版，可能需要自行补齐个别组件；
+- 必须人工审查每个引入组件的默认 `shadow-*` 与 `backdrop-blur` 类；
+- 浅色主色要求所有主按钮、徽标、图表配色都需逐一核对对比度。
+
+## 实现说明（M2 落地时的取舍）
+
+shadcn 的核心价值是"组件源码属于项目 + 由 Tailwind 令牌驱动外观"，而非某个具体依赖。
+v1 落地时：
+
+- **未引入 Reka UI**：管理后台需要的交互原语只有按钮、输入、下拉、开关与模态对话框，
+  自研成本很低（`Dialog` 仅需滚动锁定 + Esc 关闭）。引入 Reka UI 会增加依赖与版本耦合，
+  收益不足以抵偿；当后续出现 Combobox / DatePicker / Command 这类复杂原语时再引入。
+- 组件落在 `apps/admin/src/components/ui/*`，API 与命名保持 shadcn 一致
+  （`Button` 使用 `cva` 变体、`Card` / `Badge` / `Label` 等保持同名同义），
+  因此未来迁移到 shadcn-vue 官方组件只需替换文件实现，不影响业务页面。
+- 在 `index.css` 中以全局规则强制压平 `shadow-*` 与 `backdrop-blur`，
+  避免后续引入的组件片段（含第三方）带回被禁用的视觉效果。
+
+**验证方式**：在真实浏览器中统计页面全部元素的 `getComputedStyle`，
+断言 `box-shadow !== none` 与 `backdrop-filter !== none` 的元素数量均为 0
+（管理后台 249 个元素、前台主题 56 个元素，实测均为 0）。
+
+## 替代方案
+
+| 方案 | 否决原因 |
+| --- | --- |
+| 后台改用 React + shadcn/ui | 与说明书 Vue 3 基线冲突，需同步修订第 2 章与多份文档 |
+| 保留 Vue 3 但自研组件库 | 开发与 a11y 成本高，且未满足"使用 shadcn"的诉求 |
+| 沿用 TDesign | 无法获得 shadcn 的源码内联定制能力与视觉语言 |

@@ -1,0 +1,16 @@
+{
+  "name": "@ricenote/plugin-hello",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 最小示例插件：验证插件启停、路由注册与事件订阅",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*"
+  }
+}

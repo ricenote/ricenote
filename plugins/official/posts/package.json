@@ -1,0 +1,17 @@
+{
+  "name": "@ricenote/plugin-posts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 文章插件：写作、发布、归档与前台展示",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*",
+    "marked": "^15.0.4"
+  }
+}

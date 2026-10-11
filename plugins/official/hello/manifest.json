@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.hello",
+  "name": "Hello 示例插件",
+  "description": "验证插件发现、依赖解析、路由注册、服务发布与事件订阅的最小示例，用于 M1 退出标准。",
+  "version": "1.0.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "provides": ["demo.hello@1"],
+  "capabilities": [
+    "routes:public",
+    "services:provide",
+    "events:publish",
+    "events:subscribe",
+    "admin:menu"
+  ]
+}

@@ -1,0 +1,74 @@
+{#
+  基础布局。
+  主题设置通过 theme.settings.<字段名> 读取（已按 theme.json 声明校验）。
+  强调色必须经 css_color 过滤器输出，严禁直接拼接任意字符串到 style 中。
+#}
+<!doctype html>
+<html lang="{{ site.language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}{{ page.title }}{% if page.kind != 'home' %} · {{ site.title }}{% endif %}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ site.description }}{% endblock %}">
+  <link rel="canonical" href="{{ page.canonicalUrl }}">
+  <meta name="generator" content="RiceNote">
+  <link rel="stylesheet" href="{{ theme_asset('css/style.css') }}">
+  {{ slot('head.end') }}
+</head>
+<body
+  data-font="{{ theme.settings.fontFamily }}"
+  style="--rn-accent: {{ theme.settings.accentColor | css_color }}; --rn-width: {{ theme.settings.layoutWidth | number(960) }}px;"
+>
+  <a class="rn-skip-link" href="#main">跳到正文</a>
+
+  <header class="rn-header">
+    <div class="rn-container rn-header__inner">
+      <div class="rn-brand">
+        <a class="rn-brand__title" href="{{ url('home') }}">{{ site.title }}</a>
+        {% if theme.settings.tagline %}
+          <p class="rn-brand__tagline">{{ theme.settings.tagline }}</p>
+        {% endif %}
+      </div>
+
+      <nav class="rn-nav" aria-label="主导航">
+        <a href="{{ url('home') }}">首页</a>
+        {% if theme.settings.showSearch and has_feature('posts') %}
+          <a href="{{ url('search') }}">搜索</a>
+        {% endif %}
+        {{ slot('header.navigation') }}
+      </nav>
+    </div>
+  </header>
+
+  {{ slot('body.start') }}
+
+  <div class="rn-layout {% if not theme.settings.showSidebar or page.kind == 'post' %}rn-layout--single{% endif %}">
+    <main id="main" class="rn-main">
+      {% block content %}{% endblock %}
+    </main>
+
+    {% if theme.settings.showSidebar and page.kind != 'post' %}
+      <aside class="rn-sidebar" aria-label="侧边栏">
+        <section class="rn-card">
+          <h2 class="rn-card__title">关于本站</h2>
+          <p class="rn-muted">{{ site.description }}</p>
+        </section>
+        {{ slot('sidebar.widgets') }}
+      </aside>
+    {% endif %}
+  </div>
+
+  <footer class="rn-footer">
+    <div class="rn-container">
+      <p>{{ theme.settings.footerText }}</p>
+      {% if theme.settings.icp %}
+        <p><a href="{{ theme.settings.icp }}" rel="noopener noreferrer nofollow" target="_blank">备案信息</a></p>
+      {% endif %}
+      {{ slot('footer.widgets') }}
+    </div>
+  </footer>
+
+  {{ slot('body.end') }}
+  <script src="{{ theme_asset('js/main.js') }}" defer></script>
+</body>
+</html>

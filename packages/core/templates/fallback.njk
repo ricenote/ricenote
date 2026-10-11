@@ -1,0 +1,65 @@
+{#
+  Core 默认兼容模板（第三级回退）。
+
+  当主题未声明某个 kind 的模板、且主题内也不存在 fallback.njk 时，
+  渲染器会回退到这里，保证任何情况下都不会白屏。
+#}
+<!doctype html>
+<html lang="{{ site.language | default('zh-CN') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ page.title }} · {{ site.title }}</title>
+  <meta name="description" content="{{ site.description }}">
+  <link rel="canonical" href="{{ page.canonicalUrl }}">
+  {{ slot('head.end') }}
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      padding: 2.5rem 1.25rem 4rem;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.75;
+      color: #1f2933;
+      background: #fbfbfa;
+    }
+    .rn-fallback { max-width: 720px; margin: 0 auto; }
+    .rn-fallback__notice {
+      border: 1px solid #e2e0da;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.8125rem;
+      color: #6b7280;
+      background: #fff;
+      margin-bottom: 2rem;
+    }
+    .rn-fallback h1 { font-size: 1.75rem; line-height: 1.3; margin: 0 0 0.5rem; }
+    .rn-fallback__meta { color: #6b7280; font-size: 0.875rem; margin-bottom: 1.5rem; }
+    .rn-fallback pre {
+      background: #f1f0ec;
+      border: 1px solid #e2e0da;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      overflow-x: auto;
+      font-size: 0.8125rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="rn-fallback">
+    <a href="{{ url('home') }}">{{ site.title }}</a>
+
+    <div class="rn-fallback__notice">
+      当前主题（{{ theme.id }}）未提供「{{ current_kind }}」页面模板，
+      已由 RiceNote 内置兼容模板渲染。请在 theme.json 的 templates 中声明对应模板。
+    </div>
+
+    <h1>{{ page.title }}</h1>
+    <p class="rn-fallback__meta">{{ page.canonicalUrl }}</p>
+
+    <pre>{{ data | dump(2) }}</pre>
+  </div>
+
+  {{ slot('body.end') }}
+</body>
+</html>

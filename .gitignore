@@ -1,0 +1,37 @@
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# 环境与本地配置
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# 运行时产物
+storage/logs/*
+storage/cache/*
+storage/uploads/*
+!storage/**/.gitkeep
+storage/.preview/
+
+# 编辑器与系统
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# 日志与临时文件
+*.log
+npm-debug.log*
+pnpm-debug.log*
+coverage/
+.nyc_output/
+tests/.tmp/
+
+# 浏览器自动化（playwright-cli）产生的快照与截图
+.playwright-cli/
+e2e-*.png
+RiceNote 项目规划与架构说明书 v1.0.md

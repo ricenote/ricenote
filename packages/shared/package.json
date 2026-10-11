@@ -1,0 +1,30 @@
+{
+  "name": "@ricenote/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 公共契约：DTO、错误码、capability 工具与 Manifest JSON Schema",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./manifests/plugin.schema.json": "./manifests/plugin.schema.json",
+    "./manifests/theme.schema.json": "./manifests/theme.schema.json"
+  },
+  "files": ["dist", "manifests"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "semver": "^7.6.3"
+  },
+  "devDependencies": {
+    "@types/semver": "^7.5.8"
+  }
+}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="{{ site.language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ site.description }}{% endblock %}">
+  <link rel="canonical" href="{{ page.canonicalUrl }}">
+  <link rel="stylesheet" href="{{ theme_asset('css/style.css') }}">
+  {{ slot('head.end') }}
+</head>
+<body style="--df-accent: {{ theme.settings.accentColor | css_color }};">
+  {{ slot('body.start') }}
+
+  <header class="df-hero">
+    <div class="df-shell df-hero__inner">
+      <a class="df-logo" href="{{ url('home') }}">
+        <span class="df-logo__mark">R</span>
+        <span class="df-logo__text">{{ site.title }}</span>
+      </a>
+      <nav class="df-nav">
+        <a href="{{ url('home') }}">全部文章</a>
+        {% if has_feature('posts') %}<a href="{{ url('search') }}">搜索</a>{% endif %}
+        {{ slot('header.navigation') }}
+      </nav>
+    </div>
+  </header>
+
+  <div class="df-shell df-body">
+    <main class="df-main">{% block content %}{% endblock %}</main>
+    {% if page.kind != 'post' %}
+      <aside class="df-aside">{{ slot('sidebar.widgets') }}</aside>
+    {% endif %}
+  </div>
+
+  <footer class="df-footer">
+    <div class="df-shell">
+      <p>{{ theme.settings.footerText }}</p>
+      {{ slot('footer.widgets') }}
+    </div>
+  </footer>
+
+  {{ slot('body.end') }}
+</body>
+</html>

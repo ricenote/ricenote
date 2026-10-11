@@ -1,0 +1,29 @@
+{% extends "layout.njk" %}
+
+{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}
+
+{% block content %}
+<article class="df-article">
+  <h1 class="df-article__title">{{ post.title }}</h1>
+  <p class="df-article__meta">
+    {% if post.publishedAt %}<time datetime="{{ post.publishedAt }}">{{ post.publishedAt | date('YYYY-MM-DD') }}</time>{% endif %}
+    {% if post.authorName %} · {{ post.authorName }}{% endif %}
+  </p>
+
+  {% if post.coverUrl and theme.settings.showCover %}
+    <img class="df-article__cover" src="{{ post.coverUrl }}" alt="" loading="eager">
+  {% endif %}
+
+  {{ slot('post.beforeContent', { postId: post.id }) }}
+
+  <div class="df-prose">{{ post.html }}</div>
+
+  {{ slot('post.afterContent', { postId: post.id }) }}
+</article>
+
+{% if has_feature('comments') %}
+  <section class="df-comments"><h2>评论</h2>{{ slot('post.comments', { postId: post.id }) }}</section>
+{% endif %}
+
+<p class="df-back"><a href="{{ url('home') }}">← 返回文章列表</a></p>
+{% endblock %}

@@ -1,0 +1,16 @@
+{
+  "name": "@ricenote/plugin-taxonomy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 分类与标签插件",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*"
+  }
+}

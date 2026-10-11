@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ricenote.dev/schemas/plugin.schema.json",
+  "title": "RiceNote Plugin Manifest",
+  "description": "RiceNote 插件清单（manifest.json）契约 v1。",
+  "type": "object",
+  "required": ["schemaVersion", "id", "name", "version", "apiVersion", "entry"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "Manifest 结构版本，v1 固定为 1。"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$",
+      "maxLength": 80,
+      "description": "插件唯一标识，形如 rice.posts。"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "description": "插件显示名称。"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$",
+      "description": "插件版本，遵循语义化版本。"
+    },
+    "apiVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "所依赖的 RiceNote Plugin API 区间，例如 ^1.0.0。"
+    },
+    "author": { "type": "string", "maxLength": 160 },
+    "license": { "type": "string", "maxLength": 64 },
+    "homepage": { "type": "string", "maxLength": 300 },
+    "entry": {
+      "type": "string",
+      "pattern": "^\\./",
+      "description": "相对于插件目录的入口模块路径，例如 ./dist/index.js。"
+    },
+    "requires": {
+      "type": "object",
+      "description": "依赖声明：键为 capability 契约或插件 ID，值为 semver 区间。",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*(?:@\\d+)?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "provides": {
+      "type": "array",
+      "description": "对外提供的能力契约，例如 [\"content.posts@1\"]。",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*@\\d+$"
+      },
+      "uniqueItems": true
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "请求的内核能力白名单。",
+      "items": {
+        "enum": [
+          "routes:public",
+          "routes:admin",
+          "database:own",
+          "events:publish",
+          "events:subscribe",
+          "services:provide",
+          "services:consume",
+          "slots:register",
+          "admin:menu",
+          "media:store"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "migrations": {
+      "type": "string",
+      "pattern": "^\\./",
+      "description": "相对于插件目录的迁移目录，例如 ./migrations。"
+    },
+    "settings": {
+      "type": "object",
+      "description": "插件自有配置声明的默认值（键为配置路径）。",
+      "additionalProperties": true
+    }
+  }
+}

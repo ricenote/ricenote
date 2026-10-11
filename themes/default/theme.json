@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.default",
+  "name": "Default",
+  "description": "默认主题：深色页眉 + 卡片网格首页，与 Minimal 呈现风格明显不同，用于验证「同一内容切换主题」不影响业务插件。",
+  "version": "1.0.0",
+  "apiVersion": "^1.0.0",
+  "engine": "nunjucks",
+  "author": "RiceNote",
+  "license": "MIT",
+  "templates": {
+    "home": "index.njk",
+    "post": "post.njk",
+    "archive": "archive.njk",
+    "search": "search.njk",
+    "404": "404.njk"
+  },
+  "requires": {
+    "content.posts@1": "^1.0.0"
+  },
+  "settings": {
+    "appearance": {
+      "label": "外观",
+      "fields": {
+        "accentColor": { "type": "color", "label": "强调色", "default": "#E8B04B" },
+        "columns": {
+          "type": "select",
+          "label": "首页列数",
+          "default": "3",
+          "options": [
+            { "label": "两列", "value": "2" },
+            { "label": "三列", "value": "3" }
+          ]
+        },
+        "showCover": { "type": "boolean", "label": "显示封面图", "default": true }
+      }
+    },
+    "footer": {
+      "label": "页脚",
+      "fields": {
+        "footerText": { "type": "text", "label": "页脚文字", "default": "RiceNote · Default 主题", "maxLength": 160 }
+      }
+    }
+  }
+}

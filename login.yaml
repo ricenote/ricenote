@@ -1,0 +1,25 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: R
+      - generic [ref=e7]:
+        - paragraph [ref=e8]: RiceNote
+        - paragraph [ref=e9]: 插件优先的博客系统
+    - generic [ref=e10]:
+      - heading "登录管理后台" [level=1] [ref=e11]
+      - paragraph [ref=e12]:
+        - text: 使用管理员账号登录；首次部署的初始账号由环境变量
+        - code [ref=e13]: BOOTSTRAP_ADMIN_*
+        - text: 决定。
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]: 用户名
+          - textbox "用户名" [ref=e18]:
+            - /placeholder: admin
+        - generic [ref=e19]:
+          - generic [ref=e20]: 密码
+          - textbox "密码" [ref=e22]:
+            - /placeholder: ••••••••
+        - button "进入后台" [ref=e23] [cursor=pointer]
+    - paragraph [ref=e24]: RiceNote v0.1.0 · 会话使用 HttpOnly Cookie，写操作校验 CSRF Token 连续失败会触发限流，请勿在公共环境使用弱口令
+  - status

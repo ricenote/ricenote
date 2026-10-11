@@ -1,0 +1,30 @@
+{% extends "layout.njk" %}
+
+{% block title %}搜索 · {{ site.title }}{% endblock %}
+
+{% block content %}
+<h1 class="df-heading">搜索</h1>
+
+<form class="df-search" action="{{ url('search') }}" method="get" role="search">
+  <input type="search" name="q" value="{{ keyword }}" placeholder="输入关键词" aria-label="搜索关键词" required>
+  <button type="submit">搜索</button>
+</form>
+
+{% if keyword %}
+  <p class="df-sub">「{{ keyword }}」共匹配 {{ posts.total }} 篇</p>
+  {% if posts.items.length %}
+    <ul class="df-list">
+      {% for post in posts.items %}
+        <li>
+          <a href="{{ post.url }}">{{ post.title }}</a>
+          {% if post.publishedAt %}<time datetime="{{ post.publishedAt }}">{{ post.publishedAt | date('YYYY-MM-DD') }}</time>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="df-sub">没有匹配的结果。</p>
+  {% endif %}
+{% else %}
+  <p class="df-sub">输入关键词以检索站内文章。</p>
+{% endif %}
+{% endblock %}

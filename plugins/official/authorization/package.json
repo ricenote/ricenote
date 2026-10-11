@@ -1,0 +1,16 @@
+{
+  "name": "@ricenote/plugin-authorization",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 授权插件：角色、权限点与用户角色分派",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*"
+  }
+}

@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * ===========================================================================
+ * RiceNote 管理后台设计令牌
+ *
+ * 硬性约束（见 docs/adr/ADR-006）：
+ *  1. 主色为柠檬浅黄 #FDE047，前景必须使用深色以保证对比度（禁止白字压黄底）；
+ *  2. 全站禁用玻璃拟态：不出现 backdrop-blur / 半透明磨砂面板；
+ *  3. 全站禁用阴影：不出现 box-shadow / shadow-* / drop-shadow-*，
+ *     卡片与浮层的层级只靠 1px 边框与背景色差表达。
+ * ===========================================================================
+ */
+
+@layer base {
+  :root {
+    /* 主色：柠檬浅黄 */
+    --primary: 50 98% 64%; /* #FDE047 附近 */
+    --primary-foreground: 26 30% 12%; /* 深色文字，保证黄底可读 */
+    --primary-hover: 46 96% 56%;
+
+    /* 中性 */
+    --background: 60 9% 98%;
+    --foreground: 24 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 10% 10%;
+    --muted: 60 5% 94%;
+    --muted-foreground: 25 6% 45%;
+    --border: 20 6% 88%;
+    --input: 20 6% 88%;
+    --ring: 50 98% 64%;
+
+    --secondary: 60 5% 94%;
+    --secondary-foreground: 24 10% 20%;
+    --accent: 50 98% 92%;
+    --accent-foreground: 26 30% 16%;
+
+    --radius: 0.625rem;
+
+    /* 功能色 */
+    --success: 142 71% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 46%;
+    --warning-foreground: 26 30% 12%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* 阴影令牌置为 none：即使组件内部引用了 shadow 变量也不会产生投影 */
+    --shadow: none;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #app {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 14px;
+  }
+
+  /* 全站禁用阴影：统一压平，避免第三方片段带入 shadow-* 类 */
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl,
+  .drop-shadow,
+  .drop-shadow-sm,
+  .drop-shadow-md,
+  .drop-shadow-lg {
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  /* 禁用毛玻璃 */
+  [class*='backdrop-blur'] {
+    backdrop-filter: none !important;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* 卡片：实色 + 1px 边框，无投影 */
+  .rn-card {
+    @apply rounded-lg border border-border bg-card text-card-foreground;
+  }
+
+  /* 侧边导航项 */
+  .rn-nav-item {
+    @apply flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors;
+  }
+
+  .rn-nav-item:hover {
+    @apply bg-muted text-foreground;
+  }
+
+  .rn-nav-item--active {
+    @apply bg-accent text-accent-foreground font-medium;
+  }
+
+  /* 数据表 */
+  .rn-th {
+    @apply px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground;
+  }
+
+  .rn-td {
+    @apply px-3 py-3 align-middle text-sm;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

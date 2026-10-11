@@ -1,0 +1,448 @@
+/* ==========================================================================
+   RiceNote · Default 主题样式
+   与 Minimal 明显不同的视觉语言：深色页眉带、卡片网格首页、金色强调色。
+   ========================================================================== */
+
+:root {
+  --df-accent: #e8b04b;
+  --df-ink: #14181d;
+  --df-ink-soft: #4a5560;
+  --df-line: #e2e0da;
+  --df-paper: #ffffff;
+  --df-bg: #f4f3ef;
+  --df-radius: 14px;
+  --df-shell: 1120px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--df-bg);
+  color: var(--df-ink);
+  font-family: 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  line-height: 1.7;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--df-accent);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+.df-shell {
+  width: 100%;
+  max-width: var(--df-shell);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* --------------------------------- 页眉带 -------------------------------- */
+
+.df-hero {
+  background: var(--df-ink);
+  color: #f6f5f2;
+  padding: 1.35rem 0;
+}
+
+.df-hero__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.df-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #f6f5f2;
+}
+
+.df-logo__mark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--df-accent);
+  color: var(--df-ink);
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+.df-nav {
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.9375rem;
+}
+
+.df-nav a {
+  color: #cfd4d9;
+}
+
+.df-nav a:hover {
+  color: var(--df-accent);
+}
+
+/* --------------------------------- 主体 --------------------------------- */
+
+.df-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 2.5rem;
+  padding-top: 2.5rem;
+  padding-bottom: 4rem;
+}
+
+@media (max-width: 900px) {
+  .df-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --------------------------------- 卡片网格 -------------------------------- */
+
+.df-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.df-grid[data-columns='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .df-grid,
+  .df-grid[data-columns='2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .df-grid,
+  .df-grid[data-columns='2'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.df-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--df-paper);
+  border: 1px solid var(--df-line);
+  border-radius: var(--df-radius);
+  overflow: hidden;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.df-card:hover {
+  border-color: #c9c4ba;
+  transform: translateY(-2px);
+}
+
+.df-card__cover img {
+  display: block;
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+
+.df-card__body {
+  padding: 1.1rem 1.2rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.df-card__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.45;
+}
+
+.df-card__date {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--df-ink-soft);
+}
+
+.df-card__excerpt {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #495059;
+}
+
+.df-tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+}
+
+.df-tags a {
+  font-size: 0.7rem;
+  padding: 0.12rem 0.5rem;
+  border: 1px solid var(--df-line);
+  border-radius: 999px;
+  color: var(--df-ink-soft);
+}
+
+/* --------------------------------- 侧栏 --------------------------------- */
+
+.df-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--df-ink-soft);
+}
+
+/* --------------------------------- 文章页 -------------------------------- */
+
+.df-article__title {
+  margin: 0 0 0.4rem;
+  font-size: 2rem;
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+}
+
+.df-article__meta {
+  margin: 0 0 1.5rem;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  color: var(--df-ink-soft);
+}
+
+.df-article__cover {
+  width: 100%;
+  border-radius: var(--df-radius);
+  border: 1px solid var(--df-line);
+  margin-bottom: 1.5rem;
+}
+
+.df-prose {
+  background: var(--df-paper);
+  border: 1px solid var(--df-line);
+  border-radius: var(--df-radius);
+  padding: 1.75rem 1.9rem;
+  font-size: 1.0625rem;
+}
+
+.df-prose h2,
+.df-prose h3 {
+  margin: 2rem 0 0.6rem;
+  line-height: 1.35;
+}
+
+.df-prose code {
+  background: #f0efeb;
+  border: 1px solid var(--df-line);
+  border-radius: 5px;
+  padding: 0.1rem 0.32rem;
+  font-size: 0.875em;
+}
+
+.df-prose pre {
+  background: #f0efeb;
+  border: 1px solid var(--df-line);
+  border-radius: 10px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.df-prose pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.df-prose blockquote {
+  margin-left: 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--df-accent);
+  color: var(--df-ink-soft);
+}
+
+.df-prose table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.df-prose th,
+.df-prose td {
+  border: 1px solid var(--df-line);
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+}
+
+/* 插件 Slot 注入的区块 */
+.df-prose + .rn-post-terms,
+.rn-post-terms {
+  margin-top: 1.5rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--df-paper);
+  border: 1px solid var(--df-line);
+  border-radius: var(--df-radius);
+  font-size: 0.875rem;
+  color: var(--df-ink-soft);
+}
+
+.rn-post-terms .rn-term {
+  margin-right: 0.5rem;
+  color: var(--df-accent);
+}
+
+.rn-post-updated {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--df-ink-soft);
+}
+
+/* ------------------------------ 列表 / 分页 ------------------------------ */
+
+.df-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--df-paper);
+  border: 1px solid var(--df-line);
+  border-radius: var(--df-radius);
+  overflow: hidden;
+}
+
+.df-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.2rem;
+  border-bottom: 1px solid var(--df-line);
+}
+
+.df-list li:last-child {
+  border-bottom: 0;
+}
+
+.df-list time {
+  font-size: 0.75rem;
+  color: var(--df-ink-soft);
+  white-space: nowrap;
+}
+
+.df-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--df-line);
+  font-size: 0.9375rem;
+}
+
+.df-pager__off {
+  color: #b8bcc0;
+}
+
+.df-heading {
+  margin: 0 0 0.35rem;
+  font-size: 1.6rem;
+}
+
+.df-sub {
+  margin: 0 0 1.25rem;
+  color: var(--df-ink-soft);
+  font-size: 0.9375rem;
+}
+
+.df-search {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.df-search input {
+  flex: 1 1 auto;
+  padding: 0.6rem 0.9rem;
+  font: inherit;
+  border: 1px solid var(--df-line);
+  border-radius: 10px;
+  background: var(--df-paper);
+}
+
+.df-search button {
+  padding: 0.6rem 1.25rem;
+  font: inherit;
+  border: 1px solid var(--df-ink);
+  border-radius: 10px;
+  background: var(--df-ink);
+  color: #fff;
+  cursor: pointer;
+}
+
+.df-empty {
+  background: var(--df-paper);
+  border: 1px solid var(--df-line);
+  border-radius: var(--df-radius);
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.df-code {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--df-accent);
+}
+
+.df-button {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.55rem 1.3rem;
+  border-radius: 10px;
+  background: var(--df-ink);
+  color: #fff;
+}
+
+.df-back {
+  margin-top: 2rem;
+  font-size: 0.9375rem;
+}
+
+/* --------------------------------- 页脚 --------------------------------- */
+
+.df-footer {
+  background: var(--df-ink);
+  color: #b7bdc4;
+  padding: 2rem 0;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.df-footer p {
+  margin: 0.2rem 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

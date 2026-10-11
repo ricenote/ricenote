@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ricenote.dev/schemas/theme.schema.json",
+  "title": "RiceNote Theme Manifest",
+  "description": "RiceNote 主题清单（theme.json）契约 v1。",
+  "type": "object",
+  "required": ["schemaVersion", "id", "name", "version", "apiVersion", "engine", "templates"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$",
+      "maxLength": 80,
+      "description": "主题唯一标识，形如 rice.minimal。"
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "maxLength": 500 },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "apiVersion": { "type": "string", "minLength": 1 },
+    "engine": { "const": "nunjucks" },
+    "author": { "type": "string", "maxLength": 160 },
+    "license": { "type": "string", "maxLength": 64 },
+    "screenshot": {
+      "type": "string",
+      "pattern": "^\\./",
+      "description": "主题预览图相对路径，例如 ./screenshot.png。"
+    },
+    "templates": {
+      "type": "object",
+      "description": "页面类型到模板文件的映射。",
+      "propertyNames": { "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$" },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[^/\\\\]+\\.njk$"
+      }
+    },
+    "requires": {
+      "type": "object",
+      "description": "主题依赖的插件能力契约，缺失时给出降级提示。",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "settings": {
+      "type": "object",
+      "description": "设置分组：键为分组键，值为 { label, description?, fields }。",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["label", "fields"],
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+          "description": { "type": "string", "maxLength": 300 },
+          "fields": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": { "$ref": "#/definitions/settingField" }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "settingField": {
+      "type": "object",
+      "required": ["type", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": ["text", "textarea", "color", "boolean", "number", "select", "image", "url"]
+        },
+        "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "description": { "type": "string", "maxLength": 300 },
+        "default": {},
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "maxLength": { "type": "integer", "minimum": 1 },
+        "placeholder": { "type": "string", "maxLength": 200 },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["label", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "value": { "type": "string" }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "select" } }, "required": ["type"] },
+          "then": { "required": ["options"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "number" } }, "required": ["type"] },
+          "then": { "properties": { "default": { "type": "number" } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "boolean" } }, "required": ["type"] },
+          "then": { "properties": { "default": { "type": "boolean" } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "color" } }, "required": ["type"] },
+          "then": {
+            "properties": {
+              "default": { "type": "string", "pattern": "^#[0-9a-fA-F]{3,8}$" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.media",
+  "name": "媒体库",
+  "description": "负责文件上传、媒体元数据登记与公开访问；主题设置中的 image 字段保存的就是媒体 ID。",
+  "version": "1.0.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "provides": ["media.library@1"],
+  "capabilities": [
+    "database:own",
+    "services:provide",
+    "services:consume",
+    "routes:admin",
+    "routes:public",
+    "media:store",
+    "admin:menu"
+  ],
+  "migrations": "./migrations",
+  "settings": {
+    "maxFileBytes": 8388608
+  }
+}

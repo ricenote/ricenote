@@ -1,0 +1,16 @@
+{
+  "name": "@ricenote/plugin-identity",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 身份与认证插件：用户、会话与登录",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*"
+  }
+}
