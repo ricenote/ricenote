@@ -68,13 +68,17 @@ hasSources(): boolean
 
 无。
 
-## 设置项（旧写法 `settings`）
+## 设置项（`settingsSchema`，后台自动生成表单）
 
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `resultPageSize` | `10` | 每页结果数 |
-| `maxKeywordLength` | `100` | 关键词长度上限 |
-| `maxItemsPerSource` | `50` | 单个数据源最多返回的条数（防止某一个来源淹没结果） |
+后台「扩展中心 → 搜索 → 设置」。保存后需**重启服务**生效（`ctx.config` 是插件启动期快照）。
+
+### 分组「搜索行为」
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `resultPageSize` | number（1–50） | `10` | 每页结果数 |
+| `maxKeywordLength` | number（1–500） | `100` | 关键词长度上限（超长直接拒绝） |
+| `maxItemsPerSource` | number（1–500） | `50` | 单个数据源最多返回的条数（防止某一个来源淹没结果） |
 
 ## 谁在向它注册
 

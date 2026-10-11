@@ -222,22 +222,29 @@ Core 固定入口（不来自插件）：仪表盘 `/`、外观中心 `/themes`�
 
 | 写法 | 字段 | 校验 | 后台表现 |
 | --- | --- | --- | --- |
-| 旧（兼容） | `manifest.settings`（扁平键值） | 键必须在声明范围内 | 只读键值预览 |
-| 新（推荐） | `manifest.settingsSchema`（分组 + 字段） | 类型 / `min` / `max` / `maxLength` / 枚举 / URL 格式 | 自动生成表单，可编辑 |
+| 旧（仅兼容） | `manifest.settings`（扁平键值） | 键必须在声明范围内 | 只读键值预览 |
+| 新（推荐，**全部官方插件已迁移**） | `manifest.settingsSchema`（分组 + 字段） | 类型 / `min` / `max` / `maxLength` / `maxItems` / 枚举 / URL 格式 | 自动生成表单，可编辑 |
 
-当前使用情况：
+字段类型：`text`、`textarea`、`color`、`boolean`、`number`、`select`、`image`、`url`、`stringList`
+（`stringList` 的值为 `string[]`，后台表现为"每行一项"）。
 
-| 插件 | 写法 | 字段 |
+当前使用情况（后台入口：扩展中心 → 对应插件 → 设置）：
+
+| 插件 | 分组 | 字段 |
 | --- | --- | --- |
-| `rice.pages` | **settingsSchema** | `navLimit`、`listPageSize`、`cacheEnabled` |
-| `rice.posts` | settings | `pageSize`、`excerptLength` |
-| `rice.identity` | settings | `sessionTtlSeconds`、`maxSessionsPerUser` |
-| `rice.media` | settings | `maxFileBytes` |
-| `rice.comments` | settings | `enabled`、`requireApproval`、`pageSize`、`maxLength`、`rateLimitWindowSeconds`、`rateLimitMaxSubmissions`、`maxLinksPerComment`、`maxDepth`、`blockedKeywords` |
-| `rice.search` | settings | `resultPageSize`、`maxKeywordLength`、`maxItemsPerSource` |
-| `rice.seo` | settings | `enableOpenGraph`、`enableTwitterCard`、`twitterSite`、`enableJsonLd`、`defaultOgImage`、`enableSitemap`、`enableRobots`、`sitemapMaxUrls`、`sitemapPageSize`、`robotsDisallow` |
-| `acme.reading-time` | settings | `wordsPerMinute`、`showWordCount`、`label` |
-| `rice.authorization`、`rice.taxonomy`、`rice.hello` | 无 | — |
+| `rice.seo` | `social`、`crawler` | `enableOpenGraph`、`enableTwitterCard`、`twitterSite`、`defaultOgImage`、`enableJsonLd`、`enableSitemap`、`enableRobots`、`sitemapMaxUrls`、`sitemapPageSize`、`robotsDisallow`(**stringList**) |
+| `rice.comments` | `general`、`antispam` | `enabled`、`requireApproval`、`pageSize`、`maxLength`、`maxDepth`、`rateLimitWindowSeconds`、`rateLimitMaxSubmissions`、`maxLinksPerComment`、`blockedKeywords`(**stringList**) |
+| `rice.posts` | `general` | `pageSize`、`excerptLength` |
+| `rice.pages` | `general` | `navLimit`、`listPageSize`、`cacheEnabled` |
+| `rice.search` | `general` | `resultPageSize`、`maxKeywordLength`、`maxItemsPerSource` |
+| `rice.identity` | `session` | `sessionTtlSeconds`、`maxSessionsPerUser` |
+| `rice.media` | `upload` | `maxFileBytes` |
+| `acme.reading-time`（第三方） | `display` | `wordsPerMinute`、`showWordCount`、`label` |
+| `rice.authorization`、`rice.taxonomy`、`rice.hello` | 无 | 无可配置项，后台不显示设置入口 |
+
+设置生效时机：`ctx.config` 是**插件启动期快照**，因此保存后需重启（ADR-004 / ADR-012）。
+校验与合并由 `packages/core/src/plugins/settings-schema.ts` 统一提供，
+后台表单与 `ctx.config` 使用同一个合并函数，不会出现"显示值与实际值不一致"。
 
 ---
 

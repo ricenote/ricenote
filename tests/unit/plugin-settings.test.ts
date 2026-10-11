@@ -8,6 +8,9 @@
  */
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
 import type { PluginManifest } from '@ricenote/shared';
 import {
@@ -17,6 +20,14 @@ import {
   resolvePluginSettings,
   validatePluginSettingsValues
 } from '@ricenote/core';
+
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/** 读取一个插件清单（不经内核，用于"声明与代码对齐"的守卫测试）。 */
+function readManifest(relativePath: string): PluginManifest {
+  const file = path.join(rootDir, relativePath, 'manifest.json');
+  return JSON.parse(readFileSync(file, 'utf8')) as PluginManifest;
+}
 
 /** 声明式写法的示例清单（与 rice.pages 的 shape 一致）。 */
 const DECLARATIVE: Pick<PluginManifest, 'settings' | 'settingsSchema'> = {
@@ -153,5 +164,208 @@ describe('插件设置的声明式与旧写法', () => {
     const groups = buildPluginSettingsGroups(DECLARATIVE, {}, 'zh-CN');
     const keys = groups[0]?.fields.map((field) => field.key) ?? [];
     assert.deepEqual(keys.sort(), ['cacheEnabled', 'homepage', 'layout', 'navLimit']);
+  });
+});
+
+/** `stringList` 字段（评论的屏蔽关键词、SEO 的 robots 禁止路径用到的类型）。 */
+const STRING_LIST: Pick<PluginManifest, 'settings' | 'settingsSchema'> = {
+  settingsSchema: {
+    antispam: {
+      label: '反垃圾',
+      fields: {
+        blockedKeywords: {
+          type: 'stringList',
+          label: '屏蔽关键词',
+          default: [],
+          maxItems: 3,
+          maxLength: 10
+        },
+        noLimit: { type: 'stringList', label: '无上限列表', default: ['a'] }
+      }
+    }
+  }
+};
+
+describe('stringList 字段类型', () => {
+  it('缺省默认值是空数组（而非空字符串）', () => {
+    const values = resolvePluginSettings(STRING_LIST, undefined);
+    assert.deepEqual(values.blockedKeywords, []);
+    assert.deepEqual(values.noLimit, ['a']);
+  });
+
+  it('接受字符串数组，并归一化（去空白、丢空项）', () => {
+    const result = validatePluginSettingsValues(STRING_LIST, {
+      noLimit: ['  赌场  ', '', '   ', 'casino']
+    });
+    assert.equal(result.valid, true);
+    assert.deepEqual(result.normalized, { noLimit: ['赌场', 'casino'] });
+  });
+
+  it('接受按行分隔的字符串（后台表单直接提交多行文本）', () => {
+    const result = validatePluginSettingsValues(STRING_LIST, {
+      noLimit: '第一项\n  第二项  \n\n第三项'
+    });
+    assert.equal(result.valid, true);
+    assert.deepEqual(result.normalized, { noLimit: ['第一项', '第二项', '第三项'] });
+  });
+
+  it('拒绝非数组非字符串的值', () => {
+    for (const bad of [123, true, { a: 1 }]) {
+      const result = validatePluginSettingsValues(STRING_LIST, { noLimit: bad as never });
+      assert.equal(result.valid, false, `${JSON.stringify(bad)} 应被拒绝`);
+      assert.equal(result.issues[0]?.keyword, 'type');
+    }
+    // 数组里混入非字符串同样拒绝（避免把结构化数据塞进列表）
+    const mixed = validatePluginSettingsValues(STRING_LIST, { noLimit: ['ok', 5] as never });
+    assert.equal(mixed.valid, false);
+    assert.equal(mixed.issues[0]?.keyword, 'type');
+  });
+
+  it('maxItems 与单项 maxLength 生效', () => {
+    const tooMany = validatePluginSettingsValues(STRING_LIST, {
+      blockedKeywords: ['a', 'b', 'c', 'd']
+    });
+    assert.equal(tooMany.valid, false);
+    assert.equal(tooMany.issues[0]?.keyword, 'maxItems');
+
+    const tooLong = validatePluginSettingsValues(STRING_LIST, {
+      blockedKeywords: ['a'.repeat(11)]
+    });
+    assert.equal(tooLong.valid, false);
+    assert.equal(tooLong.issues[0]?.keyword, 'maxLength');
+
+    // 未声明 maxItems 时默认 200
+    const atLimit = validatePluginSettingsValues(STRING_LIST, {
+      noLimit: Array.from({ length: 200 }, (_, i) => `k${i}`)
+    });
+    assert.equal(atLimit.valid, true);
+    const overLimit = validatePluginSettingsValues(STRING_LIST, {
+      noLimit: Array.from({ length: 201 }, (_, i) => `k${i}`)
+    });
+    assert.equal(overLimit.valid, false);
+  });
+});
+
+/**
+ * 清单与代码对齐的守卫。
+ *
+ * 声明式设置最容易出的问题是"两处漂移"：
+ * - 插件里 `ctx.config.get('foo')` 有 foo，但清单漏声明 → 后台看不到、也写不进去；
+ * - 清单里的默认值与代码里的兜底默认值不一致 → 后台显示 20，插件实际按 10 运行。
+ *
+ * 这里把两者都钉死成显式期望值：改代码或改清单都必须同步改这张表。
+ */
+describe('官方插件清单的设置声明', () => {
+  const EXPECTED: Array<{
+    path: string;
+    /** 字段名 → 声明默认值（必须与插件代码里的兜底值一致）。 */
+    fields: Record<string, unknown>;
+    /** 声明式表单的分组键。 */
+    groups: string[];
+  }> = [
+    {
+      path: 'plugins/official/seo',
+      groups: ['social', 'crawler'],
+      fields: {
+        enableOpenGraph: true,
+        enableTwitterCard: true,
+        twitterSite: '',
+        defaultOgImage: '',
+        enableJsonLd: true,
+        enableSitemap: true,
+        enableRobots: true,
+        sitemapMaxUrls: 1000,
+        sitemapPageSize: 50,
+        robotsDisallow: ['/admin', '/api']
+      }
+    },
+    {
+      path: 'plugins/official/search',
+      groups: ['general'],
+      fields: { resultPageSize: 10, maxKeywordLength: 100, maxItemsPerSource: 50 }
+    },
+    {
+      path: 'plugins/official/comments',
+      groups: ['general', 'antispam'],
+      fields: {
+        enabled: true,
+        requireApproval: true,
+        pageSize: 20,
+        maxLength: 2000,
+        maxDepth: 5,
+        rateLimitWindowSeconds: 60,
+        rateLimitMaxSubmissions: 3,
+        maxLinksPerComment: 2,
+        blockedKeywords: []
+      }
+    },
+    {
+      path: 'plugins/official/posts',
+      groups: ['general'],
+      fields: { pageSize: 10, excerptLength: 160 }
+    },
+    {
+      path: 'plugins/official/identity',
+      groups: ['session'],
+      fields: { sessionTtlSeconds: 7200, maxSessionsPerUser: 10 }
+    },
+    {
+      path: 'plugins/official/media',
+      groups: ['upload'],
+      fields: { maxFileBytes: 8388608 }
+    },
+    {
+      path: 'plugins/official/pages',
+      groups: ['general'],
+      fields: { navLimit: 20, listPageSize: 20, cacheEnabled: true }
+    },
+    {
+      path: 'plugins/third-party/reading-time',
+      groups: ['display'],
+      fields: { wordsPerMinute: 300, showWordCount: true, label: '阅读时长' }
+    }
+  ];
+
+  for (const expected of EXPECTED) {
+    it(`${expected.path} 的声明式设置齐全且默认值稳定`, () => {
+      const manifest = readManifest(expected.path);
+
+      assert.equal(hasDeclarativeSettings(manifest), true, '应声明 settingsSchema');
+      assert.deepEqual(
+        Object.keys(manifest.settingsSchema ?? {}),
+        expected.groups,
+        '分组键应与预期一致'
+      );
+      // 默认值只声明在 settingsSchema 里，不允许与旧写法重复（避免两处漂移）
+      assert.equal(manifest.settings, undefined, '不应再保留旧写法 settings');
+      assert.deepEqual(declaredSettingKeys(manifest), Object.keys(expected.fields).sort());
+
+      const values = resolvePluginSettings(manifest, undefined);
+      for (const [key, expectedDefault] of Object.entries(expected.fields)) {
+        assert.deepEqual(values[key], expectedDefault, `字段 ${key} 的默认值`);
+      }
+
+      // 每个字段都必须有中文文案，否则后台表单会出现空标签
+      for (const group of Object.values(manifest.settingsSchema ?? {})) {
+        for (const [key, field] of Object.entries(group.fields ?? {})) {
+          assert.ok(
+            typeof field.label === 'string' || Object.keys(field.label ?? {}).length > 0,
+            `字段 ${key} 缺少 label`
+          );
+        }
+      }
+    });
+  }
+
+  it('列表型字段用 stringList，且默认值是数组', () => {
+    const seo = readManifest('plugins/official/seo');
+    const crawler = seo.settingsSchema?.crawler;
+    assert.equal(crawler?.fields.robotsDisallow?.type, 'stringList');
+    assert.ok(Array.isArray(crawler?.fields.robotsDisallow?.default));
+
+    const comments = readManifest('plugins/official/comments');
+    const antispam = comments.settingsSchema?.antispam;
+    assert.equal(antispam?.fields.blockedKeywords?.type, 'stringList');
+    assert.ok(Array.isArray(antispam?.fields.blockedKeywords?.default));
   });
 });

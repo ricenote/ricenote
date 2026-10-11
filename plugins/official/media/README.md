@@ -58,11 +58,17 @@ SVG 额外加 `Content-Security-Policy: default-src 'none'; …; sandbox`，
 
 `{ id: 'media.library', label: '媒体库', path: '/media', icon: 'Image', order: 10, permission: 'media.manage' }`
 
-## 设置项（旧写法 `settings`）
+## 设置项（`settingsSchema`，后台自动生成表单）
 
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `maxFileBytes` | `8388608`（8MB） | 单文件大小上限（传输层上限见 `MAX_UPLOAD_BYTES`） |
+后台「扩展中心 → 媒体库 → 设置」。保存后需**重启服务**生效。
+
+### 分组「上传」
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `maxFileBytes` | number（1024–67108864） | `8388608`（8MB） | 单文件大小上限（传输层上限见 `MAX_UPLOAD_BYTES`） |
+
+> 插件侧会把该值再收敛到 `1KB ~ 64MB`，避免历史脏值让限制失效。
 
 ## 安全要点
 

@@ -7,6 +7,48 @@
 
 ## [Unreleased]
 
+### Added
+
+- **共享设置 Schema 新增 `stringList` 字段类型**：值为 `string[]`，后台表现为
+  「每行一项」的多行输入，支持 `maxItems`（默认 200）与 `maxLength`（单项长度）。
+  主题设置与插件设置同时获得该类型（二者共用同一份
+  `packages/shared/manifests/settings.schema.json`）。
+  提交时也接受"按行分隔的字符串"，服务端统一拆分为数组并丢弃空行与首尾空白。
+- **全部官方插件补齐声明式设置表单**（后台「扩展中心 → 插件 → 设置」自动生成，
+  保存后提示重启，与主题设置共用同一套表单组件与校验）：
+  - `rice.seo`：`social`（Open Graph / Twitter Card / JSON-LD / 默认分享图）、
+    `crawler`（sitemap 开关与上限、`robotsDisallow` 列表）；
+  - `rice.comments`：`general`（评论区开关、先审后发、分页、字数、嵌套深度）、
+    `antispam`（频率限制两项、单条链接数、`blockedKeywords` 列表）；
+  - `rice.posts`：列表每页条数与自动摘要长度；
+  - `rice.search`：每页结果数、关键词长度上限、单数据源条数上限；
+  - `rice.identity`：会话有效期与单用户并发会话上限；
+  - `rice.media`：单文件体积上限；
+  - 第三方示例 `acme.reading-time`：阅读速度、字数开关、前缀文案
+    （证明声明式设置对第三方插件与官方插件完全等价）。
+- **端到端回归测试**：写入 SEO 设置 → 模拟重启 → `/robots.txt` 与 `/sitemap.xml`
+  路由随之变化（覆盖 `stringList` 归一化与布尔开关对路由注册的影响）；
+  另新增"清单与代码对齐"单元测试（字段名、分组与默认值全部钉死为显式期望值）。
+
+### Changed
+
+- **插件默认值只声明一处**：已迁移的插件移除扁平键值的旧写法 `settings`，
+  默认值统一写在 `settingsSchema` 的字段 `default` 上；旧写法仍被支持，
+  但仅作为既有第三方插件的兼容路径（同时写两处必然导致默认值漂移）。
+- 插件版本升级：`rice.seo` / `rice.search` / `rice.comments` / `rice.media` → `1.1.0`，
+  `rice.posts` → `1.3.0`，`rice.identity` → `1.2.0`，`acme.reading-time` → `1.1.0`
+  （服务契约版本范围不变，仍兼容 `^1.0.0`）。
+- 插件侧补充越界值收敛：`rice.posts`（`pageSize` / `excerptLength`）、
+  `rice.media`（`maxFileBytes`）与 `rice.identity`（会话两项）在读取设置时
+  按声明范围再收敛一次，避免历史脏值（如 `NaN`）让分页查询或体积限制失效。
+
+### Fixed
+
+- **`ctx.config` 之前没有合并 `settingsSchema` 的默认值**：文档与后台设置表单都
+  按「`settings` 默认值 → `settingsSchema` 默认值 → 数据库覆盖」描述与实现，
+  但插件上下文只合并了 `manifest.settings` 与数据库覆盖，导致"后台表单显示 20、
+  插件实际按代码兜底值运行"的错位。现在两侧共用同一个 `resolvePluginSettings`。
+
 ## [0.3.0] - 2026-10-11
 
 第三个里程碑版本（架构改造）。把"页面"提升为与"文章"并列的内容形态，

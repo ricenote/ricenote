@@ -57,11 +57,20 @@ function toIso(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+/** 取整并收敛到 [min, max]；非法值回退到 fallback。 */
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const parsed = Math.trunc(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
 export default definePlugin({
   async start(ctx) {
     const db = ctx.db;
-    const sessionTtlSeconds = Number(ctx.config.get('sessionTtlSeconds', 7200));
-    const maxSessionsPerUser = Number(ctx.config.get('maxSessionsPerUser', 10));
+    // 与 manifest.settingsSchema 的范围声明一致：
+    // 会话有效期 5 分钟 ~ 30 天，并发会话 1 ~ 100
+    const sessionTtlSeconds = clampInt(ctx.config.get('sessionTtlSeconds', 7200), 300, 2592000, 7200);
+    const maxSessionsPerUser = clampInt(ctx.config.get('maxSessionsPerUser', 10), 1, 100, 10);
 
     const loginFailed = (): RiceNoteError =>
       new RiceNoteError(ErrorCode.UNAUTHENTICATED, '用户名或密码错误', { status: 401 });

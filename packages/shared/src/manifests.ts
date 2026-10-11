@@ -61,7 +61,8 @@ export type ThemeSettingFieldType =
   | 'number'
   | 'select'
   | 'image'
-  | 'url';
+  | 'url'
+  | 'stringList';
 
 /**
  * 可本地化的展示文案。
@@ -86,7 +87,18 @@ export interface ThemeSettingField {
   default?: unknown;
   min?: number;
   max?: number;
+  /**
+   * 文本类字段（`text` / `textarea` / `url`）的长度上限；
+   * 对 `stringList` 表示**单项**长度上限。
+   */
   maxLength?: number;
+  /**
+   * `stringList` 专用：列表最多项数（默认 200）。
+   *
+   * `stringList` 的值在存储与插件侧都是 `string[]`（表单每行一项），
+   * 因此插件可以直接 `ctx.config.get<string[]>('blockedKeywords', [])`。
+   */
+  maxItems?: number;
   placeholder?: LocalizedText;
   options?: ThemeSettingOption[];
 }

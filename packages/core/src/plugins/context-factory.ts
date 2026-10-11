@@ -36,6 +36,7 @@ import type { RouterRegistry } from '../routing/registry.js';
 import type { SlotRegistry } from '../render/slots.js';
 import type { AdminMenuRegistry } from './admin-menu.js';
 import type { LoadedPlugin } from './manifest.js';
+import { resolvePluginSettings } from './settings-schema.js';
 
 export interface ContextFactoryDeps {
   db: DatabaseAdapter;
@@ -106,9 +107,13 @@ export function createPluginContext(
   };
 
   const configReader: PluginConfigReader = (() => {
-    const defaults = (plugin.manifest.settings ?? {}) as Record<string, unknown>;
+    /*
+     * 合并顺序与后台设置表单**必须完全一致**（settings → settingsSchema 默认值
+     * → 数据库覆盖），否则会出现"后台显示 X、插件实际读到 Y"的错位。
+     * 因此这里直接复用 resolvePluginSettings，而不是只合并 manifest.settings。
+     */
     const overrides = deps.pluginSettings.get(pluginId) ?? {};
-    const merged: Record<string, unknown> = { ...defaults, ...overrides };
+    const merged: Record<string, unknown> = resolvePluginSettings(plugin.manifest, overrides);
     return {
       get<T>(key: string, fallback: T): T {
         const value = merged[key];

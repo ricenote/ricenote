@@ -23,7 +23,7 @@
       "additionalProperties": false,
       "properties": {
         "type": {
-          "enum": ["text", "textarea", "color", "boolean", "number", "select", "image", "url"]
+          "enum": ["text", "textarea", "color", "boolean", "number", "select", "image", "url", "stringList"]
         },
         "label": { "$ref": "#/definitions/localizedText" },
         "description": { "$ref": "#/definitions/localizedText" },
@@ -31,6 +31,11 @@
         "min": { "type": "number" },
         "max": { "type": "number" },
         "maxLength": { "type": "integer", "minimum": 1 },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "stringList 专用：列表最多允许多少项（默认 200）。"
+        },
         "placeholder": { "$ref": "#/definitions/localizedText" },
         "options": {
           "type": "array",
@@ -64,6 +69,18 @@
           "then": {
             "properties": {
               "default": { "type": "string", "pattern": "^#[0-9a-fA-F]{3,8}$" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "stringList" } }, "required": ["type"] },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "array",
+                "maxItems": 200,
+                "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+              }
             }
           }
         }

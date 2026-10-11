@@ -52,13 +52,27 @@ function sanitizeFileName(name: string): string {
   return base.slice(0, 120) || 'file';
 }
 
+/** 取整并收敛到 [min, max]；非法值回退到 fallback。 */
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const parsed = Math.trunc(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
 export default definePlugin({
   async start(ctx) {
     const db = ctx.db;
     const setup = ctx.services.use<CoreSetupService>(SERVICE_CONTRACTS.CORE_SETUP);
     const siteId = setup.siteId();
     const { uploadsDir } = setup.paths();
-    const maxFileBytes = Number(ctx.config.get('maxFileBytes', 8 * 1024 * 1024));
+    // 与 manifest.settingsSchema 的范围声明一致；上限兜住 64MB，
+    // 避免后台把限制改成一个危险值后仍被静默接受
+    const maxFileBytes = clampInt(
+      ctx.config.get('maxFileBytes', 8 * 1024 * 1024),
+      1024,
+      64 * 1024 * 1024,
+      8 * 1024 * 1024
+    );
 
     mkdirSync(uploadsDir, { recursive: true });
 

@@ -85,15 +85,18 @@
 
 `{ id: 'posts.list', label: '文章', path: '/posts', icon: 'FileText', order: 50, permission: 'post.view' }`
 
-## 设置项（旧写法 `settings`）
+## 设置项（`settingsSchema`，后台自动生成表单）
 
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `pageSize` | `10` | 列表每页文章数 |
-| `excerptLength` | `160` | 自动摘要长度 |
+后台「扩展中心 → 文章 → 设置」。保存后需**重启服务**生效（`ctx.config` 是插件启动期快照）。
 
-> 本插件仍使用扁平键值的 `settings` 写法（向后兼容路径）；新插件建议改用 `settingsSchema`
-> 以获得后台自动生成的表单，参见 `plugins/official/pages/manifest.json`。
+### 分组「列表与摘要」
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `pageSize` | number（1–50） | `10` | 列表每页文章数 |
+| `excerptLength` | number（20–1000） | `160` | 自动摘要长度（未手写摘要时从正文截取） |
+
+> 插件侧会把这两个值再收敛一次（`1–50` / `20–1000`），防止历史脏值让分页查询失效。
 
 ## 文章模板（1.2.0 新增）
 

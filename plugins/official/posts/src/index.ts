@@ -42,8 +42,13 @@ export default definePlugin({
     const runtime: PostsRuntime = {
       db: ctx.db,
       siteId: setup.siteId(),
-      pageSize: Number(ctx.config.get('pageSize', 10)),
-      excerptLength: Number(ctx.config.get('excerptLength', 160)),
+      /*
+       * 范围与 manifest.settingsSchema 的声明保持一致。
+       * 写入侧已经校验过，这里再收敛一次是为了防"历史脏值"——
+       * pageSize 变成 NaN 会让分页查询直接失效，属于必须兜住的输入。
+       */
+      pageSize: clampInt(ctx.config.get('pageSize', 10), 1, 50, 10),
+      excerptLength: clampInt(ctx.config.get('excerptLength', 160), 20, 1000, 160),
       html,
       logger: ctx.logger,
       services: ctx.services
@@ -103,6 +108,13 @@ export default definePlugin({
     ctx.logger.info('posts 插件已停止（注册的路由/服务/Slot 已由 Core 注销）');
   }
 });
+
+/** 取整并收敛到 [min, max]；非法值回退到 fallback。 */
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const parsed = Math.trunc(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
 
 /**
  * 向 search 插件注册可搜索数据源。

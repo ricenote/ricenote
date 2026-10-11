@@ -54,20 +54,29 @@
 
 无。
 
-## 设置项（旧写法 `settings`）
+## 设置项（`settingsSchema`，后台自动生成表单）
 
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `enableOpenGraph` | `true` | 输出 `og:*` |
-| `enableTwitterCard` | `true` | 输出 `twitter:*` |
-| `twitterSite` | `""` | 例如 `@ricenote` |
-| `enableJsonLd` | `true` | 输出 JSON-LD 结构化数据 |
-| `defaultOgImage` | `""` | 无封面时的默认分享图 |
-| `enableSitemap` | `true` | 注册 `/sitemap.xml` |
-| `enableRobots` | `true` | 注册 `/robots.txt` |
-| `sitemapMaxUrls` | `1000` | sitemap 最多输出的 URL 数 |
-| `sitemapPageSize` | `50` | 逐页拉取文章的分页大小 |
-| `robotsDisallow` | `["/admin","/api"]` | `robots.txt` 的 Disallow 前缀 |
+后台「扩展中心 → SEO → 设置」。保存后需**重启服务**生效（`ctx.config` 是插件启动期快照）。
+
+### 分组「分享与结构化数据」
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enableOpenGraph` | boolean | `true` | 输出 `og:*` |
+| `enableTwitterCard` | boolean | `true` | 输出 `twitter:*` |
+| `twitterSite` | text | `""` | 例如 `@ricenote` |
+| `defaultOgImage` | text | `""` | 无封面时的默认分享图（`/uploads/...` 或绝对 URL） |
+| `enableJsonLd` | boolean | `true` | 输出 JSON-LD 结构化数据 |
+
+### 分组「站点地图与 robots.txt」
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enableSitemap` | boolean | `true` | 注册 `/sitemap.xml` |
+| `enableRobots` | boolean | `true` | 注册 `/robots.txt` |
+| `sitemapMaxUrls` | number（1–50000） | `1000` | sitemap 最多输出的 URL 数 |
+| `sitemapPageSize` | number（1–100） | `50` | 逐页拉取文章的分页大小 |
+| `robotsDisallow` | stringList（≤20 项） | `["/admin","/api"]` | `robots.txt` 的 Disallow 前缀，表单里每行一项 |
 
 > 关闭 `enableSitemap` / `enableRobots` 后对应路由**不会注册**，
 > 因此启用后必须重启进程才会生效（路由在插件启动时注册）。

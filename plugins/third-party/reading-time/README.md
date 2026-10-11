@@ -4,13 +4,16 @@
 
 它只做一件事：向 `post.beforeContent` 插槽注入一行"阅读时长约 N 分钟 · 约 N 字"。
 
+同时演示第三方插件同样能用声明式设置（`settingsSchema`）获得后台表单，
+以及"不声明路由/服务/事件/菜单也能正常工作"的最小依赖路径。
+
 ## 清单摘要
 
 | 项 | 值 |
 | --- | --- |
 | id | `acme.reading-time` |
 | name | 阅读时长 |
-| version | `1.0.0` |
+| version | `1.1.0` |
 | apiVersion | `^1.0.0` |
 | author | `Acme Studio`（第三方） |
 | entry | `./dist/index.js` |
@@ -19,6 +22,7 @@
 | capabilities | **`slots:register`**（只请求它需要的那一个能力） |
 | migrations | 无 |
 | 数据表 | 无 |
+| settingsSchema | 「展示」分组：`wordsPerMinute` / `showWordCount` / `label` |
 
 ## 扩展点（Hook）
 
@@ -29,22 +33,21 @@
 它从插槽上下文读取文章正文（`context.data.post`），按字数与 `wordsPerMinute` 估算时长。
 除此之外不注册任何路由、服务、事件或菜单。
 
-## 设置项（旧写法 `settings`）
+## 设置项（`settingsSchema`，后台自动生成表单）
 
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `wordsPerMinute` | `300` | 阅读速度（运行时钳制到 50–2000） |
-| `showWordCount` | `true` | 是否附带字数 |
-| `label` | `"阅读时长"` | 前缀文案（截断到 20 字） |
+后台「扩展中心 → 阅读时长 → 设置」。保存后需**重启服务**生效。
 
-> 本插件使用**扁平键值的 `settings` 旧写法**（向后兼容路径）。
-> 它演示了两件事：
-> 1. 旧写法的插件无需改动即可继续工作，`ctx.config.get(key, fallback)` 语义与 v1 完全一致；
-> 2. 未声明 `settingsSchema` 时，后台设置面板会退化为只读的键值预览，
->    并提示"如需在此编辑，请声明 settingsSchema"。
->
-> 对比 `plugins/official/pages/manifest.json` 可以看到新写法（分组 + 字段 + 多语言 label）
-> 如何直接生成可编辑表单。
+### 分组「展示」
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `wordsPerMinute` | number（50–2000） | `300` | 阅读速度（运行时再钳制一次） |
+| `showWordCount` | boolean | `true` | 是否附带字数 |
+| `label` | text（≤20 字） | `"阅读时长"` | 前缀文案 |
+
+> 声明式设置对第三方插件与官方插件**完全等价**：只要在 `manifest.json` 里写
+> `settingsSchema`，后台就会自动生成表单、自动校验、自动持久化（保存后提示重启）。
+> 无需写任何后台界面代码，也不需要额外能力声明。
 
 ## 安装与启用
 

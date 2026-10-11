@@ -87,19 +87,28 @@ pending（待审） ──approve──▶ approved（通过）
 
 后台批量操作支持 `approve` / `pending` / `spam` / `trash` / `delete`。
 
-## 设置项（旧写法 `settings`）
+## 设置项（`settingsSchema`，后台自动生成表单）
 
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `enabled` | `true` | 是否开放评论提交 |
-| `requireApproval` | `true` | 新评论是否进入待审 |
-| `pageSize` | `20` | 线程分页大小 |
-| `maxLength` | `2000` | 正文长度上限 |
-| `rateLimitWindowSeconds` | `60` | 频率限制窗口 |
-| `rateLimitMaxSubmissions` | `3` | 窗口内最多提交次数 |
-| `maxLinksPerComment` | `2` | 单条评论允许的链接数（反垃圾） |
-| `maxDepth` | `5` | 嵌套回复最大深度 |
-| `blockedKeywords` | `[]` | 关键词黑名单（命中即判为垃圾） |
+后台「扩展中心 → 评论 → 设置」。保存后需**重启服务**生效（`ctx.config` 是插件启动期快照）。
+
+### 分组「通用」
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `true` | 是否开放评论区（关闭后插槽不输出任何内容） |
+| `requireApproval` | boolean | `true` | 新评论是否进入待审 |
+| `pageSize` | number（1–100） | `20` | 线程分页大小 |
+| `maxLength` | number（1–20000） | `2000` | 正文长度上限 |
+| `maxDepth` | number（1–10） | `5` | 嵌套回复最大深度 |
+
+### 分组「反垃圾」
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `rateLimitWindowSeconds` | number（0–86400） | `60` | 频率限制窗口（`0` 关闭该限制） |
+| `rateLimitMaxSubmissions` | number（0–100） | `3` | 窗口内最多提交次数（`0` 关闭该限制） |
+| `maxLinksPerComment` | number（0–100） | `2` | 单条评论允许的链接数（超限判为垃圾） |
+| `blockedKeywords` | stringList（≤200 项） | `[]` | 关键词黑名单（命中即判为垃圾），表单里每行一项 |
 
 ## 安全要点
 

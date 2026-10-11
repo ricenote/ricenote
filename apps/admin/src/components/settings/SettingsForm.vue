@@ -38,6 +38,19 @@ function boolOf(field: SettingsFieldDto): boolean {
   const value = valueOf(field);
   return value === true || value === 'true';
 }
+
+/**
+ * `stringList` 字段在表单里是「每行一项」的多行文本。
+ *
+ * 这里**刻意不做拆分**：输入过程中的空行必须原样保留，否则用户按回车换行时
+ * 那个空行会立刻被抹掉，导致第二项根本敲不进去。拆分与归一化交给服务端
+ * 校验器（它同时接受 `string[]` 与按行分隔的字符串），往返更稳。
+ */
+function listOf(field: SettingsFieldDto): string {
+  const value = valueOf(field);
+  if (Array.isArray(value)) return value.map((item) => String(item)).join('\n');
+  return typeof value === 'string' ? value : '';
+}
 </script>
 
 <template>
@@ -105,6 +118,16 @@ function boolOf(field: SettingsFieldDto): boolean {
           @update:model-value="(value: string) => set(field.key, value)"
         />
 
+        <Textarea
+          v-else-if="field.type === 'stringList'"
+          :rows="4"
+          class="font-mono text-xs"
+          :placeholder="field.placeholder"
+          :disabled="props.disabled"
+          :model-value="listOf(field)"
+          @update:model-value="(value: string) => set(field.key, value)"
+        />
+
         <Input
           v-else
           :type="field.type === 'url' ? 'url' : 'text'"
@@ -114,6 +137,10 @@ function boolOf(field: SettingsFieldDto): boolean {
           :model-value="String(valueOf(field) ?? '')"
           @update:model-value="(value: string) => set(field.key, value)"
         />
+
+        <p v-if="field.type === 'stringList'" class="text-[11px] text-muted-foreground">
+          每行一项，空行会被忽略。
+        </p>
 
         <p v-if="field.description" class="text-[11px] text-muted-foreground">
           {{ field.description }}

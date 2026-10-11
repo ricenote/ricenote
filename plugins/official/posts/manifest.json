@@ -3,7 +3,7 @@
   "id": "rice.posts",
   "name": "文章",
   "description": "提供文章撰写、发布、归档与前台页面（首页、文章页、分类/标签归档），并向搜索插件注册可搜索数据源。",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -24,8 +24,33 @@
     "admin:menu"
   ],
   "migrations": "./migrations",
-  "settings": {
-    "pageSize": 10,
-    "excerptLength": 160
+  "settingsSchema": {
+    "general": {
+      "label": { "zh-CN": "列表与摘要", "en": "Listings & excerpts" },
+      "description": {
+        "zh-CN": "影响前台归档列表与自动摘要。修改后需重启服务生效。",
+        "en": "Affects archive listings and automatic excerpts. A restart is required after changes."
+      },
+      "fields": {
+        "pageSize": {
+          "type": "number",
+          "label": { "zh-CN": "每页文章条数", "en": "Posts per page" },
+          "default": 10,
+          "min": 1,
+          "max": 50
+        },
+        "excerptLength": {
+          "type": "number",
+          "label": { "zh-CN": "自动摘要长度（字符）", "en": "Excerpt length (characters)" },
+          "description": {
+            "zh-CN": "未手写摘要时，从正文截取多少个字符",
+            "en": "How many characters are taken from the body when no excerpt is set"
+          },
+          "default": 160,
+          "min": 20,
+          "max": 1000
+        }
+      }
+    }
   }
 }

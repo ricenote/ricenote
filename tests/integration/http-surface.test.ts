@@ -31,6 +31,39 @@ let origin = '';
 /** 会话 Cookie 罐（服务端会同时下发会话与 CSRF 双提交 Cookie）。 */
 const jar = new Map<string, string>();
 
+/** 启动内核与 HTTP 服务（`http.port: 0` 让系统分配空闲端口）。 */
+async function launch(): Promise<void> {
+  kernel = await bootstrap({
+    rootDir,
+    overrides: {
+      database: { name: TEST_DB },
+      http: { port: 0 },
+      logLevel: 'error',
+      seedPlugins: SEED
+    }
+  });
+
+  // 这一步会因路由冲突而抛错 —— 正是我们要防的回归
+  server = await startHttpServer(kernel, { trustProxy: false });
+  const address = server.app.server.address() as AddressInfo;
+  origin = `http://127.0.0.1:${address.port}`;
+}
+
+/**
+ * 模拟后台「一键重启」：关服务 → 关内核 → 重新 bootstrap → 重新监听。
+ *
+ * 测试里没有 `ServerSupervisor`（它在 CLI 入口里），但重启的**语义**
+ * 完全一致：插件在 `start()` 时读取一次 `ctx.config`，因此只有重跑一遍
+ * 才能验证"设置真的被插件读到了"。
+ */
+async function relaunch(): Promise<void> {
+  assert.ok(server);
+  assert.ok(kernel);
+  await server.close();
+  await kernel.shutdown();
+  await launch();
+}
+
 before(async () => {
   const base = loadConfig({ rootDir });
   const connection = await mysql.createConnection({
@@ -48,20 +81,7 @@ before(async () => {
     await connection.end();
   }
 
-  kernel = await bootstrap({
-    rootDir,
-    overrides: {
-      database: { name: TEST_DB },
-      http: { port: 0 },
-      logLevel: 'error',
-      seedPlugins: SEED
-    }
-  });
-
-  // 这一步会因路由冲突而抛错 —— 正是我们要防的回归
-  server = await startHttpServer(kernel, { trustProxy: false });
-  const address = server.app.server.address() as AddressInfo;
-  origin = `http://127.0.0.1:${address.port}`;
+  await launch();
 });
 
 after(async () => {
@@ -209,6 +229,45 @@ describe('站点信息与插件设置（HTTP 面）', () => {
     const response = await request('POST', '/api/admin/system/restart', { body: { reason: '测试' } });
     assert.equal(response.status, 503);
     assert.match(response.text, /RN_RESTART_UNAVAILABLE/);
+  });
+
+  it('seo 设置经重启真正生效（stringList 与布尔开关都改变实际行为）', async () => {
+    // 默认值：拒绝 /admin 与 /api，且提供 /sitemap.xml
+    const before = await request('GET', '/robots.txt');
+    assert.equal(before.status, 200);
+    assert.match(before.text, /Disallow: \/admin/);
+    assert.equal((await request('GET', '/sitemap.xml')).status, 200);
+
+    const saved = await request('PUT', '/api/admin/plugins/rice.seo/settings', {
+      body: {
+        values: {
+          // 以"多行文本"提交，验证服务端会归一化成 string[]
+          robotsDisallow: '/private\n\n  /draft  ',
+          enableSitemap: false,
+          twitterSite: '@ricenote'
+        }
+      }
+    });
+    assert.equal(saved.status, 200);
+
+    // 未重启时插件仍按启动期快照运行（ADR-004 的既有语义）
+    const stale = await request('GET', '/robots.txt');
+    assert.match(stale.text, /Disallow: \/api/, '重启前沿用旧配置');
+
+    await relaunch();
+
+    const after = await request('GET', '/robots.txt');
+    assert.equal(after.status, 200);
+    assert.match(after.text, /Disallow: \/private/, '新配置里的路径应出现');
+    assert.match(after.text, /Disallow: \/draft/, '空行与首尾空白应被丢弃');
+    assert.doesNotMatch(after.text, /Disallow: \/api/, '旧配置里的路径应消失');
+    assert.equal((await request('GET', '/sitemap.xml')).status, 404, '关闭后路由不再注册');
+
+    // 保存的是归一化后的数组，而不是原始多行字符串
+    const dto = await request('GET', '/api/admin/plugins/rice.seo/settings');
+    const values = data<{ values: Record<string, unknown> }>(dto).values;
+    assert.deepEqual(values.robotsDisallow, ['/private', '/draft']);
+    assert.equal(values.enableSitemap, false);
   });
 });
 

@@ -346,12 +346,25 @@ describe('插件设置（ADR-011）', () => {
     assert.equal(dto.values.cacheEnabled, true);
   });
 
-  it('旧写法插件退化为非声明式（后台显示键值预览）', async () => {
+  it('官方插件均已声明设置表单（含列表型字段）', async () => {
     assert.ok(kernel);
-    const dto = await kernel.plugins.settingsDto('rice.identity');
-    assert.equal(dto.declarative, false);
-    assert.equal(dto.groups.length, 0);
-    assert.equal(dto.values.sessionTtlSeconds, 7200);
+
+    const identity = await kernel.plugins.settingsDto('rice.identity');
+    assert.equal(identity.declarative, true);
+    assert.deepEqual(identity.groups.map((group) => group.key), ['session']);
+    assert.equal(identity.values.sessionTtlSeconds, 7200);
+
+    const seo = await kernel.plugins.settingsDto('rice.seo');
+    const disallow = seo.groups
+      .flatMap((group) => group.fields)
+      .find((field) => field.key === 'robotsDisallow');
+    assert.equal(disallow?.type, 'stringList');
+    assert.deepEqual(disallow?.value, ['/admin', '/api']);
+
+    // 未声明设置的插件（如分类与标签）没有 settingsSchema，后台不显示设置入口
+    const taxonomy = await kernel.plugins.settingsDto('rice.taxonomy');
+    assert.equal(taxonomy.declarative, false);
+    assert.equal(taxonomy.groups.length, 0);
   });
 
   it('未声明的字段被拒绝保存', async () => {

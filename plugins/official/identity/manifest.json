@@ -3,7 +3,7 @@
   "id": "rice.identity",
   "name": "身份与认证",
   "description": "提供用户账号、会话与登录取证能力；角色与权限由 authorization 插件负责。",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -19,8 +19,37 @@
     "admin:menu"
   ],
   "migrations": "./migrations",
-  "settings": {
-    "sessionTtlSeconds": 7200,
-    "maxSessionsPerUser": 10
+  "settingsSchema": {
+    "session": {
+      "label": { "zh-CN": "会话", "en": "Sessions" },
+      "description": {
+        "zh-CN": "只影响之后新建立的登录会话，已有会话沿用签发时的有效期。修改后需重启服务生效。",
+        "en": "Applies to sessions created after the change; existing sessions keep their original expiry. A restart is required after changes."
+      },
+      "fields": {
+        "sessionTtlSeconds": {
+          "type": "number",
+          "label": { "zh-CN": "会话有效期（秒）", "en": "Session lifetime (seconds)" },
+          "description": {
+            "zh-CN": "默认 7200（2 小时），最长 30 天",
+            "en": "Defaults to 7200 (2 hours); up to 30 days"
+          },
+          "default": 7200,
+          "min": 300,
+          "max": 2592000
+        },
+        "maxSessionsPerUser": {
+          "type": "number",
+          "label": { "zh-CN": "每用户最多并发会话数", "en": "Max sessions per user" },
+          "description": {
+            "zh-CN": "超出后最早的会话会被顶下线",
+            "en": "The oldest session is revoked when the limit is exceeded"
+          },
+          "default": 10,
+          "min": 1,
+          "max": 100
+        }
+      }
+    }
   }
 }

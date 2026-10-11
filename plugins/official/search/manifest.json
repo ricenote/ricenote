@@ -3,16 +3,51 @@
   "id": "rice.search",
   "name": "搜索",
   "description": "全站搜索：提供可搜索数据源注册契约（content.search@1）与 /search 页面，跨内容类型聚合结果。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
   "entry": "./dist/index.js",
   "provides": ["content.search@1"],
   "capabilities": ["services:provide", "routes:public", "events:subscribe"],
-  "settings": {
-    "resultPageSize": 10,
-    "maxKeywordLength": 100,
-    "maxItemsPerSource": 50
+  "settingsSchema": {
+    "general": {
+      "label": { "zh-CN": "搜索行为", "en": "Search behavior" },
+      "description": {
+        "zh-CN": "影响 /search 页面的结果与关键词校验。修改后需重启服务生效。",
+        "en": "Affects /search results and keyword validation. A restart is required after changes."
+      },
+      "fields": {
+        "resultPageSize": {
+          "type": "number",
+          "label": { "zh-CN": "每页结果条数", "en": "Results per page" },
+          "default": 10,
+          "min": 1,
+          "max": 50
+        },
+        "maxKeywordLength": {
+          "type": "number",
+          "label": { "zh-CN": "关键词最大长度", "en": "Max keyword length" },
+          "description": {
+            "zh-CN": "超长关键词直接拒绝，避免把整段文本当查询条件",
+            "en": "Longer keywords are rejected instead of being used as a query"
+          },
+          "default": 100,
+          "min": 1,
+          "max": 500
+        },
+        "maxItemsPerSource": {
+          "type": "number",
+          "label": { "zh-CN": "单数据源最多取多少条", "en": "Max items per source" },
+          "description": {
+            "zh-CN": "每个内容类型（文章、页面等）参与聚合的上限",
+            "en": "Upper bound per content type (posts, pages, ...) when aggregating"
+          },
+          "default": 50,
+          "min": 1,
+          "max": 500
+        }
+      }
+    }
   }
 }

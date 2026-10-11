@@ -67,12 +67,17 @@
 
 `{ id: 'users.list', label: '用户', path: '/users', icon: 'Users', order: 30, permission: 'user.manage' }`
 
-## 设置项（旧写法 `settings`）
+## 设置项（`settingsSchema`，后台自动生成表单）
 
-| 字段 | 默认值 | 说明 |
-| --- | --- | --- |
-| `sessionTtlSeconds` | `7200` | 会话有效期 |
-| `maxSessionsPerUser` | `10` | 单用户并发会话上限（超出时吊销最旧的） |
+后台「扩展中心 → 身份与认证 → 设置」。保存后需**重启服务**生效。
+只影响之后新建立的会话，已有会话沿用签发时的有效期。
+
+### 分组「会话」
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `sessionTtlSeconds` | number（300–2592000） | `7200` | 会话有效期（秒） |
+| `maxSessionsPerUser` | number（1–100） | `10` | 单用户并发会话上限（超出时吊销最旧的） |
 
 ## 密码与安全策略
 

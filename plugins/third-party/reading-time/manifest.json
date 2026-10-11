@@ -3,15 +3,47 @@
   "id": "acme.reading-time",
   "name": "阅读时长",
   "description": "第三方示例插件：在文章正文前显示预计阅读时长与字数。只使用 @ricenote/plugin-sdk 的公共接口，不依赖任何其他插件、不持有任何数据表。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": "^1.0.0",
   "author": "Acme Studio",
   "license": "MIT",
   "entry": "./dist/index.js",
   "capabilities": ["slots:register"],
-  "settings": {
-    "wordsPerMinute": 300,
-    "showWordCount": true,
-    "label": "阅读时长"
+  "settingsSchema": {
+    "display": {
+      "label": { "zh-CN": "展示", "en": "Display" },
+      "description": {
+        "zh-CN": "本插件同时演示第三方插件也能声明设置表单：无需写任何后台界面代码。修改后需重启服务生效。",
+        "en": "Also demonstrates that third-party plugins get the settings form for free. A restart is required after changes."
+      },
+      "fields": {
+        "wordsPerMinute": {
+          "type": "number",
+          "label": { "zh-CN": "阅读速度（字/分钟）", "en": "Reading speed (words/minute)" },
+          "description": {
+            "zh-CN": "中文按字、拉丁文按词计数",
+            "en": "CJK characters and Latin words are both counted"
+          },
+          "default": 300,
+          "min": 50,
+          "max": 2000
+        },
+        "showWordCount": {
+          "type": "boolean",
+          "label": { "zh-CN": "同时显示字数", "en": "Show word count" },
+          "default": true
+        },
+        "label": {
+          "type": "text",
+          "label": { "zh-CN": "前缀文案", "en": "Label" },
+          "description": {
+            "zh-CN": "例如「阅读时长」；最多 20 字",
+            "en": "For example \"Reading time\"; up to 20 characters"
+          },
+          "default": "阅读时长",
+          "maxLength": 20
+        }
+      }
+    }
   }
 }

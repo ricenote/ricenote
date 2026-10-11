@@ -93,6 +93,8 @@ export function fallbackForType(field: ThemeSettingField): unknown {
       return field.options?.[0]?.value ?? '';
     case 'color':
       return '#000000';
+    case 'stringList':
+      return [];
     default:
       return '';
   }
@@ -205,6 +207,37 @@ function checkField(
         return { ok: true, value };
       }
       return fail('图片必须是媒体库 ID 或受管的相对路径', 'format');
+    }
+    case 'stringList': {
+      /*
+       * 值语义是 `string[]`（存储、插件读取、DTO 都是数组）。
+       * 同时接受"按行分隔的字符串"，让直接调用 API 或自建表单的调用方
+       * 不必自己拆分；空行与首尾空白一律抛弃，避免存进肉眼看不见的脏项。
+       */
+      const items =
+        typeof value === 'string'
+          ? value.split(/\r?\n/)
+          : Array.isArray(value)
+            ? value
+            : undefined;
+      if (items === undefined) return fail('期望字符串数组', 'type');
+
+      const maxItems = field.maxItems ?? 200;
+      if (items.length > maxItems) {
+        return fail(`列表最多 ${maxItems} 项`, 'maxItems');
+      }
+
+      const normalized: string[] = [];
+      for (const item of items) {
+        if (typeof item !== 'string') return fail('列表项必须是字符串', 'type');
+        const text = item.trim();
+        if (text.length === 0) continue;
+        if (field.maxLength !== undefined && text.length > field.maxLength) {
+          return fail(`单项长度超出上限 ${field.maxLength}`, 'maxLength');
+        }
+        normalized.push(text);
+      }
+      return { ok: true, value: normalized };
     }
     default:
       return fail('未知字段类型', 'type');

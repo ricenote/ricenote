@@ -3,7 +3,7 @@
   "id": "rice.media",
   "name": "媒体库",
   "description": "负责文件上传、媒体元数据登记与公开访问；主题设置中的 image 字段保存的就是媒体 ID。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -19,7 +19,26 @@
     "admin:menu"
   ],
   "migrations": "./migrations",
-  "settings": {
-    "maxFileBytes": 8388608
+  "settingsSchema": {
+    "upload": {
+      "label": { "zh-CN": "上传", "en": "Uploads" },
+      "description": {
+        "zh-CN": "上传体积限制在收到请求时校验。修改后需重启服务生效。",
+        "en": "The size limit is enforced per request. A restart is required after changes."
+      },
+      "fields": {
+        "maxFileBytes": {
+          "type": "number",
+          "label": { "zh-CN": "单文件体积上限（字节）", "en": "Max file size (bytes)" },
+          "description": {
+            "zh-CN": "默认 8388608 字节 = 8 MB；上限 67108864 字节 = 64 MB",
+            "en": "Defaults to 8388608 bytes = 8 MB; maximum 67108864 bytes = 64 MB"
+          },
+          "default": 8388608,
+          "min": 1024,
+          "max": 67108864
+        }
+      }
+    }
   }
 }
