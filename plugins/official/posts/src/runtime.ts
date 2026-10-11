@@ -69,6 +69,8 @@ export interface PostViewModel {
   updatedAt: string;
   url: string;
   status: string;
+  /** 命中的模板键（主题声明），未选择模板时省略。 */
+  template?: string;
   terms: { id: number; name: string; slug: string; type: string }[];
 }
 
@@ -170,6 +172,7 @@ export async function toPostViewModel(
     updatedAt,
     url: `/post/${row.slug}`,
     status: row.status,
+    ...(row.template ? { template: row.template } : {}),
     terms: terms.map((term) => ({
       id: term.id,
       name: term.name,

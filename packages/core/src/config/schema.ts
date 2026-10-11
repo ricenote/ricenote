@@ -19,7 +19,8 @@ export const CONFIG_SCHEMA = {
       additionalProperties: false,
       properties: {
         host: { type: 'string', minLength: 1 },
-        port: { type: 'integer', minimum: 1, maximum: 65535 },
+        // 0 表示"由系统分配空闲端口"，供测试装配真实 HTTP 服务使用
+        port: { type: 'integer', minimum: 0, maximum: 65535 },
         siteUrl: { type: 'string', pattern: '^https?://' }
       }
     },

@@ -17,6 +17,8 @@ export const PERMISSIONS: PermissionDefinition[] = [
   { key: 'post.write', label: '撰写与编辑文章', group: '内容' },
   { key: 'post.publish', label: '发布与撤回文章', group: '内容' },
   { key: 'post.delete', label: '删除文章', group: '内容' },
+  { key: 'page.view', label: '查看页面', group: '内容' },
+  { key: 'page.manage', label: '管理独立页面', group: '内容' },
   { key: 'taxonomy.manage', label: '管理分类与标签', group: '内容' },
   { key: 'media.manage', label: '管理媒体库', group: '内容' },
   { key: 'comment.moderate', label: '审核与管理评论', group: '互动' },
@@ -26,7 +28,12 @@ export const PERMISSIONS: PermissionDefinition[] = [
   { key: 'plugin.manage', label: '启用与配置插件', group: '扩展' },
   { key: 'user.manage', label: '管理用户与角色', group: '用户' },
   { key: 'system.audit', label: '查看审计日志', group: '系统' },
-  { key: 'system.maintain', label: '系统维护（运行日志与备份恢复）', group: '系统' }
+  { key: 'system.maintain', label: '系统维护（运行日志与备份恢复）', group: '系统' },
+  {
+    key: 'system.restart',
+    label: '重启服务（使待生效变更生效）',
+    group: '系统'
+  }
 ];
 
 export interface BuiltinRoleDefinition {
@@ -50,6 +57,8 @@ export const BUILTIN_ROLES: BuiltinRoleDefinition[] = [
       'post.write',
       'post.publish',
       'post.delete',
+      'page.view',
+      'page.manage',
       'taxonomy.manage',
       'media.manage',
       'comment.moderate',
@@ -60,12 +69,12 @@ export const BUILTIN_ROLES: BuiltinRoleDefinition[] = [
   {
     name: 'author',
     description: '作者：可撰写并发布自己的文章',
-    permissions: ['post.view', 'post.write', 'post.publish', 'media.manage']
+    permissions: ['post.view', 'post.write', 'post.publish', 'page.view', 'media.manage']
   },
   {
     name: 'contributor',
     description: '投稿者：可撰写草稿，等待他人发布',
-    permissions: ['post.view', 'post.write']
+    permissions: ['post.view', 'post.write', 'page.view']
   }
 ];
 

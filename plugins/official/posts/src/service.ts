@@ -8,9 +8,12 @@
 import {
   ErrorCode,
   RiceNoteError,
+  SERVICE_CONTRACTS,
   normalizeSlug,
+  resolveContentTemplateKey,
   slugify,
   type ContentPostsService,
+  type CoreThemeService,
   type PostDetail,
   type PostListQuery,
   type PostSaveRequest,
@@ -94,6 +97,12 @@ export async function buildSaveInput(
     String(payload.excerpt ?? '').trim() ||
     markdownToPlainText(content, runtime.excerptLength);
 
+  // 模板键必须命中当前主题声明；主题插件未启用时跳过校验（渲染期仍会优雅回退）
+  const theme = runtime.services.tryUse<CoreThemeService>(SERVICE_CONTRACTS.CORE_THEME);
+  const template = theme
+    ? resolveContentTemplateKey(payload.template, await theme.pageTemplates())
+    : null;
+
   return {
     siteId: runtime.siteId,
     authorId,
@@ -104,6 +113,7 @@ export async function buildSaveInput(
     contentHtml: sanitized.value,
     status,
     coverMediaId: payload.coverMediaId ?? null,
+    template,
     ...(payload.seoTitle ? { seoTitle: String(payload.seoTitle).slice(0, 255) } : {}),
     ...(payload.seoDescription ? { seoDescription: String(payload.seoDescription).slice(0, 500) } : {})
   };
@@ -122,9 +132,12 @@ function toSummary(row: repo.PostRow, authorNames?: Record<number, string>): Pos
     slug: row.slug,
     status: row.status as PostStatus,
     excerpt: row.excerpt,
-    ...(row.cover_media_id ? { coverUrl: `/media/${row.cover_media_id}` } : {}),
+    ...(row.cover_media_id
+      ? { coverUrl: `/media/${row.cover_media_id}`, coverMediaId: Number(row.cover_media_id) }
+      : {}),
     authorId: row.author_id,
     ...(authorNames?.[row.author_id] ? { authorName: authorNames[row.author_id] } : {}),
+    ...(row.template ? { template: row.template } : {}),
     terms: [],
     ...(publishedAt ? { publishedAt } : {}),
     updatedAt:

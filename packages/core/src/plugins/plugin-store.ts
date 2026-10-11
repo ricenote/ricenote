@@ -138,6 +138,15 @@ export class PluginStore {
     return map;
   }
 
+  /** 读取某插件配置的当前 revision；从未保存过时返回 0。 */
+  async revisionOf(pluginId: string): Promise<number> {
+    const rows = await this.db.query<{ revision: number }>(
+      'SELECT revision FROM rn_plugin_settings WHERE plugin_id = ? LIMIT 1',
+      [pluginId]
+    );
+    return rows[0] ? Number(rows[0].revision) : 0;
+  }
+
   /** 保存插件配置覆盖（使用 revision 乐观锁）。 */
   async saveSettings(
     pluginId: string,

@@ -3,7 +3,7 @@
   "id": "rice.authorization",
   "name": "角色与权限",
   "description": "实现角色、权限点与用户-角色分派；Core 的安全网关据此执行 fail-closed 鉴权。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",

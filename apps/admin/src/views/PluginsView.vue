@@ -1,14 +1,35 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { AlertTriangle, Archive, Link2, Power, RefreshCw, ShieldAlert, Upload } from 'lucide-vue-next';
-import type { PluginInstallResult, PluginState, PluginSummary, ValidationIssue } from '@ricenote/shared';
+import { computed, onMounted, reactive, ref } from 'vue';
+import {
+  AlertTriangle,
+  Archive,
+  Link2,
+  Power,
+  RefreshCw,
+  Settings2,
+  ShieldAlert,
+  Upload
+} from 'lucide-vue-next';
+import type {
+  PluginInstallResult,
+  PluginSettingsDto,
+  PluginState,
+  PluginSummary,
+  ValidationIssue
+} from '@ricenote/shared';
 import { ApiError, api } from '@/api/client';
 import { useAuth } from '@/stores/auth';
+import { useSystemState } from '@/stores/system';
 import { useToast } from '@/stores/toast';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
+import Dialog from '@/components/ui/Dialog.vue';
+import SettingsForm from '@/components/settings/SettingsForm.vue';
 import { formatBytes } from '@/lib/utils';
+
+/** 声明式设置表单的值（键为插件声明的字段名）。 */
+const settingsValues = reactive<Record<string, unknown>>({});
 
 interface Diagnostics {
   invalid: { dir: string; id: string | null; issues: ValidationIssue[] }[];
@@ -18,6 +39,7 @@ interface Diagnostics {
 
 const auth = useAuth();
 const toast = useToast();
+const system = useSystemState();
 
 const plugins = ref<PluginSummary[]>([]);
 const diagnostics = ref<Diagnostics | null>(null);
@@ -72,14 +94,61 @@ async function toggle(plugin: PluginSummary): Promise<void> {
     await api.post(`/plugins/${plugin.id}/${action}`);
     toast.success(
       plugin.enabled
-        ? `已禁用 ${plugin.id}，重启进程后路由才会卸载`
-        : `已启用 ${plugin.id}，重启进程后生效`
+        ? `已禁用 ${plugin.id}，重启后路由才会卸载`
+        : `已启用 ${plugin.id}，重启后生效`
     );
-    await load();
+    await Promise.all([load(), system.refresh()]);
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : '操作失败');
   } finally {
     busyId.value = null;
+  }
+}
+
+/* ------------------------------- 插件设置 ------------------------------- */
+
+const settingsOpen = ref(false);
+const settingsLoading = ref(false);
+const settingsSaving = ref(false);
+const settingsDto = ref<PluginSettingsDto | null>(null);
+const restartHint = ref('');
+
+async function openSettings(plugin: PluginSummary): Promise<void> {
+  settingsOpen.value = true;
+  settingsLoading.value = true;
+  settingsDto.value = null;
+  restartHint.value = '';
+
+  try {
+    const dto = await api.get<PluginSettingsDto>(`/plugins/${plugin.id}/settings`);
+    settingsDto.value = dto;
+    for (const key of Object.keys(settingsValues)) delete settingsValues[key];
+    Object.assign(settingsValues, dto.values);
+  } catch (error) {
+    toast.error(error instanceof ApiError ? error.message : '插件设置加载失败');
+    settingsOpen.value = false;
+  } finally {
+    settingsLoading.value = false;
+  }
+}
+
+async function saveSettings(): Promise<void> {
+  if (!settingsDto.value) return;
+  settingsSaving.value = true;
+  try {
+    const result = await api.put<PluginSettingsDto>(`/plugins/${settingsDto.value.pluginId}/settings`, {
+      values: { ...settingsValues }
+    });
+    settingsDto.value = result;
+    restartHint.value = `设置已保存。插件在启动时读取配置，重启后生效。`;
+    toast.success('插件设置已保存，重启后生效');
+    // 顶栏据此出现重启按钮
+    system.markPending(`插件「${result.name}」的设置已保存，重启后生效`);
+    await system.refresh();
+  } catch (error) {
+    toast.error(error instanceof ApiError ? error.message : '保存失败');
+  } finally {
+    settingsSaving.value = false;
   }
 }
 
@@ -279,16 +348,22 @@ onMounted(load);
             </p>
           </div>
 
-          <Button
-            v-if="canManage"
-            :variant="plugin.enabled ? 'outline' : 'default'"
-            size="sm"
-            :loading="busyId === plugin.id"
-            @click="toggle(plugin)"
-          >
-            <Power class="h-3.5 w-3.5" />
-            {{ plugin.enabled ? '禁用' : '启用' }}
-          </Button>
+          <div class="flex shrink-0 items-center gap-1.5">
+            <Button variant="ghost" size="sm" @click="openSettings(plugin)">
+              <Settings2 class="h-3.5 w-3.5" />
+              设置
+            </Button>
+            <Button
+              v-if="canManage"
+              :variant="plugin.enabled ? 'outline' : 'default'"
+              size="sm"
+              :loading="busyId === plugin.id"
+              @click="toggle(plugin)"
+            >
+              <Power class="h-3.5 w-3.5" />
+              {{ plugin.enabled ? '禁用' : '启用' }}
+            </Button>
+          </div>
         </div>
 
         <div class="mt-3 flex flex-col gap-2 border-t border-border pt-3">
@@ -328,5 +403,58 @@ onMounted(load);
         </div>
       </Card>
     </div>
+
+    <!-- 插件设置：按 settingsSchema 声明自动生成表单 -->
+    <Dialog
+      v-model:open="settingsOpen"
+      :title="settingsDto ? `插件设置 · ${settingsDto.name}` : '插件设置'"
+      :description="settingsDto ? `${settingsDto.pluginId} · v${settingsDto.version} · revision ${settingsDto.revision}` : ''"
+      width="lg"
+    >
+      <p v-if="settingsLoading" class="py-6 text-center text-xs text-muted-foreground">
+        正在加载设置…
+      </p>
+
+      <template v-else-if="settingsDto">
+        <div
+          v-if="restartHint"
+          class="mb-4 rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-warning"
+        >
+          {{ restartHint }}
+        </div>
+
+        <div v-if="settingsDto.groups.length" class="flex flex-col gap-4">
+          <SettingsForm
+            :groups="settingsDto.groups"
+            :values="settingsValues"
+            :disabled="!canManage"
+            @update="(key: string, value: unknown) => (settingsValues[key] = value)"
+          />
+        </div>
+
+        <div v-else class="rounded-md border border-border bg-muted/40 p-4">
+          <p class="text-xs text-foreground">
+            该插件未声明 <span class="font-mono">settingsSchema</span>，因此没有可自动生成的表单。
+          </p>
+          <pre class="mt-2 overflow-x-auto rounded border border-border bg-card p-2 font-mono text-[11px] text-muted-foreground">{{
+            JSON.stringify(settingsValues, null, 2)
+          }}</pre>
+          <p class="mt-2 text-[11px] text-muted-foreground">
+            如需在此编辑，请在插件 manifest.json 中声明 settingsSchema（分组 + 字段）。
+          </p>
+        </div>
+      </template>
+
+      <template #footer>
+        <Button variant="ghost" @click="settingsOpen = false">关闭</Button>
+        <Button
+          v-if="canManage && settingsDto?.groups.length"
+          :loading="settingsSaving"
+          @click="saveSettings"
+        >
+          保存设置
+        </Button>
+      </template>
+    </Dialog>
   </div>
 </template>

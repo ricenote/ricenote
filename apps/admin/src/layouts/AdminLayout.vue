@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import {
   Archive,
@@ -13,27 +13,57 @@ import {
   MessageSquare,
   Palette,
   Puzzle,
+  RotateCw,
   ScrollText,
   Settings,
   Shield,
   Tags,
+  UserRound,
   Users,
   X
 } from 'lucide-vue-next';
 import type { AdminMenuItem } from '@ricenote/shared';
-import { api } from '@/api/client';
+import { ApiError, api } from '@/api/client';
+import Button from '@/components/ui/Button.vue';
+import Dialog from '@/components/ui/Dialog.vue';
 import { useAuth } from '@/stores/auth';
+import { useSystemState } from '@/stores/system';
 import { useToast } from '@/stores/toast';
 import { cn } from '@/lib/utils';
 
 const auth = useAuth();
 const toast = useToast();
+const system = useSystemState();
 const route = useRoute();
 const router = useRouter();
 
 const drawerOpen = ref(false);
 const userMenuOpen = ref(false);
 const pluginMenu = ref<AdminMenuItem[]>([]);
+const restartDialogOpen = ref(false);
+
+/** 运行状态轮询间隔：让「重启」按钮在别处改动后也能及时出现。 */
+const STATE_POLL_MS = 30_000;
+let stateTimer: number | undefined;
+
+const canRestart = computed(() => auth.can('system.restart'));
+const showRestart = computed(() => system.restarting || (system.restartRequired.value && canRestart.value));
+
+async function triggerRestart(): Promise<void> {
+  restartDialogOpen.value = false;
+  toast.info('已请求重启，服务恢复中…');
+  try {
+    const recovered = await system.restart();
+    if (recovered) {
+      toast.success('服务已重启并恢复');
+      await loadMenu();
+    } else {
+      toast.warning('等待超时：请检查服务端日志确认重启结果');
+    }
+  } catch (error) {
+    toast.error(error instanceof ApiError ? error.message : '重启请求失败');
+  }
+}
 
 interface NavItem {
   /** 路由名（若该 name 未注册则为空，退化为普通链接）。 */
@@ -117,7 +147,14 @@ async function handleLogout(): Promise<void> {
   await router.push({ name: 'login' });
 }
 
-onMounted(loadMenu);
+onMounted(async () => {
+  await Promise.all([loadMenu(), system.refresh()]);
+  stateTimer = window.setInterval(() => void system.refresh(), STATE_POLL_MS);
+});
+
+onBeforeUnmount(() => {
+  if (stateTimer !== undefined) window.clearInterval(stateTimer);
+});
 </script>
 
 <template>
@@ -144,6 +181,20 @@ onMounted(loadMenu);
     </div>
 
     <div class="flex items-center gap-2">
+      <!-- 重启入口：仅在存在待生效变更时出现，避免顶栏噪声 -->
+      <button
+        v-if="showRestart"
+        type="button"
+        class="flex items-center gap-1.5 rounded-md border border-primary bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-70"
+        :disabled="system.restarting"
+        :title="system.pendingReason.value || '存在需要重启才能生效的改动'"
+        @click="restartDialogOpen = true"
+      >
+        <RotateCw :class="['h-3.5 w-3.5', system.restarting && 'animate-spin']" />
+        <span class="hidden sm:inline">{{ system.restarting ? '正在重启' : '待重启' }}</span>
+        <span v-if="!system.restarting" class="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+      </button>
+
       <a
         href="/"
         target="_blank"
@@ -176,6 +227,14 @@ onMounted(loadMenu);
             角色：{{ auth.user?.roles.join('、') || '无' }}
           </p>
           <div class="my-1 h-px bg-border" />
+          <RouterLink
+            :to="{ name: 'profile' }"
+            class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-foreground transition-colors hover:bg-muted"
+            @click="userMenuOpen = false"
+          >
+            <UserRound class="h-4 w-4" />
+            个人资料
+          </RouterLink>
           <button
             type="button"
             class="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-destructive transition-colors hover:bg-muted"
@@ -242,8 +301,43 @@ onMounted(loadMenu);
 
   <!-- 主内容区：为固定顶栏与侧栏留出空间 -->
   <main class="min-h-screen pt-14 lg:pl-60">
+    <!-- 重启进行中的轻量提示条：服务恢复后自动消失 -->
+    <div
+      v-if="system.restarting"
+      class="fixed inset-x-0 top-14 z-30 flex flex-wrap items-center justify-center gap-2 border-b border-border bg-primary/10 px-4 py-2 text-xs text-foreground lg:left-60"
+    >
+      <RotateCw class="h-3.5 w-3.5 animate-spin" />
+      <span>服务重启中 · {{ system.phase }} 请稍候，恢复后页面会自动可用</span>
+    </div>
+
     <div class="mx-auto max-w-6xl px-5 py-6">
       <RouterView />
     </div>
   </main>
+
+  <!-- 重启确认：重启会短暂中断站点访问，必须显式确认 -->
+  <Dialog
+    v-model:open="restartDialogOpen"
+    title="重启服务"
+    description="重启会短暂中断站点访问"
+    width="sm"
+  >
+    <div class="rounded-md border border-border bg-muted/40 px-3 py-2.5">
+      <p class="text-xs leading-relaxed text-muted-foreground">
+        重启将优雅关停插件与数据库连接，随后重新装配内核并监听同一端口（通常数秒）。
+        期间访问会返回 503，前端会等待服务恢复。
+      </p>
+      <p v-if="system.pendingReason.value" class="mt-2 text-xs text-foreground">
+        待生效原因：{{ system.pendingReason.value }}
+      </p>
+    </div>
+
+    <template #footer>
+      <Button variant="ghost" @click="restartDialogOpen = false">取消</Button>
+      <Button @click="triggerRestart">
+        <RotateCw class="h-3.5 w-3.5" />
+        立即重启
+      </Button>
+    </template>
+  </Dialog>
 </template>

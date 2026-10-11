@@ -91,8 +91,14 @@
     },
     "settings": {
       "type": "object",
-      "description": "插件自有配置声明的默认值（键为配置路径）。",
+      "description": "插件自有配置声明的默认值（键为配置路径）。向后兼容的旧写法：未声明 settingsSchema 时 config.get 直接读取这里的值。",
       "additionalProperties": true
+    },
+    "settingsSchema": {
+      "description": "插件设置的声明式表单定义（分组 + 字段），结构与主题设置完全一致。声明后后台自动生成设置表单，且未声明的字段会被拒绝写入。",
+      "allOf": [
+        { "$ref": "https://ricenote.dev/schemas/settings.schema.json#/definitions/settingsSchema" }
+      ]
     }
   }
 }

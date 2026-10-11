@@ -13,6 +13,9 @@
 | [ADR-007](ADR-007-plugin-package-install.md) | 插件包采用 ZIP 上传 + 两阶段安全校验安装 | 已接受 |
 | [ADR-008](ADR-008-backup-restore-scope.md) | 备份覆盖数据库/文件/清单，恢复前自动快照 | 已接受 |
 | [ADR-009](ADR-009-search-fulltext-ngram.md) | 搜索独立成插件并采用 ngram FULLTEXT 布尔短语 | 已接受 |
+| [ADR-010](ADR-010-page-type-and-selectable-templates.md) | 新增 `page` 页面类型，主题声明可供内容选择的页面模板 | 已接受 |
+| [ADR-011](ADR-011-runtime-site-settings-and-plugin-settings.md) | 站点信息运行时覆盖生效；插件设置声明式表单 + 重启生效 | 已接受 |
+| [ADR-012](ADR-012-in-process-soft-restart.md) | 后台一键重启采用进程内软重启（修订 ADR-004 的执行方式） | 已接受 |
 
 ## 说明书「待定项」的默认取值（M0–M2 实现依据）
 
@@ -42,10 +45,17 @@
    - `packages/shared/manifests/*.schema.json` 是字段说明的唯一事实来源；
      SDK 文档（`docs/plugin-api`、`docs/theme-api`）随实现同步维护。
 
-## M4 新增决策
+## 里程碑新增决策
 
 M4「生态稳定」在既有分层上做**插件式能力扩展 + Core 系统能力补全**，未改变架构范式：
 
 - ADR-007：插件包安装（ZIP 上传 + 两阶段校验，与主题安装同构）
 - ADR-008：备份与恢复范围（数据库 + 文件 + 清单，恢复前自动快照）
 - ADR-009：搜索独立成插件并采用 ngram FULLTEXT（布尔短语 + LIKE 降级）
+
+v0.3.0「架构改造」把"页面"提升为与"文章"并列的内容形态，并补齐配置与运维闭环：
+
+- ADR-010：新增 `page` 页面类型 + 主题声明可选模板清单（内容只存模板键）
+- ADR-011：站点信息改为"DB 稀疏覆盖 `.env` 并实时生效"；插件设置升级为声明式表单，
+  因 `ctx.config` 仍是启动期快照，保存后显式标记"待重启"
+- ADR-012：把"重启"从人工运维改为后台一键的进程内软重启，并统一待重启状态的呈现

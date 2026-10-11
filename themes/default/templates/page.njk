@@ -1,0 +1,29 @@
+{#
+  自定义页面（kind = page）的默认模板。
+
+  页面正文由 pages 插件提供在 `content` 变量中（title / html / updatedAt / slug）。
+  访问前必须判空：pages 插件被禁用时不会有该路由，但模板仍需保持健壮。
+#}
+{% extends "layout.njk" %}
+
+{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}
+{% block description %}{{ seoDescription or site.description }}{% endblock %}
+
+{% block content %}
+<article class="df-article df-page">
+  <h1 class="df-article__title">{% if content %}{{ content.title }}{% else %}{{ page.title }}{% endif %}</h1>
+  {% if content and content.updatedAt %}
+    <p class="df-article__meta">
+      <time datetime="{{ content.updatedAt }}">更新于 {{ content.updatedAt | date('YYYY-MM-DD') }}</time>
+    </p>
+  {% endif %}
+
+  <div class="df-prose">
+    {% if content and content.html %}
+      {{ content.html }}
+    {% else %}
+      <p>该页面暂无正文。</p>
+    {% endif %}
+  </div>
+</article>
+{% endblock %}

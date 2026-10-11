@@ -8,9 +8,16 @@
 export * from './errors.js';
 export * from './capability.js';
 export * from './slug.js';
+export * from './content-template.js';
 export * from './url.js';
 export * from './embed.js';
 export * from './manifests.js';
 export * from './types/dto.js';
 export * from './types/services.js';
-export { createManifestValidator, type ManifestValidator } from './validation.js';
+export {
+  createManifestValidator,
+  getPluginSchema,
+  getThemeSchema,
+  getSettingsSchema,
+  type ManifestValidator
+} from './validation.js';

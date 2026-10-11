@@ -17,7 +17,7 @@ import nunjucks from 'nunjucks';
 import type { HttpRequestLike, SlotRenderContext } from '@ricenote/plugin-sdk';
 import type { PaginationContext } from '@ricenote/theme-sdk';
 import { THEME_FILTERS } from '@ricenote/theme-sdk';
-import type { ThemeSettingValues } from '@ricenote/shared';
+import type { EffectiveSiteInfo, ThemeSettingValues } from '@ricenote/shared';
 import { ErrorCode, RiceNoteError } from '@ricenote/shared';
 import type { Logger } from '../logger.js';
 import type { RiceNoteConfig } from '../config/loader.js';
@@ -87,6 +87,13 @@ export interface ThemeRendererDeps {
   cache: HtmlCache;
   /** 返回当前实际启用的 capability 契约列表（用于 has_feature 与缓存键）。 */
   enabledCapabilities: () => string[];
+  /**
+   * 生效中的站点信息（env 默认值 + 后台覆盖）。
+   *
+   * 必须动态读取：后台改站点标题/地址后要**立即**反映到页面上，
+   * 不能使用启动期快照。缺省时回落到 `.env` 配置。
+   */
+  siteInfo?: () => EffectiveSiteInfo;
 }
 
 export class ThemeRenderer {
@@ -116,6 +123,7 @@ export class ThemeRenderer {
     const cacheKey = HtmlCache.buildKey({
       themeId: theme.manifest.id,
       revision,
+      siteRevision: this.siteInfo().revision,
       pluginsKey: [...this.deps.enabledCapabilities()].sort().join(','),
       path: `${input.canonicalUrl}|${queryKeyOf(input.request?.url)}|${template}`
     });
@@ -136,14 +144,19 @@ export class ThemeRenderer {
     const environment = this.getEnvironment(theme);
     const pendingSlots: { id: string; name: string; data: Record<string, unknown> }[] = [];
 
-    const helpers = this.buildHelpers(theme, input, pendingSlots);
+    const site = this.siteInfo();
+    const helpers = this.buildHelpers(theme, pendingSlots, site);
     const context = buildTemplateContext({
       site: {
-        id: this.deps.config.site.id,
-        title: this.deps.config.site.title,
-        description: this.deps.config.site.description,
-        url: this.deps.config.http.siteUrl,
-        language: this.deps.config.site.language
+        id: site.siteId,
+        title: site.title,
+        description: site.description,
+        url: site.url,
+        language: site.language,
+        ...(site.logoUrl ? { logoUrl: site.logoUrl } : {}),
+        ...(site.faviconUrl ? { faviconUrl: site.faviconUrl } : {}),
+        ...(site.icpText ? { icpText: site.icpText } : {}),
+        ...(site.icpUrl ? { icpUrl: site.icpUrl } : {})
       },
       theme: {
         id: theme.manifest.id,
@@ -200,13 +213,45 @@ export class ThemeRenderer {
 
   /** 构造渲染预览用的绝对地址。 */
   absolute(pathname: string): string {
-    return absoluteUrl(this.deps.config.http.siteUrl, pathname);
+    return absoluteUrl(this.siteInfo().url, pathname);
   }
 
   /* --------------------------- 内部 --------------------------- */
 
+  /** 生效中的站点信息（缺省时由 `.env` 配置兜底）。 */
+  private siteInfo(): EffectiveSiteInfo {
+    const fromProvider = this.deps.siteInfo?.();
+    if (fromProvider) return fromProvider;
+
+    const { config } = this.deps;
+    return {
+      siteId: config.site.id,
+      title: config.site.title,
+      description: config.site.description,
+      language: config.site.language,
+      url: config.http.siteUrl,
+      revision: 0,
+      overridden: []
+    };
+  }
+
+  /**
+   * 模板回退链：显式模板 → 主题 kind 模板 → 主题 fallback.njk → Core fallback.njk。
+   *
+   * 显式模板支持两种写法：
+   * - **模板键**：主题 `pageTemplates` 声明的键（页面/文章存的就是这个）；
+   * - **模板文件名**：`foo.njk` 形式的直接指定（保持既有插件行为兼容）。
+   *
+   * 两种写法都必须落在主题模板目录内的 `.njk` 文件上，
+   * 因此不存在通过构造模板名读取任意文件或目录穿越的可能。
+   */
   private resolveTemplate(theme: LoadedTheme, kind: string, explicit?: string): string {
-    if (explicit && this.templateExists(theme, explicit)) return explicit;
+    const fromKey = this.deps.themeManager.resolvePageTemplate(theme, explicit);
+    if (fromKey) return fromKey;
+
+    if (explicit && isSafeTemplateName(explicit) && this.templateExists(theme, explicit)) {
+      return explicit;
+    }
 
     const declared = theme.manifest.templates[kind];
     if (declared && this.templateExists(theme, declared)) return declared;
@@ -255,8 +300,8 @@ export class ThemeRenderer {
 
   private buildHelpers(
     theme: LoadedTheme,
-    input: RenderInput,
-    pendingSlots: { id: string; name: string; data: Record<string, unknown> }[]
+    pendingSlots: { id: string; name: string; data: Record<string, unknown> }[],
+    site: EffectiveSiteInfo
   ): Record<string, unknown> {
     const registeredSlotNames = new Set(this.deps.slots.list().map((item) => item.slot));
     let slotSequence = 0;
@@ -290,7 +335,7 @@ export class ThemeRenderer {
       // 支持短名（`posts`）、全名（`content.posts`）与完整契约（`content.posts@1`）
       has_feature: (capability: string): boolean =>
         capabilityMatches(this.deps.enabledCapabilities(), capability),
-      site_url: (pathname = '/'): string => absoluteUrl(this.deps.config.http.siteUrl, pathname),
+      site_url: (pathname = '/'): string => absoluteUrl(site.url, pathname),
       slot: (slotName: string, data: Record<string, unknown> = {}): nunjucks.runtime.SafeString => {
         if (!registeredSlotNames.has(slotName)) {
           // 未注册的插槽输出空片段，避免模板出现占位符残留
@@ -325,6 +370,16 @@ export class ThemeRenderer {
 
     return html.replace(SLOT_PLACEHOLDER, (match, id: string) => fragments.get(id) ?? match);
   }
+}
+
+/**
+ * 模板文件名安全校验。
+ *
+ * 只允许"不含路径分隔符的 .njk 文件名"，因此即使模板值来自数据库，
+ * 也无法借此跳出主题模板目录（目录穿越防护）。
+ */
+function isSafeTemplateName(name: string): boolean {
+  return /^[^/\\]+\.njk$/.test(name) && !name.includes('..');
 }
 
 /** 递归把 TrustedHtml 转为 Nunjucks 安全值，其余值原样保留。 */

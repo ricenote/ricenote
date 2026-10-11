@@ -16,7 +16,17 @@ export {
   type RiceNoteConfig,
   type LoadConfigOptions
 } from './config/loader.js';
-export { createLogger, parseLogLevel, LOG_LEVELS, type Logger, type LogLevel, type LoggerOptions } from './logger.js';
+export {
+  createLogger,
+  parseLogLevel,
+  resolveLogFormat,
+  LOG_LEVELS,
+  type Logger,
+  type LogLevel,
+  type LogFormat,
+  type LoggerOptions
+} from './logger.js';
+export { renderStartupBanner, printStartupBanner, type StartupBannerInput } from './startup-banner.js';
 
 export { createDatabaseAdapter, DatabaseAdapter, PluginScopedDatabase, scopedTableName, type OrmHandle, type QueryRunner } from './database/adapter.js';
 export { MigrationCoordinator, checksumOf, MIGRATION_LOCK_NAME, type MigrationSource, type MigrationOutcome } from './database/migrate-coordinator.js';
@@ -38,9 +48,18 @@ export { ThemeManager, type LoadedTheme, type InvalidTheme } from './themes/mana
 export { ThemeSettingsStore, type PublishedSettings, type SettingRevisionEntry } from './themes/settings.js';
 export { extractZipSafely, DEFAULT_ZIP_GUARD, type ZipGuardOptions } from './themes/zip-guard.js';
 
-/* 系统能力：运行日志与备份恢复 */
+/* 系统能力：运行日志、备份恢复、运行时站点设置与重启 */
 export { LogsReader, type LogsReaderOptions, type LogsQueryResult } from './system/index.js';
 export { BackupService, RESTORE_ZIP_GUARD, type BackupServiceDeps } from './system/index.js';
+export {
+  SiteSettingsProvider,
+  SITE_SETTING_KEYS,
+  validateSiteSettingsUpdate,
+  type SiteSettingKey,
+  type SiteSettingsProviderDeps,
+  type SiteSettingsValidationResult
+} from './system/index.js';
+export { RestartCoordinator, type RestartCoordinatorDeps, type RestartState } from './system/index.js';
 
 export { PluginManager, shortName, type PluginManagerDeps, type PluginBootstrapReport } from './plugins/manager.js';
 export {
@@ -57,6 +76,14 @@ export { resolveDependencies, findDependents, topologicalSort, buildCapabilityIn
 export { createPluginContext, type ContextFactoryDeps, type PluginContextBundle } from './plugins/context-factory.js';
 export { AdminMenuRegistry } from './plugins/admin-menu.js';
 export { PluginStore, type StoredPlugin } from './plugins/plugin-store.js';
+export {
+  buildPluginSettingsGroups,
+  declaredSettingKeys,
+  hasDeclarativeSettings,
+  resolvePluginSettings,
+  validatePluginSettingsValues,
+  assertPluginSettingsValid
+} from './plugins/settings-schema.js';
 export { assertTransition, canTransition, describeState, ALLOWED_TRANSITIONS, type PluginRecord } from './plugins/lifecycle.js';
 
 export {

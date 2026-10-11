@@ -55,8 +55,27 @@ export async function createHttpServer(
 
   const accessLogger = kernel.logger.child({ component: 'http' });
 
-  app.addHook('onRequest', async (request) => {
+  app.addHook('onRequest', async (request, reply) => {
     (request as unknown as { startedAt: number }).startedAt = Date.now();
+
+    /*
+     * 软重启期间快速失败。
+     *
+     * 重启会关闭 HTTP 服务，但"收到重启请求 → 真正关闭"之间有几百毫秒的宽限期，
+     * 期间进来的请求若不拦截就会在关停时被连接重置，客户端只能看到模糊的网络错误。
+     * 这里返回结构化的 503，前端据此显示"服务重启中"而不是"网络异常"。
+     */
+    if (kernel.runtime?.state().restarting === true) {
+      reply
+        .code(503)
+        .header('retry-after', '5')
+        .send({
+          error: {
+            code: ErrorCode.RESTART_IN_PROGRESS,
+            message: '服务正在重启，请稍候重试'
+          }
+        });
+    }
   });
 
   app.addHook('onResponse', async (request, reply) => {

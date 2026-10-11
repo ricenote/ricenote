@@ -109,6 +109,8 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
         kind: 'post',
         title: row.seo_title ?? row.title,
         canonicalUrl: `/post/${row.slug}`,
+        // 文章自选的模板键：由 Core 渲染器解析为模板文件，键失效时回退到 templates.post
+        ...(row.template ? { template: row.template } : {}),
         data: {
           post,
           seoDescription: row.seo_description ?? row.excerpt

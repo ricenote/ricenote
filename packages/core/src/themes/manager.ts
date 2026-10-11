@@ -14,6 +14,7 @@ import {
   RiceNoteError,
   createManifestValidator,
   satisfiesRange,
+  type PageTemplateDescriptor,
   type ThemeManifest,
   type ThemeSettingValues,
   type ThemeSummary,
@@ -50,6 +51,13 @@ export interface ThemeManagerDeps {
   logger: Logger;
   db: DatabaseAdapter;
   cache: HtmlCache;
+  /**
+   * 生效中的站点语言。
+   *
+   * 主题设置与页面模板的文案需要按站点语言解析，而站点语言可以在后台修改，
+   * 因此以取值函数传入；缺省时回落到 `.env` 的 `SITE_LANGUAGE`。
+   */
+  siteLanguage?: () => string;
 }
 
 export class ThemeManager {
@@ -115,6 +123,17 @@ export class ThemeManager {
           issues.push({
             path: `/templates/${kind}`,
             message: `模板文件缺失：templates/${file}`,
+            keyword: 'file'
+          });
+        }
+      }
+
+      // 可选模板清单：文件必须真实存在，否则内容选择了它就会渲染失败
+      for (const [key, declaration] of Object.entries(manifest.pageTemplates ?? {})) {
+        if (!existsSync(path.join(templatesDir, declaration.template))) {
+          issues.push({
+            path: `/pageTemplates/${key}`,
+            message: `页面模板文件缺失：templates/${declaration.template}`,
             keyword: 'file'
           });
         }
@@ -231,6 +250,7 @@ export class ThemeManager {
   async listSummaries(availableCapabilities: readonly string[] = []): Promise<ThemeSummary[]> {
     const site = await this.readSiteState();
     const activeId = site?.activeThemeId ?? this.deps.config.site.defaultTheme;
+    const locale = this.locale();
     const summaries: ThemeSummary[] = [];
 
     for (const theme of this.listLoaded()) {
@@ -249,13 +269,59 @@ export class ThemeManager {
         active: theme.manifest.id === activeId,
         path: theme.dir,
         templates: theme.manifest.templates,
+        pageTemplates: this.pageTemplateDescriptors(theme, locale),
         requires,
         missingRequirements,
-        settingsGroups: buildSettingGroups(theme.manifest, values, this.deps.config.site.language)
+        settingsGroups: buildSettingGroups(theme.manifest, values, locale)
       });
     }
 
     return summaries;
+  }
+
+  /* ------------------------- 页面模板清单 ------------------------- */
+
+  /**
+   * 主题声明的可选模板清单（文案已按站点语言解析）。
+   *
+   * 供「页面」与「文章」在后台下拉选择，也是服务端校验所选模板的权威来源。
+   */
+  pageTemplateDescriptors(theme: LoadedTheme, locale: string): PageTemplateDescriptor[] {
+    return Object.entries(theme.manifest.pageTemplates ?? {}).map(([key, declaration]) => {
+      const description = resolveLocalizedText(declaration.description, locale);
+      return {
+        key,
+        template: declaration.template,
+        label: resolveLocalizedText(declaration.label, locale, key),
+        ...(description ? { description } : {})
+      };
+    });
+  }
+
+  /** 当前激活主题的可选模板清单（`core.theme@1` 服务用）。 */
+  async activePageTemplates(): Promise<PageTemplateDescriptor[]> {
+    const theme = await this.getActive();
+    return this.pageTemplateDescriptors(theme, this.locale());
+  }
+
+  /** 生效中的站点语言（供文案解析）。 */
+  locale(): string {
+    return this.deps.siteLanguage?.() ?? this.deps.config.site.language;
+  }
+
+  /**
+   * 把内容保存的模板键解析为主题内的模板文件名。
+   *
+   * 返回 undefined 表示"该键在当前主题下不可用"：
+   * 此时调用方应回落到 kind 模板，而不是报错（主题切换后旧键失效属正常情况）。
+   */
+  resolvePageTemplate(theme: LoadedTheme, key: string | null | undefined): string | undefined {
+    if (!key) return undefined;
+    const declared = theme.manifest.pageTemplates?.[key];
+    if (declared && existsSync(path.join(theme.templatesDir, declared.template))) {
+      return declared.template;
+    }
+    return undefined;
   }
 
   /* --------------------------- 设置 --------------------------- */

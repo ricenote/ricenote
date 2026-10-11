@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/plugin-posts",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "RiceNote 文章插件：写作、发布、归档与前台展示",

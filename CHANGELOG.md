@@ -7,6 +7,153 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-11
+
+第三个里程碑版本（架构改造）。把"页面"提升为与"文章"并列的内容形态，
+并把此前只能靠人工运维完成的"重启生效"闭环收进后台：改设置 → 看到「重启」→ 一键完成。
+同时补齐插件设置表单、站点与账号信息在线修改、插件 README 与扩展点文档。
+
+### Added
+
+**页面插件（rice.pages）与 `page` 页面类型**
+
+- 新增官方插件 `rice.pages`（`content.pages@1`）：独立页面（标题 / 别名 / 正文 Markdown /
+  状态 / 排序 / SEO 字段），公开地址 `GET /page/:slug`，自带表 `rn_pages`。
+- 主题新增页面类型 `page`：`theme.json` 的 `templates.page` 提供默认模板；
+  两套官方主题均新增 `page.njk`（标准）、`page-plain.njk`（落地页，无标题）、
+  `page-narrow.njk`（窄栏阅读）。
+- `rice.pages` 注册 `header.navigation` 插槽输出已发布页面链接（含 `aria-current` 当前态），
+  两套官方主题已有该挂载点，因此**无需改动主题代码**即可出现页面导航；
+  禁用插件后链接自动消失。
+- 后台新增「页面」管理页（列表 + 筛选 + 抽屉式编辑 + 状态与模板选择 + 删除确认）。
+- 新增权限点 `page.view` / `page.manage`，并写入 `editor` / `author` / `contributor` 内置角色。
+
+**可供内容选择的页面模板（ADR-010）**
+
+- 主题可在 `theme.json` 中声明 `pageTemplates`（键 → 模板文件 + 多语言 label / description），
+  页面与文章编辑时即可下拉选择版式。
+- 内容只保存**模板键**而非文件名：主题重命名模板文件不会让已有内容失效；
+  保存时服务端校验键必须命中当前主题清单（`resolveContentTemplateKey()`），
+  渲染期对失效键优雅回退到 kind 模板而不是报错。
+- `rice.posts` 升级到 **1.2.0**：新增可空列 `template`（迁移 `0003_post_template.sql`），
+  历史文章行为不变。
+- 后台「外观中心 → 主题设置」新增"可供内容选择的页面模板"区块，列出键、文案、模板文件与说明。
+
+**插件设置（ADR-011）**
+
+- manifest 新增可选 `settingsSchema`：「分组 + 字段」声明式表单，**与主题设置共用同一份
+  JSON Schema 定义与同一套校验/多语言实现**（`packages/shared/manifests/settings.schema.json`）。
+- 旧写法 `manifest.settings` 语义不变；合并顺序为
+  「`settings` 默认值 → `settingsSchema` 默认值 → 数据库覆盖」。
+- 后台插件卡片新增「设置」入口：按声明自动生成表单，字段级错误提示，
+  保存为**合并式写入**（只覆盖提交字段），未声明的键一律拒绝（`RN_PLUGIN_SETTING_INVALID`）。
+- 保存成功后标记"待生效"，顶栏出现重启按钮（`ctx.config` 为启动期快照，ADR-004）。
+- 主题与插件共用同一套表单组件 `SettingsForm.vue`，主题设置面板同步重构复用。
+- `rice.pages` 作为首个使用 `settingsSchema` 的插件（`navLimit` / `listPageSize` / `cacheEnabled`）。
+
+**站点信息与账号信息在线修改（ADR-011）**
+
+- 新增 Core 表 `rn_site_settings` 与 `SiteSettingsProvider`：生效值 =
+  `.env` 默认值 + **稀疏覆盖**（只存被后台改过的字段，清空即回落）。
+- 后台「系统设置」的站点信息改为可编辑：标题、描述、语言、站点地址、
+  站点 Logo / 图标（可直接上传到媒体库或填外部地址）、页脚备案号与备案链接。
+- 站点信息**立即生效**：`ctx.site` 改为动态取值，渲染器实时读取，
+  HTML 缓存键纳入站点 revision（无需重启）。
+- 新增 `GET/PUT /api/admin/me`：查看与修改本人资料（显示名、邮箱，邮箱唯一性校验）。
+- 新增后台「个人资料」页：资料区 + 密码区（改密需校验原密码，成功后其他设备会话失效）。
+- identity 插件升级到 **1.1.0**：新增 `updateProfile()` 与 `resetPassword()` 服务方法，
+  新增管理路由 `POST /api/admin/users/:userId/password`（管理员重置他人密码，
+  刻意**拒绝重置自己**，本人改密必须走 `/me/password`），重置后强制该用户全部会话失效。
+- 后台用户列表新增「重置密码」入口（二次确认；本人行显示指引文案）。
+- 站点信息写入需要 `theme.manage`，字段白名单 + 长度/格式校验 + revision 乐观锁。
+
+**待生效提示与一键重启（ADR-012）**
+
+- 新增 Core 服务 `core.runtime@1`（`markRestartRequired` / `requestRestart` / `state` /
+  `clearRestartRequired` / `registerRestartHandler`）与 `core.site@1`（同步读取生效站点信息）。
+- 新增 `GET /api/admin/system/state` 与 `POST /api/admin/system/restart`（权限点 `system.restart`）。
+- 新增 `ServerSupervisor`（`apps/server/src/runtime/supervisor.ts`）执行**进程内软重启**：
+  先返回 202 → 关闭 HTTP（等待 in-flight）→ 关停内核 → 重新 `bootstrap` → 重新监听同一端口；
+  失败时回退到诊断服务并保留错误信息，绝不静默半死。
+- 重启期间新请求返回 `503 RN_RESTART_IN_PROGRESS`（带 `Retry-After`），前端据此展示
+  "服务重启中"而不是网络错误。
+- 待生效标记落库到 `rn_site_state`（新增 `restart_required` / `restart_reason` /
+  `restart_requested_at`），跨进程重启仍可见；bootstrap 成功后自动清除并在摘要中回显原因。
+- 后台顶栏在存在待生效变更时显示「待重启」按钮（柠檬黄描边 + 圆点提示 + 悬停原因），
+  点击后确认弹层 → 进行中态（旋转图标 + 顶部提示条）→ 轮询等待服务恢复
+  （先等健康检查通过，再等 `startedAt` 变化以确认是**新进程**）。
+- 插件启停、插件包安装、插件设置保存、备份恢复均会自动标记待生效。
+
+**启动终端输出格式化**
+
+- 新增启动摘要横幅：版本、环境、Node、根目录、数据库（含延迟）、激活主题、
+  插件状态分组、路由/服务/插槽/事件计数、监听与访问地址、启动耗时；
+  失败/排除/无效插件单独列出（不静默）。
+- 日志双通道：**终端默认可读格式**（时间对齐、级别着色、`key=value`，
+  插件与请求 ID 前置），**日志文件始终 JSON Lines**；非 TTY 或 `LOG_FORMAT=json`
+  自动降级为 JSON，`NO_COLOR` 关闭着色。
+
+**文档与示例**
+
+- 为全部插件补齐目录内 README（10 个官方 + 1 个第三方示例 + 新增的 `rice.pages`），
+  内容包含用途、清单摘要、全部扩展点、设置项、数据表与启停影响。
+- 新增 `docs/architecture/hooks-inventory.md`：**全量扩展点清单**
+  （标准插槽 9 个、事件全表、服务契约全表、页面/原始/管理路由全表、后台菜单全表、
+  权限点全表、能力白名单、生命周期，以及"如何用运行时接口自查文档是否过期"）。
+- `docs/plugin-api/v1.md` 增补：`settingsSchema` 与插件设置接口、全部扩展点清单、
+  页面类型与模板键约定、`core.site@1` / `core.runtime@1`、
+  `ctx.site` 动态取值与 `ctx.config` 快照的差异。
+- `docs/theme-api/v1.md` 增补：`templates.page` 与 `pageTemplates` 声明、
+  `content` 上下文变量、`site.logoUrl/faviconUrl/icpText/icpUrl`、`site_url` helper、
+  `json` 过滤器、以及主题侧**逐项核对用**的 Hook 清单。
+- 新增 ADR-010（页面类型与可选模板）、ADR-011（运行时站点设置与插件设置）、
+  ADR-012（进程内软重启），并在 ADR-004 追加修订说明（约束未变，仅执行方式变化）。
+
+### Changed
+
+- `ctx.site` 由启动期快照改为**动态取值**（站点信息可在不重启的前提下变更）；
+  `SiteInfo` 新增可选 `logoUrl` / `faviconUrl` / `icpText` / `icpUrl`。
+- 插件设置的保存语义由"整体替换"改为"**合并写入**"，局部提交不会清空其他字段。
+- 插件的旧写法设置在保存时新增"键必须在声明范围内"的校验（此前接受任意键）。
+- `identity` 升级到 1.1.0、`authorization` 升级到 1.1.0、`posts` 升级到 1.2.0、
+  两套主题升级到 1.1.0（新增页面模板与多语言文案），README 与文档同步更新。
+- `authorization` 的权限点目录新增 `page.view` / `page.manage` / `system.restart`，
+  并同步到内置角色（启动时按代码重新同步）。
+- 主题设置字段的 `label` / `description` 等在多语言对象写法上补充了官方主题示例
+  （两套主题的设置文案全部改为 `{ "zh-CN": …, "en": … }`）。
+- 后台「系统设置」文案更新：不再声称"不提供配置写入"，改为说明
+  "站点信息写入数据库并覆盖 `.env`，立即生效；部署级配置仍由 `.env` 管理"。
+
+### Fixed
+
+- **`posts` 状态变更会清空字段**：`POST /posts/:postId/status` 复用保存流程时未回传
+  封面、SEO 字段，导致"仅切换发布状态"会静默清空这些数据；现已回传完整字段
+  （并新增 `PostSummary.coverMediaId` 以便无损回传）。
+- 主题设置面板与插件设置面板的字段渲染重复实现，现统一为 `SettingsForm.vue`，
+  避免两处校验/交互规则漂移。
+- 服务端 `APP_VERSION` 硬编码为 `0.1.0`（与内核版本不一致，诊断页显示错误版本号），
+  现统一从 `@ricenote/core` 复用。
+- **页面变更后导航会短暂显示旧内容**：页面出现在 `header.navigation` 全局插槽中，
+  而该插槽被每个页面渲染，仅按 `page:<id>` / `pages` 标签失效缓存覆盖不到其他已缓存页面。
+  新增 `core.theme@1.clearCache()`，页面写入后按标签失效再整体清空缓存
+  （已由 HTTP 集成测试覆盖：预热首页缓存 → 新建页面 → 首页立即出现新链接）。
+- 渲染器对 `PageViewModel.template` 现在会做**模板名安全性校验**
+  （必须是主题模板目录内的 `*.njk` 且不含路径分隔符），杜绝借模板名读取任意文件。
+- `rn_site_settings`/`rn_site_state` 之外的站点读取路径统一走 provider，
+  避免"改了数据库但页面还是旧标题"的缓存不一致。
+
+### Security
+
+- 站点信息写入采用**字段白名单**（`title` / `description` / `language` / `url` /
+  `logoUrl` / `faviconUrl` / `icpText` / `icpUrl`），类型、长度与 URL 协议校验，
+  未声明字段一律拒绝；禁止借此接口写入任意配置。
+- 站点 Logo / 图标上传复用媒体库的体积与类型校验（扩展名白名单 + 随机文件名 + 路径归一化）。
+- 内容所选的模板键必须命中**当前主题声明的清单**，否则拒绝保存（防止静默降级）；
+  渲染期仅接受主题模板目录内的 `.njk` 文件名，不存在目录穿越可能。
+- 管理员重置他人密码需要 `user.manage`，**拒绝重置自己**，重置后强制该用户全部会话失效；
+  所有写入（站点信息、插件设置、重启、密码重置）均落审计。
+- 重启端点需要独立的 `system.restart` 权限点，仅管理员 `*` 天然具备，避免内容编辑者中断服务。
+
 ## [0.2.0] - 2026-10-11
 
 第二个里程碑版本，交付规划说明书的 **M4「生态稳定」**，并补齐 M3 的两项遗留增强。
@@ -223,6 +370,7 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ricenote/ricenote/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ricenote/ricenote/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ricenote/ricenote/releases/tag/v0.1.0

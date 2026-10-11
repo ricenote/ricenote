@@ -46,14 +46,21 @@ export class HtmlCache {
     return this.options.enabled && this.options.ttlSeconds > 0;
   }
 
-  /** 生成缓存键。 */
+  /**
+   * 生成缓存键。
+   *
+   * `siteRevision` 为站点信息（标题/描述/地址/Logo 等）的覆盖层版本号：
+   * 站点信息可在不重启的前提下被后台修改，纳入缓存键可保证旧 HTML 不会残留。
+   */
   static buildKey(parts: {
     themeId: string;
     revision: number;
     pluginsKey: string;
     path: string;
+    siteRevision?: number;
   }): string {
-    return `${parts.themeId}|r${parts.revision}|p${parts.pluginsKey}|${parts.path}`;
+    const site = parts.siteRevision ?? 0;
+    return `${parts.themeId}|r${parts.revision}|s${site}|p${parts.pluginsKey}|${parts.path}`;
   }
 
   get(key: string): string | undefined {

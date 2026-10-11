@@ -12,6 +12,7 @@ export type {
   ViewerContext,
   PostContext,
   PostsContext,
+  PageContentContext,
   PaginationContext,
   ThemeRenderContext,
   ThemeAssetHelper,

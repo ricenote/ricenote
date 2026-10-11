@@ -14,6 +14,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: '仪表盘' } },
       { path: 'posts', name: 'posts', component: () => import('@/views/PostsView.vue'), meta: { title: '文章', permission: 'post.view' } },
+      { path: 'pages', name: 'pages', component: () => import('@/views/PagesView.vue'), meta: { title: '页面', permission: 'page.view' } },
       { path: 'taxonomy', name: 'taxonomy', component: () => import('@/views/TaxonomyView.vue'), meta: { title: '分类与标签', permission: 'post.view' } },
       { path: 'media', name: 'media', component: () => import('@/views/MediaView.vue'), meta: { title: '媒体库', permission: 'media.manage' } },
       { path: 'comments', name: 'comments', component: () => import('@/views/CommentsView.vue'), meta: { title: '评论审核', permission: 'comment.moderate' } },
@@ -23,6 +24,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'plugins', name: 'plugins', component: () => import('@/views/PluginsView.vue'), meta: { title: '扩展中心', permission: 'plugin.view' } },
       { path: 'logs', name: 'logs', component: () => import('@/views/LogsView.vue'), meta: { title: '运行日志', permission: 'system.maintain' } },
       { path: 'backup', name: 'backup', component: () => import('@/views/BackupView.vue'), meta: { title: '备份与恢复', permission: 'system.maintain' } },
+      { path: 'profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { title: '个人资料' } },
       { path: 'settings', name: 'settings', component: () => import('@/views/SettingsView.vue'), meta: { title: '系统设置' } }
     ]
   },

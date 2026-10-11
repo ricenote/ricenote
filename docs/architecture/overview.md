@@ -1,6 +1,7 @@
 # RiceNote 架构总览
 
-> 本文是《RiceNote 项目规划与架构说明书 v1.0》的可执行落地版本，描述 M0–M2 已实现的实际结构。
+> 本文是《RiceNote 项目规划与架构说明书 v1.0》的可执行落地版本，描述**当前**已实现的实际结构
+> （M0–M2 基线 + M4 生态能力 + v0.3.0 架构改造）。
 
 ## 1. 总体分层
 
@@ -21,7 +22,10 @@ flowchart TD
     RD[Nunjucks Renderer / Slot]
     DA[Database Adapter / 迁移锁]
     SG[Security Gateway]
+    SSP[Site Settings Provider<br/>env + DB 覆盖]
+    RC[Restart Coordinator<br/>待生效状态]
   end
+  SV[Server Supervisor<br/>进程内软重启] --> CORE
   PM --> DR
   DR --> SR
   PM --> EB
@@ -47,18 +51,26 @@ Core 进一步分为四层：
 
 ```
 加载配置(env + 校验)
-  → 初始化 Logger
+  → 初始化 Logger（终端人可读 / 文件 JSON Lines）
   → 连接 MySQL（失败则进入恢复模式：仅提供安装/维护界面）
   → 执行 Core 迁移 + 插件迁移（加锁、串行、记录校验值）
-  → 注册 Core 服务
+  → 载入站点信息覆盖层（env 默认值 + rn_site_settings）
+  → 载入待重启标记（rn_site_state）
+  → 注册 Core 服务（含 core.site@1 / core.runtime@1）
   → 发现插件（扫描 PLUGINS_DIR）
   → 校验 Manifest（JSON Schema）
   → 依赖解析（capability 优先、拓扑排序、循环检测）
   → 按序 setup / start
   → 组装 Router Registry → 挂载 Fastify 路由
   → 装配主题（读取激活主题、合成设置）
+  → 清除待重启标记 → 输出启动摘要横幅
   → 监听端口
+  → 进程入口注入重启执行器（ServerSupervisor）
 ```
+
+启动摘要横幅（`printStartupBanner()`）把版本、根目录、环境、数据库、主题、
+插件状态分组、路由/服务/插槽计数、监听地址与耗时汇总为一段对齐文本，
+失败/排除/无效插件会被单独列出；日志文件仍然是纯 JSON Lines，不受影响。
 
 全部插件启动完成后，Core 会广播 **`core.runtime.started.v1`** 生命周期事件。
 这是"需要其他插件已就绪"的初始化逻辑的唯一正确挂载点——例如 identity 插件
@@ -85,6 +97,9 @@ Core 进一步分为四层：
 | Plugin Installer | 插件包 ZIP 两阶段安全校验与落盘 | 运行时热加载插件 |
 | Logs Reader | 运行日志尾部读取、级别/时间过滤、路径归一化 | 写入或轮转日志 |
 | Backup Service | 备份打包、包内预览、恢复前快照、快照回滚 | 定时调度与保留策略 |
+| Site Settings Provider | `.env` 默认值 + `rn_site_settings` 稀疏覆盖、白名单校验、乐观锁、内存缓存 | 写入任意键、承担启动期装配决策 |
+| Restart Coordinator（`core.runtime@1`） | 待生效状态簿记、重启请求受理与宽限期、状态落库 | 真正的进程重启（由 Server Supervisor 注入） |
+| Server Supervisor（服务端） | 关停 HTTP → 关停内核 → 重新 bootstrap → 重新监听；失败回退诊断服务 | 业务逻辑；不做 Fastify 路由热卸载 |
 
 ## 4. 插件与主题的交互方式
 
@@ -117,13 +132,18 @@ Core 进一步分为四层：
 | Core | `rn_site_state` | `active_theme_id` 与运行状态 |
 | Core | `rn_theme_settings` | 每主题设置快照与 revision |
 | Core | `rn_theme_setting_revisions` | 设置发布历史、回滚 |
+| Core | `rn_site_settings` | 站点信息覆盖层（稀疏覆盖 `.env`）与 revision |
 | Core | `rn_audit_logs` | 管理操作审计 |
 | identity 插件 | `rn_identity_users` / `rn_identity_sessions` | 用户与登录会话 |
 | authorization 插件 | `rn_authz_roles` / `rn_authz_role_permissions` / `rn_authz_user_roles` | 角色与权限 |
-| posts 插件 | `rn_posts` | 文章及状态 |
+| posts 插件 | `rn_posts` | 文章及状态（含自选模板键） |
+| **pages 插件** | **`rn_pages`** | **独立页面（标题 / 别名 / 正文 / 状态 / 排序 / 模板键）** |
 | taxonomy 插件 | `rn_terms` / `rn_term_relations` | 分类标签与关联 |
 | media 插件 | `rn_media` | 上传媒体元数据 |
 | comments 插件 | `rn_comments` | 评论、嵌套关系与四态审核状态 |
+
+`rn_site_state` 除 `active_theme_id` 与运行状态外，还保存**待生效变更**标记
+（`restart_required` / `restart_reason` / `restart_requested_at`），使"重启"提示跨进程重启依然可见。
 
 跨插件协作只允许通过**服务契约**与**公开 ID**，禁止对他人表建外键或非受控联表。
 表名统一 `rn_` 前缀，插件自有表使用 `rn_<插件短名>_<名称>` 由 `ctx.db.table()` 生成。
@@ -169,8 +189,22 @@ Core 进一步分为四层：
 设计要点：日志**只读文件尾部**并做文件名归一化校验，内存占用与文件大小无关；
 备份走**流式**打包，密码经临时 `--defaults-extra-file` 传递而不进入命令行。
 
-## 8. 相关文档
+## 8. 配置的时效性（v0.3.0 明确）
+
+| 配置 | 来源 | 生效时机 | 原因 |
+| --- | --- | --- | --- |
+| 部署配置（数据库、端口、密钥、路径、`BOOTSTRAP_ADMIN_*`） | `.env` | 重启 | 决定进程如何启动 |
+| 站点信息（标题/描述/语言/地址/Logo/图标/备案） | `.env` 默认值 + `rn_site_settings` | **立即生效** | 只被"读"，实时读取代价极低 |
+| 主题设置 | `rn_theme_settings`（`theme.json` 提供默认值） | 立即生效（发布后清缓存） | 渲染期读取 |
+| 插件设置 | `manifest.settings` / `settingsSchema` + `rn_plugin_settings` | **重启** | `ctx.config` 在插件 `start()` 被读取并参与装配 |
+| 插件启停 / 包安装 / 备份恢复 | `rn_plugins` / 磁盘 | **重启** | ADR-004 |
+
+凡"重启后生效"的写操作都会调用 `core.runtime@1` 的 `markRestartRequired()`，
+后台顶栏随即出现「重启」按钮，点击即执行进程内软重启（ADR-012）。
+
+## 9. 相关文档
 
 - [Plugin API v1](../plugin-api/v1.md)
 - [Theme API v1](../theme-api/v1.md)
+- [扩展点（Hook）全量清单](hooks-inventory.md)
 - [架构决策记录](../adr/)

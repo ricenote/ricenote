@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/plugin-authorization",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "RiceNote 授权插件：角色、权限点与用户角色分派",

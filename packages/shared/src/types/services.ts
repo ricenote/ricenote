@@ -15,11 +15,19 @@ import type {
   CommentSubmitRequest,
   CommentSummary,
   CommentThreadItem,
+  EffectiveSiteInfo,
   MediaSummary,
+  PageDetail,
+  PageTemplateDescriptor,
+  PageListQuery,
+  PageSaveRequest,
+  PageStatus,
+  PageSummary,
   PostDetail,
   PostListQuery,
   PostStatus,
   PostSummary,
+  SiteSettings,
   TermSummary,
   TermType
 } from './dto.js';
@@ -34,12 +42,27 @@ export const SERVICE_CONTRACTS = {
   CORE_HTML: 'core.html@1',
   /** Core 提供的初始化引导服务（向插件传递站点标识与首次启动凭据）。 */
   CORE_SETUP: 'core.setup@1',
+  /**
+   * Core 提供的运行时服务：待生效（需重启）状态与重启请求。
+   *
+   * 进程重启的**机制**由服务端进程入口注入（`registerRestartHandler`），
+   * Core 只负责状态簿记与广播，因此内核本身不依赖 HTTP 层。
+   */
+  CORE_RUNTIME: 'core.runtime@1',
+  /**
+   * Core 提供的站点信息服务（env 默认值 + 数据库覆盖后的生效值）。
+   *
+   * 插件读取 `ctx.site` 得到的即是该服务的快照式视图。
+   */
+  CORE_SITE: 'core.site@1',
   /** identity 插件提供的认证服务。 */
   IDENTITY_AUTH: 'identity.auth@1',
   /** authorization 插件提供的权限服务。 */
   IDENTITY_AUTHORIZATION: 'identity.authorization@1',
   /** posts 插件提供的内容服务。 */
   CONTENT_POSTS: 'content.posts@1',
+  /** pages 插件提供的自定义页面服务。 */
+  CONTENT_PAGES: 'content.pages@1',
   /** taxonomy 插件提供的分类标签服务。 */
   CONTENT_TAXONOMY: 'content.taxonomy@1',
   /** media 插件提供的媒体库服务。 */
@@ -101,6 +124,25 @@ export interface IdentityAuthService {
     currentPassword: string;
     nextPassword: string;
   }): Promise<void>;
+  /**
+   * 修改本人资料（显示名与邮箱）。
+   *
+   * 与 `changePassword` 的区别：这里**不校验原密码**，因为调用方已经过会话认证；
+   * 敏感操作（改密、重置）仍然需要原密码或管理员权限。
+   */
+  updateProfile(input: {
+    userId: number;
+    displayName?: string;
+    email?: string;
+  }): Promise<AuthUser>;
+  /**
+   * 管理员重置他人密码。
+   *
+   * 语义与 `changePassword` 的差异：
+   * - 不需要原密码（管理员代操作）；
+   * - 重置后强制该用户**全部会话**失效，避免旧凭据继续可用。
+   */
+  resetPassword(input: { userId: number; newPassword: string }): Promise<void>;
   listUsers(query: { page?: number; pageSize?: number; keyword?: string }): Promise<{
     items: AdminUserSummary[];
     total: number;
@@ -188,6 +230,43 @@ export interface ContentPostsService {
   countByStatus(): Promise<Record<PostStatus | 'total', number>>;
   /** 最近文章（仪表盘）。 */
   recent(limit: number): Promise<PostSummary[]>;
+}
+
+/* ----------------------------- 自定义页面 ----------------------------- */
+
+export interface PageQueryResult {
+  items: PageSummary[];
+  total: number;
+}
+
+/**
+ * pages 插件提供的自定义页面服务。
+ *
+ * 页面与文章的区别：页面不参与分类/标签与列表归档，拥有独立地址 `/page/:slug`，
+ * 通常用于「关于」「联系方式」等固定内容。
+ */
+export interface ContentPagesService {
+  /** 前台：列出已发布页面（按 sortOrder 升序）。 */
+  listPublished(input: { page: number; pageSize: number }): Promise<PageQueryResult>;
+  /** 前台：按 slug 获取已发布页面（含渲染后的 HTML）。 */
+  findPublishedBySlug(slug: string): Promise<PageDetail | undefined>;
+  /**
+   * 导航项（已发布页面，按 sortOrder 升序）。
+   *
+   * 供主题在 `header.navigation` / `footer.widgets` 中渲染页面链接，
+   * 避免主题直接查询 `rn_pages` 表。
+   */
+  navItems(): Promise<Array<{ id: number; title: string; slug: string; url: string }>>;
+  /** 后台：分页查询（含草稿）。 */
+  listForAdmin(query: PageListQuery): Promise<PageQueryResult>;
+  /** 后台：详情。 */
+  findForAdmin(id: number): Promise<PageDetail | undefined>;
+  /** 后台：保存（新建或更新）。`authorId` 为操作者，用于记录创建人。 */
+  save(input: { id?: number; authorId?: number; payload: PageSaveRequest }): Promise<{ id: number }>;
+  /** 后台：删除。 */
+  remove(id: number): Promise<void>;
+  /** 统计（仪表盘）。 */
+  countByStatus(): Promise<Record<PageStatus | 'total', number>>;
 }
 
 /* ----------------------------- 分类与标签 ----------------------------- */
@@ -382,8 +461,23 @@ export interface CoreThemeService {
   activeThemeId(): Promise<string>;
   /** 当前生效的主题设置（扁平化字段名 → 值）。 */
   settings(): Promise<Record<string, unknown>>;
-  /** 失效 HTML 缓存。 */
+  /**
+   * 当前主题声明的可选模板清单（供内容校验与后台下拉使用）。
+   *
+   * 内容（页面/文章）保存模板键时应在此校验：键不在清单内即应拒绝，
+   * 否则切换主题后会出现"模板永远命中 fallback"的静默降级。
+   */
+  pageTemplates(): Promise<PageTemplateDescriptor[]>;
+  /** 按标签失效 HTML 缓存（例如 `post:12`、`home`）。 */
   invalidate(tags: string[]): number;
+  /**
+   * 清空整个 HTML 缓存。
+   *
+   * 用于"内容出现在全局插槽"的场景：导航插槽（`header.navigation`）会被
+   * **每一个页面**渲染，因此增删一个页面会让所有已缓存页面变旧，
+   * 按标签精确失效无法覆盖。写操作本就低频，整体清空是可接受的代价。
+   */
+  clearCache(): void;
 }
 
 /**
@@ -400,6 +494,42 @@ export interface CoreSetupService {
   bootstrapAdmin(): { username: string; password: string; email: string };
   /** 受管目录（插件用于存放上传文件等，不得越出这些目录）。 */
   paths(): { storageDir: string; uploadsDir: string; cacheDir: string };
+}
+
+/**
+ * Core 提供的站点信息服务。
+ *
+ * 返回的是「env 默认值 + 数据库覆盖」后的**生效值**（带内存缓存），
+ * 因此可以在渲染热路径中同步调用。插件通过 `ctx.site` 获得同样的数据。
+ */
+export interface CoreSiteService {
+  info(): EffectiveSiteInfo;
+}
+
+/**
+ * Core 提供的运行时服务：待生效状态与重启。
+ *
+ * 分工：
+ * - Core 负责**状态簿记**（是否需要重启、原因、是否正在重启）与审计；
+ * - 服务端进程入口负责**重启机制**（关停 HTTP 与内核 → 重新 bootstrap → 重新监听），
+ *   通过 `registerRestartHandler` 注入。未注册时 `requestRestart` 返回
+ *   `RN_RESTART_UNAVAILABLE`，便于诊断脚本与测试环境使用。
+ */
+export interface CoreRuntimeService {
+  /** 注册重启执行器（仅进程入口调用一次）。 */
+  registerRestartHandler(handler: (input: { reason: string }) => Promise<void> | void): void;
+  /** 标记存在待生效变更（幂等；重复调用只更新原因）。 */
+  markRestartRequired(input: { reason: string; actorId?: number }): Promise<void>;
+  /**
+   * 请求重启：先落库待生效原因，再异步触发执行器。
+   *
+   * 语义上等价于 `markRestartRequired` + `handler()`，返回值仅表示"已受理"。
+   */
+  requestRestart(input: { reason: string; actorId?: number }): Promise<{ accepted: boolean }>;
+  /** 清除待生效标记（bootstrap 成功后由进程入口调用）。 */
+  clearRestartRequired(): Promise<void>;
+  /** 当前状态快照。 */
+  state(): { restartRequired: boolean; reason?: string; requestedAt?: string; restarting: boolean };
 }
 
 /**

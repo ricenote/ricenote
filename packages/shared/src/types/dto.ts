@@ -76,6 +76,35 @@ export interface PluginToggleRequest {
 }
 
 /**
+ * 插件设置的读取/保存载荷。
+ *
+ * `groups` 由插件清单的 `settingsSchema` 解析而来（文案已按站点语言解析），
+ * 后台据此自动生成表单；`declarative` 为 false 表示该插件未声明表单，
+ * 前端应退化为键值编辑或引导用户前往插件自定义设置页。
+ */
+export interface PluginSettingsDto {
+  pluginId: string;
+  name: string;
+  version: string;
+  /** 乐观锁：保存时回传，不一致返回 409。 */
+  revision: number;
+  groups: SettingsGroupDto[];
+  values: Record<string, unknown>;
+  declarative: boolean;
+  /**
+   * 保存后是否需重启才生效。
+   *
+   * 恒为 true：`ctx.config` 是插件启动期快照（与 ADR-004 一致），
+   * 保留该字段是为了让前端无需硬编码该结论。
+   */
+  restartRequiredOnSave: boolean;
+}
+
+export interface PluginSettingsSaveRequest {
+  values: Record<string, unknown>;
+}
+
+/**
  * 后台导航项（由插件贡献，Core 合并后通过 `/api/admin/menu` 下发）。
  *
  * 该类型同时被插件 SDK（`@ricenote/plugin-sdk`）复用，
@@ -108,9 +137,24 @@ export interface ThemeSummary {
   active: boolean;
   path: string;
   templates: Record<string, string>;
+  /** 可供页面/文章选择的模板清单（label 已按站点语言解析）。 */
+  pageTemplates: PageTemplateDescriptor[];
   requires: string[];
   missingRequirements: string[];
   settingsGroups: ThemeSettingsGroupDto[];
+}
+
+/**
+ * 可供内容选择的页面模板（已解析展示文案）。
+ *
+ * `key` 即页面/文章 `template` 字段存储的值；服务端会校验其必定来自当前主题声明。
+ */
+export interface PageTemplateDescriptor {
+  key: string;
+  /** 主题内模板文件名。 */
+  template: string;
+  label: string;
+  description?: string;
 }
 
 export interface ThemeSettingsGroupDto {
@@ -144,6 +188,14 @@ export interface ThemeSettingsPayload {
   revision: number;
   values: Record<string, unknown>;
 }
+
+/**
+ * 设置分组/字段 DTO 的中性别名。
+ *
+ * 插件设置与主题设置在后台复用同一套表单渲染组件，因此共用同一结构。
+ */
+export type SettingsGroupDto = ThemeSettingsGroupDto;
+export type SettingsFieldDto = ThemeSettingFieldDto;
 
 export interface ThemeSettingsSaveRequest {
   values: Record<string, unknown>;
@@ -188,6 +240,25 @@ export interface AdminUserSummary {
   lastLoginAt?: string;
 }
 
+/* ----------------------------- 个人资料 ----------------------------- */
+
+/** 修改本人资料（显示名与邮箱）。 */
+export interface ProfileUpdateRequest {
+  displayName?: string;
+  email?: string;
+}
+
+/** 修改本人密码（需校验原密码）。 */
+export interface PasswordChangeRequest {
+  currentPassword: string;
+  nextPassword: string;
+}
+
+/** 管理员重置他人密码。 */
+export interface PasswordResetRequest {
+  newPassword: string;
+}
+
 /* ----------------------------- 内容 ----------------------------- */
 
 export type PostStatus = 'draft' | 'published' | 'archived';
@@ -199,8 +270,16 @@ export interface PostSummary {
   status: PostStatus;
   excerpt: string;
   coverUrl?: string;
+  /** 封面媒体 ID（`coverUrl` 是由它派生的访问地址）。 */
+  coverMediaId?: number;
   authorId: number;
   authorName?: string;
+  /**
+   * 所选的渲染模板键（来自当前主题的 `pageTemplates` 声明）。
+   *
+   * 为空表示使用主题中 `templates.post` 对应的默认模板。
+   */
+  template?: string;
   terms: TermSummary[];
   publishedAt?: string;
   updatedAt: string;
@@ -223,6 +302,8 @@ export interface PostSaveRequest {
   excerpt?: string;
   coverMediaId?: number | null;
   status: PostStatus;
+  /** 渲染模板键（主题 `pageTemplates` 声明）；null/undefined 表示使用默认文章模板。 */
+  template?: string | null;
   termIds?: number[];
   seoTitle?: string;
   seoDescription?: string;
@@ -232,6 +313,55 @@ export interface PostListQuery extends PageQuery {
   status?: PostStatus | 'all';
   keyword?: string;
   termId?: number;
+}
+
+/* ----------------------------- 自定义页面 ----------------------------- */
+
+export type PageStatus = 'draft' | 'published';
+
+/** 后台页面列表项。 */
+export interface PageSummary {
+  id: number;
+  title: string;
+  slug: string;
+  status: PageStatus;
+  /**
+   * 所选的页面模板键（来自当前主题的 `pageTemplates` 声明）。
+   *
+   * 为空表示使用主题中 `templates.page` 对应的默认模板。
+   */
+  template?: string;
+  /** 排序权重，数值越小越靠前。 */
+  sortOrder: number;
+  seoTitle?: string;
+  seoDescription?: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+}
+
+export interface PageDetail extends PageSummary {
+  /** Markdown 原文。 */
+  content: string;
+  /** 服务端渲染并消毒后的 HTML。 */
+  html: string;
+}
+
+export interface PageSaveRequest {
+  title: string;
+  slug?: string;
+  content: string;
+  status: PageStatus;
+  /** 页面模板键；传 null/undefined 表示使用主题默认页面模板。 */
+  template?: string | null;
+  sortOrder?: number;
+  seoTitle?: string;
+  seoDescription?: string;
+}
+
+export interface PageListQuery extends PageQuery {
+  status?: PageStatus | 'all';
+  keyword?: string;
 }
 
 /* ----------------------------- 分类与标签 ----------------------------- */
@@ -346,6 +476,12 @@ export interface DashboardStats {
     published: number;
     draft: number;
   };
+  /** 自定义页面统计：仅当 pages 插件启用时存在。 */
+  pages?: {
+    total: number;
+    published: number;
+    draft: number;
+  };
   users: {
     total: number;
     activeSessions: number;
@@ -366,6 +502,12 @@ export interface DashboardStats {
 
 /* ----------------------------- 站点设置 ----------------------------- */
 
+/**
+ * 生效中的站点信息。
+ *
+ * 取值来源为「`.env` 默认值 → 数据库覆盖层」（见 `SiteSettingsProvider`）。
+ * `overridden` 列出被数据库覆盖的字段，便于后台提示运维。
+ */
 export interface SiteSettings {
   siteId: string;
   title: string;
@@ -373,6 +515,64 @@ export interface SiteSettings {
   url: string;
   language: string;
   activeThemeId: string;
+  /** 站点 Logo 地址（媒体库相对路径或外部 URL）。 */
+  logoUrl?: string;
+  /** 站点图标（favicon）地址。 */
+  faviconUrl?: string;
+  /** 页脚备案号文本。 */
+  icpText?: string;
+  /** 备案查询链接。 */
+  icpUrl?: string;
+  /** 乐观锁版本号。 */
+  revision: number;
+  /** 当前被数据库覆盖（相对 .env）的字段名。 */
+  overridden: string[];
+}
+
+/**
+ * 生效中的站点信息（不含"当前激活主题"，因为那需要查询站点运行状态）。
+ *
+ * 渲染上下文、插件 `ctx.site` 与 `core.site@1` 服务都以此为数据源。
+ */
+export type EffectiveSiteInfo = Omit<SiteSettings, 'activeThemeId'>;
+
+/** 站点信息更新请求（仅允许白名单字段，其余一律拒绝）。 */
+export interface SiteSettingsUpdate {
+  title?: string;
+  description?: string;
+  language?: string;
+  url?: string;
+  /** 传空字符串表示清除该覆盖项（回落到 .env 默认值）。 */
+  logoUrl?: string;
+  faviconUrl?: string;
+  icpText?: string;
+  icpUrl?: string;
+  /** 乐观锁：与当前 revision 不一致时返回 409。 */
+  revision?: number;
+}
+
+/* ----------------------------- 系统运行状态 ----------------------------- */
+
+/** 进程级运行状态（用于顶栏「待重启」提示与重启流程）。 */
+export interface SystemStateDto {
+  /** 存在需要重启才能生效的变更。 */
+  restartRequired: boolean;
+  /** 待生效变更的原因（中文，直接展示给用户）。 */
+  reason?: string;
+  /** 待生效标记的产生时间（ISO 8601）。 */
+  requestedAt?: string;
+  /** 服务端当前正在执行重启（新请求应快速失败并提示维护中）。 */
+  restarting: boolean;
+  /** 应用版本与本次启动时间，供前端在重启后判断"已经是新进程"。 */
+  version: string;
+  startedAt: string;
+}
+
+/** 重启请求响应。 */
+export interface RestartAcceptedDto {
+  accepted: true;
+  /** 前端据此开始轮询等待恢复。 */
+  restarting: true;
 }
 
 /* ----------------------------- 审计日志 ----------------------------- */

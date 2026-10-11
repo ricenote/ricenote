@@ -44,7 +44,16 @@ export interface ContextFactoryDeps {
   router: RouterRegistry;
   slots: SlotRegistry;
   adminMenu: AdminMenuRegistry;
-  site: SiteInfo;
+  /**
+   * 读取**当前生效**的站点信息。
+   *
+   * 以取值函数传入而非快照：后台修改站点信息后立即生效（无需重启），
+   * 插件每次访问 `ctx.site` 都得到最新值。
+   *
+   * 注意与 `config` 的差异：插件配置（`ctx.config`）仍是启动期快照，
+   * 因为它在 `start()` 阶段被读取并参与路由/服务装配（ADR-004）。
+   */
+  site: () => SiteInfo;
   /** 站点级插件配置覆盖（来自 rn_plugin_settings）。 */
   pluginSettings: Map<string, Record<string, unknown>>;
   logger: Logger;
@@ -208,7 +217,10 @@ export function createPluginContext(
         return deps.adminMenu.list();
       }
     },
-    site: deps.site
+    // 动态取值：站点信息可在不重启的前提下被后台修改
+    get site(): SiteInfo {
+      return deps.site();
+    }
   };
 
   return {

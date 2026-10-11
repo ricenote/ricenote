@@ -12,14 +12,17 @@ import {
   PLUGIN_API_VERSION,
   type Plugin,
   type PluginContext,
-  type Dispose
+  type Dispose,
+  type SiteInfo
 } from '@ricenote/plugin-sdk';
 import {
   ErrorCode,
   RiceNoteError,
+  type EffectiveSiteInfo,
   type PluginState,
   type PluginSummary,
-  type PluginDependencyInfo
+  type PluginDependencyInfo,
+  type PluginSettingsDto
 } from '@ricenote/shared';
 import type { RiceNoteConfig } from '../config/loader.js';
 import type { Logger } from '../logger.js';
@@ -47,6 +50,14 @@ import {
 import { assertTransition, type PluginRecord } from './lifecycle.js';
 import { PluginStore } from './plugin-store.js';
 import { createPluginContext, type ContextFactoryDeps, type PluginContextBundle } from './context-factory.js';
+import {
+  assertPluginSettingsValid,
+  buildPluginSettingsGroups,
+  declaredSettingKeys,
+  hasDeclarativeSettings,
+  resolvePluginSettings,
+  validatePluginSettingsValues
+} from './settings-schema.js';
 
 export interface PluginManagerDeps {
   config: RiceNoteConfig;
@@ -58,6 +69,13 @@ export interface PluginManagerDeps {
   slots: SlotRegistry;
   adminMenu: AdminMenuRegistry;
   migrations: MigrationCoordinator;
+  /**
+   * 生效中的站点信息（含后台覆盖）。
+   *
+   * 以**取值函数**而非快照传入：`ctx.site` 需要实时反映后台对站点信息的修改，
+   * 而站点信息是可以在不重启的前提下变更的（与插件配置不同）。
+   */
+  siteInfo?: () => EffectiveSiteInfo;
   coreApiVersion?: string;
 }
 
@@ -244,13 +262,7 @@ export class PluginManager {
       router: this.deps.router,
       slots: this.deps.slots,
       adminMenu: this.deps.adminMenu,
-      site: {
-        id: this.deps.config.site.id,
-        title: this.deps.config.site.title,
-        description: this.deps.config.site.description,
-        url: this.deps.config.http.siteUrl,
-        language: this.deps.config.site.language
-      },
+      site: () => this.siteInfo(),
       pluginSettings: settings,
       logger: this.deps.logger
     };
@@ -460,22 +472,114 @@ export class PluginManager {
       });
   }
 
-  /** 读取插件配置（Manifest 默认值 + 站点级覆盖）。 */
+  /** 读取插件配置（声明式默认值 + 旧写法默认值 + 站点级覆盖）。 */
   async readSettings(pluginId: string): Promise<Record<string, unknown>> {
     const plugin = this.loaded.get(pluginId);
-    const overrides = (await this.store.loadSettings()).get(pluginId) ?? {};
-    return { ...(plugin?.manifest.settings ?? {}), ...overrides };
+    if (!plugin) return {};
+    return resolvePluginSettings(plugin.manifest, await this.overridesOf(pluginId));
   }
 
-  /** 保存插件配置覆盖（返回新的 revision）。 */
+  /**
+   * 后台设置面板数据（声明式分组 + 当前值 + 乐观锁版本）。
+   *
+   * 未声明 `settingsSchema` 的插件返回空分组，前端据此退化为键值编辑。
+   */
+  async settingsDto(pluginId: string): Promise<PluginSettingsDto> {
+    const plugin = this.loaded.get(pluginId);
+    if (!plugin) {
+      throw new RiceNoteError(ErrorCode.PLUGIN_NOT_FOUND, `插件不存在：${pluginId}`, { status: 404 });
+    }
+
+    const overrides = (await this.store.loadSettings()).get(pluginId) ?? {};
+    const values = resolvePluginSettings(plugin.manifest, overrides);
+    const revision = await this.store.revisionOf(pluginId);
+
+    return {
+      pluginId,
+      name: plugin.manifest.name,
+      version: plugin.manifest.version,
+      revision,
+      groups: buildPluginSettingsGroups(plugin.manifest, values, this.effectiveSite().language),
+      values,
+      declarative: hasDeclarativeSettings(plugin.manifest),
+      // ctx.config 是插件启动期快照（ADR-004），因此保存后必须重启才生效
+      restartRequiredOnSave: true
+    };
+  }
+
+  /** 插件声明的设置字段名（供后台提示与诊断）。 */
+  declaredSettingKeysOf(pluginId: string): string[] {
+    const plugin = this.loaded.get(pluginId);
+    return plugin ? declaredSettingKeys(plugin.manifest) : [];
+  }
+
+  /**
+   * 保存插件配置覆盖。
+   *
+   * 两段式：先按声明校验（声明式走字段类型/范围校验，旧写法只校验键范围），
+   * 再与既有覆盖合并后落库 —— 合并而非替换，避免局部提交把其他字段清空。
+   */
   async writeSettings(
     pluginId: string,
     siteId: string,
     values: Record<string, unknown>
-  ): Promise<{ revision: number }> {
-    const result = await this.store.saveSettings(pluginId, siteId, values);
-    this.deps.logger.info('插件配置已更新', { plugin: pluginId, revision: result.revision });
-    return result;
+  ): Promise<{ revision: number; values: Record<string, unknown> }> {
+    const plugin = this.loaded.get(pluginId);
+    if (!plugin) {
+      throw new RiceNoteError(ErrorCode.PLUGIN_NOT_FOUND, `插件不存在：${pluginId}`, { status: 404 });
+    }
+
+    const checked = validatePluginSettingsValues(plugin.manifest, values);
+    assertPluginSettingsValid(pluginId, checked);
+
+    const existing = await this.overridesOf(pluginId);
+    const merged: Record<string, unknown> = { ...existing, ...checked.normalized };
+
+    const result = await this.store.saveSettings(pluginId, siteId, merged);
+    this.deps.logger.info('插件配置已更新', {
+      plugin: pluginId,
+      revision: result.revision,
+      fields: Object.keys(checked.normalized)
+    });
+    return { revision: result.revision, values: { ...values } };
+  }
+
+  /** 读取原始覆盖项（不含默认值）。 */
+  private async overridesOf(pluginId: string): Promise<Record<string, unknown> | undefined> {
+    return (await this.store.loadSettings()).get(pluginId);
+  }
+
+  /** 生效中的站点信息（由 bootstrap 注入的 provider 提供，缺失时回落到配置）。 */
+  private effectiveSite(): EffectiveSiteInfo {
+    const fromProvider = this.deps.siteInfo?.();
+    if (fromProvider) return fromProvider;
+
+    const { config } = this.deps;
+    return {
+      siteId: config.site.id,
+      title: config.site.title,
+      description: config.site.description,
+      language: config.site.language,
+      url: config.http.siteUrl,
+      revision: 0,
+      overridden: []
+    };
+  }
+
+  /** 转换为插件可见的 `SiteInfo`（字段名差异在边界处收敛）。 */
+  private siteInfo(): SiteInfo {
+    const info = this.effectiveSite();
+    return {
+      id: info.siteId,
+      title: info.title,
+      description: info.description,
+      url: info.url,
+      language: info.language,
+      ...(info.logoUrl ? { logoUrl: info.logoUrl } : {}),
+      ...(info.faviconUrl ? { faviconUrl: info.faviconUrl } : {}),
+      ...(info.icpText ? { icpText: info.icpText } : {}),
+      ...(info.icpUrl ? { icpUrl: info.icpUrl } : {})
+    };
   }
 
   /** 解析依赖键对应的提供者插件 ID（capability 或插件 ID）。 */

@@ -17,13 +17,19 @@ import {
   RiceNoteError,
   SERVICE_CONTRACTS,
   type CoreHtmlService,
+  type CoreRuntimeService,
   type CoreSecurityService,
-  type CoreThemeService as CoreThemeServiceContract
+  type CoreSiteService,
+  type CoreThemeService as CoreThemeServiceContract,
+  type EffectiveSiteInfo
 } from '@ricenote/shared';
 import { escapeHtml, markTrusted, sanitizeRichText } from './render/safe-html.js';
 import { capabilityMatches } from './capabilities.js';
 import { loadConfig, type LoadConfigOptions, type RiceNoteConfig } from './config/loader.js';
-import { createLogger, type Logger } from './logger.js';
+import { createLogger, resolveLogFormat, type Logger } from './logger.js';
+import { SiteSettingsProvider } from './system/site-settings.js';
+import { RestartCoordinator } from './system/runtime.js';
+import { printStartupBanner } from './startup-banner.js';
 import { createDatabaseAdapter, type DatabaseAdapter } from './database/adapter.js';
 import { MigrationCoordinator } from './database/migrate-coordinator.js';
 import { ServiceRegistry } from './services/registry.js';
@@ -58,6 +64,8 @@ export interface HealthReport {
   theme: { id: string; version: string } | null;
   cache: ReturnType<HtmlCache['stats']>;
   node: string;
+  /** 是否存在需要重启才能生效的变更。 */
+  restartRequired: boolean;
 }
 
 /** 组装完成的内核对象。 */
@@ -81,6 +89,10 @@ export interface RiceNoteKernel {
   throttle: LoginThrottle;
   audit: AuditLogger;
   gateway: SecurityGateway;
+  /** 站点信息运行时覆盖层（env 默认值 + 数据库覆盖）。 */
+  site: SiteSettingsProvider;
+  /** 待重启状态与重启请求（机制由进程入口注入）。 */
+  runtime: RestartCoordinator;
   /** 当前实际启用的能力契约（供 `has_feature()` 使用）。 */
   enabledCapabilities(): string[];
   /** 判断某能力是否可用（支持 capability 契约、全名或短名）。 */
@@ -89,6 +101,12 @@ export interface RiceNoteKernel {
   shutdown(): Promise<void>;
   /** 插件启动报告（含失败与依赖问题，供后台展示）。 */
   readonly pluginReport: PluginBootstrapReport;
+  /**
+   * 本次启动时间（ISO 8601）。
+   *
+   * 前端在软重启后通过它判断"已经是新进程"，从而结束"重启中"的等待状态。
+   */
+  readonly startedAt: string;
 }
 
 /** 启动内核。数据库不可用时抛出 DB_UNAVAILABLE。 */
@@ -96,9 +114,12 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
   const config = loadConfig(options);
   const startedAt = Date.now();
 
+  // 终端与日志文件分离：文件恒为 JSON Lines，终端默认可读格式
+  const logFormat = resolveLogFormat();
   const logger = createLogger({
     level: config.logLevel,
-    filePath: path.join(config.paths.logsDir, 'ricenote.log')
+    filePath: path.join(config.paths.logsDir, 'ricenote.log'),
+    format: logFormat
   });
 
   logger.info('RiceNote 启动中', {
@@ -171,8 +192,23 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
   try {
     await migrations.applyCore();
 
+    // ---- 站点信息覆盖层（必须先于主题/插件，因为文案与站点名都取自它）----
+    const siteProvider = new SiteSettingsProvider({ config, logger, db });
+    await siteProvider.ensureLoaded();
+    const siteInfo = (): EffectiveSiteInfo => siteProvider.info();
+
+    // ---- 待重启状态（落库，重启后仍可见）----
+    const restart = new RestartCoordinator({ config, logger, db });
+    await restart.load();
+
     // ---- 主题（需要在注册 Core 服务前可用）----
-    themeManager = new ThemeManager({ config, logger, db, cache });
+    themeManager = new ThemeManager({
+      config,
+      logger,
+      db,
+      cache,
+      siteLanguage: () => siteInfo().language
+    });
 
     // ---- 发布 Core 自身的服务契约 ----
     const securityService: CoreSecurityService = {
@@ -199,7 +235,13 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       activeThemeId: async () => (await themeManager.getActive()).manifest.id,
       settings: async () =>
         (await themeManager.resolveSettings(await themeManager.getActive())).values,
-      invalidate: (tags: string[]) => cache.invalidateTags(tags)
+      pageTemplates: () => themeManager.activePageTemplates(),
+      invalidate: (tags: string[]) => cache.invalidateTags(tags),
+      clearCache: () => cache.clear()
+    };
+
+    const siteService: CoreSiteService = {
+      info: () => siteInfo()
     };
 
     services.provide('core', {
@@ -211,6 +253,16 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       name: SERVICE_CONTRACTS.CORE_THEME,
       version: '1.0.0',
       implementation: themeService
+    });
+    services.provide('core', {
+      name: SERVICE_CONTRACTS.CORE_SITE,
+      version: '1.0.0',
+      implementation: siteService
+    });
+    services.provide('core', {
+      name: SERVICE_CONTRACTS.CORE_RUNTIME,
+      version: '1.0.0',
+      implementation: restart satisfies CoreRuntimeService as CoreRuntimeService
     });
 
     services.provide('core', {
@@ -255,6 +307,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       slots,
       adminMenu,
       migrations,
+      siteInfo,
       coreApiVersion: PLUGIN_API_VERSION
     });
     const pluginReport = await plugins.bootstrap();
@@ -274,7 +327,8 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       slots,
       router,
       cache,
-      enabledCapabilities
+      enabledCapabilities,
+      siteInfo
     });
 
     await db.execute(
@@ -286,13 +340,75 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
 
     await migrations.releaseLock();
 
+    /*
+     * 启动成功即认为"待生效变更"已被本次启动消费掉。
+     *
+     * 顺序很关键：必须在插件全部启动、主题同步完成之后清除，
+     * 否则重启过程中若启动失败，标记会丢失，管理员将不知道还需要再重启一次。
+     */
+    const pendingBefore = restart.state();
+    await restart.clearRestartRequired();
+
+    const activeTheme = await themeManager.getActive();
+    const dbLatency = await measureLatency(db);
+
     logger.info('RiceNote 启动完成', {
       started: pluginReport.started.length,
       failed: pluginReport.failed.length,
       excluded: pluginReport.excluded.length,
       invalid: pluginReport.invalid.length,
-      theme: (await themeManager.getActive()).manifest.id
+      theme: activeTheme.manifest.id
     });
+
+    printStartupBanner(
+      {
+        version: APP_VERSION,
+        env: config.env,
+        node: process.version,
+        rootDir: config.paths.rootDir,
+        database: {
+          host: config.database.host,
+          port: config.database.port,
+          name: config.database.name,
+          latencyMs: dbLatency
+        },
+        theme: {
+          id: activeTheme.manifest.id,
+          name: activeTheme.manifest.name,
+          version: activeTheme.manifest.version
+        },
+        plugins: {
+          started: pluginReport.started,
+          failed: pluginReport.failed,
+          excluded: pluginReport.excluded,
+          invalid: pluginReport.invalid.map((item) => ({
+            dir: item.dir,
+            ...(item.id ? { id: item.id } : {}),
+            message: item.issues
+              .slice(0, 3)
+              .map((issue) => `${issue.path} ${issue.message}`)
+              .join('；')
+          }))
+        },
+        routes: {
+          pages: router.pages().length,
+          admin: router.adminRoutesList().length,
+          raw: router.rawRoutesList().length
+        },
+        services: services.list().length,
+        slots: slots.list().length,
+        events: events.list().length,
+        http: {
+          host: config.http.host,
+          port: config.http.port,
+          siteUrl: config.http.siteUrl
+        },
+        durationMs: Date.now() - startedAt,
+        // 若本次启动是"为应用待生效变更"而发生的，把原因回显出来便于确认
+        appliedPendingChange: pendingBefore.restartRequired ? pendingBefore.reason : undefined
+      },
+      logFormat
+    );
 
     return {
       config,
@@ -314,9 +430,12 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       throttle,
       audit,
       gateway,
+      site: siteProvider,
+      runtime: restart,
       enabledCapabilities,
       hasFeature: (query: string) => capabilityMatches(enabledCapabilities(), query),
       pluginReport,
+      startedAt: new Date(startedAt).toISOString(),
       async health(): Promise<HealthReport> {
         const latencyStart = Date.now();
         const ok = await db.ping();
@@ -343,7 +462,8 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
           },
           theme,
           cache: cache.stats(),
-          node: process.version
+          node: process.version,
+          restartRequired: restart.state().restartRequired
         };
       },
       async shutdown(): Promise<void> {
@@ -363,4 +483,11 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
     await db.close().catch(() => undefined);
     throw error;
   }
+}
+
+/** 测量数据库往返延迟（仅用于启动横幅展示，失败不影响启动）。 */
+async function measureLatency(db: DatabaseAdapter): Promise<number | null> {
+  const start = Date.now();
+  const reachable = await db.ping().catch(() => false);
+  return reachable ? Date.now() - start : null;
 }

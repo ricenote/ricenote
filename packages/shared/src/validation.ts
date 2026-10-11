@@ -38,6 +38,7 @@ function resolveSchemaPath(fileName: string): string {
 
 let pluginSchemaCache: Record<string, unknown> | undefined;
 let themeSchemaCache: Record<string, unknown> | undefined;
+let settingsSchemaCache: Record<string, unknown> | undefined;
 
 /** 读取插件 Manifest JSON Schema。 */
 export function getPluginSchema(): Record<string, unknown> {
@@ -57,6 +58,22 @@ export function getThemeSchema(): Record<string, unknown> {
     ) as Record<string, unknown>;
   }
   return themeSchemaCache;
+}
+
+/**
+ * 读取「设置声明」JSON Schema。
+ *
+ * 该文件是主题设置与插件设置字段定义的**唯一来源**：
+ * `theme.schema.json` 与 `plugin.schema.json` 均通过 `$id` 引用它，
+ * 避免两侧字段类型/多语言规则出现漂移。
+ */
+export function getSettingsSchema(): Record<string, unknown> {
+  if (!settingsSchemaCache) {
+    settingsSchemaCache = JSON.parse(
+      readFileSync(resolveSchemaPath('settings.schema.json'), 'utf8')
+    ) as Record<string, unknown>;
+  }
+  return settingsSchemaCache;
 }
 
 function mapErrors(errors: ErrorObject[] | null | undefined): ValidationIssue[] {
@@ -81,6 +98,8 @@ export function createManifestValidator(): ManifestValidator {
     allowUnionTypes: true
   });
   addFormats(ajv);
+  // 必须先注册共享的设置声明 Schema，插件/主题清单中的 $ref 才能在编译期解析
+  ajv.addSchema(getSettingsSchema());
 
   let pluginValidate: ValidateFunction | undefined;
   let themeValidate: ValidateFunction | undefined;

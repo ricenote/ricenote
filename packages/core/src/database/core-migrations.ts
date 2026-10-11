@@ -120,5 +120,29 @@ CREATE TABLE IF NOT EXISTS rn_audit_logs (
   KEY idx_rn_audit_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `
+  },
+  {
+    /*
+     * 站点信息覆盖层 + 待重启标记。
+     *
+     * `rn_site_settings` 只存"被后台显式修改过"的字段（稀疏覆盖），
+     * 因此 .env 始终是默认值与兜底来源，清空某个键即回落到 .env。
+     */
+    name: '0004_site_settings_and_restart',
+    sql: `
+CREATE TABLE IF NOT EXISTS rn_site_settings (
+  site_id       VARCHAR(64)  NOT NULL,
+  settings_json JSON         NOT NULL,
+  revision      INT UNSIGNED NOT NULL DEFAULT 1,
+  updated_by    BIGINT UNSIGNED NULL,
+  updated_at    DATETIME     NOT NULL,
+  PRIMARY KEY (site_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE rn_site_state
+  ADD COLUMN restart_required TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN restart_reason VARCHAR(500) NULL,
+  ADD COLUMN restart_requested_at DATETIME NULL;
+`
   }
 ];

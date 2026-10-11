@@ -3,7 +3,7 @@
   "id": "rice.default",
   "name": "Default",
   "description": "默认主题：深色页眉 + 卡片网格首页，与 Minimal 呈现风格明显不同，用于验证「同一内容切换主题」不影响业务插件。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": "^1.0.0",
   "engine": "nunjucks",
   "author": "RiceNote",
@@ -11,34 +11,74 @@
   "templates": {
     "home": "index.njk",
     "post": "post.njk",
+    "page": "page.njk",
     "archive": "archive.njk",
     "search": "search.njk",
     "404": "404.njk"
+  },
+  "pageTemplates": {
+    "default": {
+      "template": "page.njk",
+      "label": { "zh-CN": "标准页面", "en": "Standard page" },
+      "description": {
+        "zh-CN": "标题 + 正文卡片，与文章页观感一致",
+        "en": "Heading plus the card-style body used by articles"
+      }
+    },
+    "plain": {
+      "template": "page-plain.njk",
+      "label": { "zh-CN": "落地页（无标题）", "en": "Landing page (no heading)" },
+      "description": {
+        "zh-CN": "去掉标题与卡片边框，正文直接铺开",
+        "en": "No heading and no card chrome; content spans the page"
+      }
+    },
+    "narrow": {
+      "template": "page-narrow.njk",
+      "label": { "zh-CN": "阅读版式（窄栏）", "en": "Reading layout (narrow)" },
+      "description": {
+        "zh-CN": "窄栏居中，适合条款与政策类长文",
+        "en": "Narrow centred column for long-form legal or policy pages"
+      }
+    }
   },
   "requires": {
     "content.posts@1": "^1.0.0"
   },
   "settings": {
     "appearance": {
-      "label": "外观",
+      "label": { "zh-CN": "外观", "en": "Appearance" },
       "fields": {
-        "accentColor": { "type": "color", "label": "强调色", "default": "#E8B04B" },
+        "accentColor": {
+          "type": "color",
+          "label": { "zh-CN": "强调色", "en": "Accent color" },
+          "default": "#E8B04B"
+        },
         "columns": {
           "type": "select",
-          "label": "首页列数",
+          "label": { "zh-CN": "首页列数", "en": "Homepage columns" },
           "default": "3",
           "options": [
-            { "label": "两列", "value": "2" },
-            { "label": "三列", "value": "3" }
+            { "label": { "zh-CN": "两列", "en": "Two columns" }, "value": "2" },
+            { "label": { "zh-CN": "三列", "en": "Three columns" }, "value": "3" }
           ]
         },
-        "showCover": { "type": "boolean", "label": "显示封面图", "default": true }
+        "showCover": {
+          "type": "boolean",
+          "label": { "zh-CN": "显示封面图", "en": "Show cover image" },
+          "default": true
+        }
       }
     },
     "footer": {
-      "label": "页脚",
+      "label": { "zh-CN": "页脚", "en": "Footer" },
       "fields": {
-        "footerText": { "type": "text", "label": "页脚文字", "default": "RiceNote · Default 主题", "maxLength": 160 }
+        "footerText": {
+          "type": "text",
+          "label": { "zh-CN": "页脚文字", "en": "Footer text" },
+          "default": "RiceNote · Default 主题",
+          "maxLength": 160
+        }
       }
     }
   }

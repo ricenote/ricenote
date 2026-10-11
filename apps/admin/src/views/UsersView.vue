@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { Plus, Search, UserPlus } from 'lucide-vue-next';
+import { KeyRound, Plus, Search, UserPlus } from 'lucide-vue-next';
 import type { AdminUserSummary } from '@ricenote/shared';
 import { ApiError, api } from '@/api/client';
 import { useAuth } from '@/stores/auth';
@@ -91,6 +91,45 @@ async function create(): Promise<void> {
   }
 }
 
+/* ---------------------------- 管理员重置密码 ---------------------------- */
+
+const resetOpen = ref(false);
+const resetSaving = ref(false);
+const resetTarget = ref<AdminUserSummary | null>(null);
+const resetForm = reactive({ newPassword: '', confirmPassword: '' });
+
+function openReset(user: AdminUserSummary): void {
+  resetTarget.value = user;
+  resetForm.newPassword = '';
+  resetForm.confirmPassword = '';
+  resetOpen.value = true;
+}
+
+async function resetPassword(): Promise<void> {
+  if (!resetTarget.value) return;
+  if (!resetForm.newPassword) {
+    toast.warning('请输入新密码');
+    return;
+  }
+  if (resetForm.newPassword !== resetForm.confirmPassword) {
+    toast.error('两次输入的新密码不一致');
+    return;
+  }
+
+  resetSaving.value = true;
+  try {
+    await api.post(`/users/${resetTarget.value.id}/password`, {
+      newPassword: resetForm.newPassword
+    });
+    toast.success(`已重置 ${resetTarget.value.username} 的密码，该用户所有会话已失效`);
+    resetOpen.value = false;
+  } catch (error) {
+    toast.error(error instanceof ApiError ? error.message : '重置失败');
+  } finally {
+    resetSaving.value = false;
+  }
+}
+
 onMounted(async () => {
   await Promise.all([load(), loadRoles()]);
 });
@@ -128,6 +167,7 @@ onMounted(async () => {
               <th class="rn-th w-48">角色</th>
               <th class="rn-th w-28">状态</th>
               <th class="rn-th w-40 hidden lg:table-cell">最后登录</th>
+              <th class="rn-th w-32">操作</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
@@ -152,9 +192,24 @@ onMounted(async () => {
               <td class="rn-td hidden text-xs text-muted-foreground lg:table-cell">
                 {{ formatDateTime(user.lastLoginAt) }}
               </td>
+              <td class="rn-td">
+                <Button
+                  v-if="canManage && user.id !== auth.user?.id"
+                  variant="ghost"
+                  size="sm"
+                  @click="openReset(user)"
+                >
+                  <KeyRound class="h-3.5 w-3.5" />
+                  重置密码
+                </Button>
+                <span v-else-if="user.id === auth.user?.id" class="text-[11px] text-muted-foreground">
+                  本人（用「个人资料」改密）
+                </span>
+                <span v-else class="text-[11px] text-muted-foreground">—</span>
+              </td>
             </tr>
             <tr v-if="!loading && users.length === 0">
-              <td class="rn-td py-10 text-center text-sm text-muted-foreground" colspan="4">
+              <td class="rn-td py-10 text-center text-sm text-muted-foreground" colspan="5">
                 暂无用户，或 identity 插件未启用。
               </td>
             </tr>
@@ -208,6 +263,39 @@ onMounted(async () => {
         <Button :loading="saving" @click="create">
           <Plus class="h-4 w-4" />
           创建
+        </Button>
+      </template>
+    </Dialog>
+
+    <!-- 管理员重置他人密码：无法撤销，需二次确认 -->
+    <Dialog
+      v-model:open="resetOpen"
+      title="重置用户密码"
+      :description="resetTarget ? `将重置 ${resetTarget.displayName}（${resetTarget.username}）的登录密码` : ''"
+      width="sm"
+    >
+      <div class="flex flex-col gap-4">
+        <div class="rounded-md border border-warning/40 bg-warning/5 px-3 py-2">
+          <p class="text-xs leading-relaxed text-warning">
+            该用户所有设备的登录会话都会立即失效，需要重新登录。请通过安全渠道把新密码告知本人。
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <Label required>新密码</Label>
+          <Input v-model="resetForm.newPassword" type="password" autocomplete="new-password" placeholder="至少 8 位，不能为纯数字" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <Label required>确认新密码</Label>
+          <Input v-model="resetForm.confirmPassword" type="password" autocomplete="new-password" />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button variant="ghost" @click="resetOpen = false">取消</Button>
+        <Button variant="destructive" :loading="resetSaving" @click="resetPassword">
+          <KeyRound class="h-4 w-4" />
+          确认重置
         </Button>
       </template>
     </Dialog>

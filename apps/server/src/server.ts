@@ -17,6 +17,7 @@ import { PreviewStore } from './http/preview-store.js';
 import { registerSessionRoutes } from './http/admin/session-routes.js';
 import { registerThemeRoutes } from './http/admin/themes-routes.js';
 import { registerPluginRoutes } from './http/admin/plugins-routes.js';
+import { registerProfileRoutes } from './http/admin/profile-routes.js';
 import { registerSystemRoutes } from './http/admin/system-routes.js';
 import { guard, isWriteMethod } from './http/admin/guard.js';
 
@@ -43,6 +44,7 @@ export async function startHttpServer(
       registerSessionRoutes(instance, kernel);
       registerThemeRoutes(instance, kernel, { previewStore });
       registerPluginRoutes(instance, kernel);
+      registerProfileRoutes(instance, kernel);
       registerSystemRoutes(instance, kernel);
 
       // 插件贡献的管理 API：统一套用认证、CSRF、权限与审计

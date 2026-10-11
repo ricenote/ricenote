@@ -41,12 +41,26 @@ export const rnPluginSettings = mysqlTable('rn_plugin_settings', {
   updatedAt: datetime('updated_at', { mode: 'date' }).notNull()
 });
 
-/** 站点运行状态：激活主题与运行标记。 */
+/** 站点运行状态：激活主题、运行标记与待重启标记。 */
 export const rnSiteState = mysqlTable('rn_site_state', {
   siteId: varchar('site_id', { length: 64 }).primaryKey(),
   activeThemeId: varchar('active_theme_id', { length: 120 }),
   runtimeStatus: varchar('runtime_status', { length: 32 }).notNull(),
   appVersion: varchar('app_version', { length: 32 }).notNull(),
+  /** 是否存在需要重启才能生效的变更。 */
+  restartRequired: tinyint('restart_required').notNull().default(0),
+  /** 待生效变更的原因（直接展示给管理员）。 */
+  restartReason: varchar('restart_reason', { length: 500 }),
+  restartRequestedAt: datetime('restart_requested_at', { mode: 'date' }),
   startedAt: datetime('started_at', { mode: 'date' }),
+  updatedAt: datetime('updated_at', { mode: 'date' }).notNull()
+});
+
+/** 站点信息覆盖层（稀疏覆盖：只存被后台显式修改过的字段）。 */
+export const rnSiteSettings = mysqlTable('rn_site_settings', {
+  siteId: varchar('site_id', { length: 64 }).primaryKey(),
+  settingsJson: json('settings_json').notNull(),
+  revision: int('revision', { unsigned: true }).notNull().default(1),
+  updatedBy: bigint('updated_by', { mode: 'number', unsigned: true }),
   updatedAt: datetime('updated_at', { mode: 'date' }).notNull()
 });

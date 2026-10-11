@@ -153,6 +153,12 @@ export function registerAdminRoutes(
         throw new RiceNoteError(ErrorCode.NOT_FOUND, `文章不存在：${postId}`, { status: 404 });
       }
 
+      /*
+       * 状态变更复用保存流程，因此必须把完整字段一并回传。
+       *
+       * 历史上这里只回传了正文相关字段，导致"仅切换发布状态"会静默清空
+       * 封面、SEO 字段与自选模板 —— 属于数据丢失，必须在载荷里补齐。
+       */
       await service.save({
         id: Number(postId),
         authorId: existing.authorId,
@@ -162,6 +168,10 @@ export function registerAdminRoutes(
           content: existing.content,
           excerpt: existing.excerpt,
           status,
+          coverMediaId: existing.coverMediaId ?? null,
+          template: existing.template ?? null,
+          ...(existing.seoTitle ? { seoTitle: existing.seoTitle } : {}),
+          ...(existing.seoDescription ? { seoDescription: existing.seoDescription } : {}),
           termIds: existing.terms.map((term) => term.id)
         }
       });

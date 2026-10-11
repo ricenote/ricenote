@@ -8,11 +8,7 @@ import { useToast } from '@/stores/toast';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
-import Input from '@/components/ui/Input.vue';
-import Label from '@/components/ui/Label.vue';
-import Select from '@/components/ui/Select.vue';
-import Switch from '@/components/ui/Switch.vue';
-import Textarea from '@/components/ui/Textarea.vue';
+import SettingsForm from '@/components/settings/SettingsForm.vue';
 import { formatDateTime } from '@/lib/utils';
 
 const auth = useAuth();
@@ -292,74 +288,36 @@ onMounted(loadThemes);
           </div>
         </Card>
 
-        <Card v-for="group in groups" :key="group.key" class="p-5">
-          <h2 class="text-sm font-semibold text-foreground">{{ group.label }}</h2>
-          <p v-if="group.description" class="mt-0.5 text-xs text-muted-foreground">{{ group.description }}</p>
+        <SettingsForm
+          :groups="groups"
+          :values="values"
+          :disabled="!canManage"
+          @update="(key: string, value: unknown) => setValue(key, value)"
+        />
 
-          <div class="mt-4 grid gap-4 md:grid-cols-2">
-            <div v-for="field in group.fields" :key="field.key" class="flex flex-col gap-1.5">
-              <Label>{{ field.label }}</Label>
-
-              <Select
-                v-if="field.type === 'select'"
-                :model-value="String(values[field.key] ?? field.default ?? '')"
-                :options="field.options ?? []"
-                @update:model-value="(value: string) => setValue(field.key, value)"
-              />
-
-              <div v-else-if="field.type === 'boolean'" class="flex items-center gap-2.5 pt-0.5">
-                <Switch
-                  :model-value="Boolean(values[field.key] ?? field.default)"
-                  @update:model-value="(value: boolean) => setValue(field.key, value)"
-                />
-                <span class="text-xs text-muted-foreground">
-                  {{ Boolean(values[field.key] ?? field.default) ? '已开启' : '已关闭' }}
-                </span>
-              </div>
-
-              <div v-else-if="field.type === 'color'" class="flex items-center gap-2">
-                <input
-                  type="color"
-                  class="h-9 w-12 cursor-pointer rounded-md border border-input bg-card p-1"
-                  :value="String(values[field.key] ?? field.default ?? '#000000')"
-                  @input="setValue(field.key, ($event.target as HTMLInputElement).value)"
-                />
-                <Input
-                  class="flex-1 font-mono"
-                  :model-value="String(values[field.key] ?? field.default ?? '')"
-                  @update:model-value="(value: string) => setValue(field.key, value)"
-                />
-              </div>
-
-              <Input
-                v-else-if="field.type === 'number'"
-                type="number"
-                :min="field.min"
-                :max="field.max"
-                :model-value="Number(values[field.key] ?? field.default ?? 0)"
-                @update:model-value="(value: string) => setValue(field.key, Number(value))"
-              />
-
-              <Textarea
-                v-else-if="field.type === 'textarea'"
-                :rows="3"
-                :maxlength="field.maxLength"
-                :model-value="String(values[field.key] ?? field.default ?? '')"
-                @update:model-value="(value: string) => setValue(field.key, value)"
-              />
-
-              <Input
-                v-else
-                :type="field.type === 'url' ? 'url' : 'text'"
-                :maxlength="field.maxLength"
-                :placeholder="field.placeholder"
-                :model-value="String(values[field.key] ?? field.default ?? '')"
-                @update:model-value="(value: string) => setValue(field.key, value)"
-              />
-
-              <p v-if="field.description" class="text-[11px] text-muted-foreground">{{ field.description }}</p>
-            </div>
-          </div>
+        <Card class="p-5">
+          <h2 class="text-sm font-semibold text-foreground">可供内容选择的页面模板</h2>
+          <p class="mt-0.5 text-xs text-muted-foreground">
+            在 theme.json 的 <span class="font-mono">pageTemplates</span> 中声明后，
+            页面与文章编辑时即可从下列版式中选择；未声明时统一使用<span class="font-mono">templates.page</span>。
+          </p>
+          <ul v-if="selectedTheme?.pageTemplates.length" class="mt-3 flex flex-col divide-y divide-border">
+            <li
+              v-for="template in selectedTheme.pageTemplates"
+              :key="template.key"
+              class="flex flex-wrap items-baseline gap-x-2 py-2"
+            >
+              <span class="font-mono text-xs text-foreground">{{ template.key }}</span>
+              <span class="text-xs text-foreground">{{ template.label }}</span>
+              <span class="font-mono text-[11px] text-muted-foreground">templates/{{ template.template }}</span>
+              <span v-if="template.description" class="w-full text-[11px] text-muted-foreground">
+                {{ template.description }}
+              </span>
+            </li>
+          </ul>
+          <p v-else class="mt-2 text-xs text-muted-foreground">
+            该主题未声明可选页面模板。
+          </p>
         </Card>
 
         <Card v-if="history.length" class="p-5">

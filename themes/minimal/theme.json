@@ -3,7 +3,7 @@
   "id": "rice.minimal",
   "name": "Minimal",
   "description": "极简阅读主题：留白优先、排版层级清晰、零构建。所有配色与排版参数均可在后台「外观 → 主题设置」中调整。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": "^1.0.0",
   "engine": "nunjucks",
   "author": "RiceNote",
@@ -11,50 +11,86 @@
   "templates": {
     "home": "index.njk",
     "post": "post.njk",
+    "page": "page.njk",
     "archive": "archive.njk",
     "search": "search.njk",
     "404": "404.njk"
+  },
+  "pageTemplates": {
+    "default": {
+      "template": "page.njk",
+      "label": { "zh-CN": "标准页面", "en": "Standard page" },
+      "description": {
+        "zh-CN": "标题 + 正文 + 最后更新时间的常规版式",
+        "en": "Heading, body and last-updated meta"
+      }
+    },
+    "plain": {
+      "template": "page-plain.njk",
+      "label": { "zh-CN": "落地页（无标题）", "en": "Landing page (no heading)" },
+      "description": {
+        "zh-CN": "不输出标题与页眉信息，适合标题已写在正文中的推广页",
+        "en": "Omits the heading block; use when the title lives inside the content"
+      }
+    },
+    "narrow": {
+      "template": "page-narrow.njk",
+      "label": { "zh-CN": "阅读版式（窄栏）", "en": "Reading layout (narrow)" },
+      "description": {
+        "zh-CN": "正文收窄居中，适合条款、隐私政策等长文",
+        "en": "Narrow centred column for long-form legal or policy pages"
+      }
+    }
   },
   "requires": {
     "content.posts@1": "^1.0.0"
   },
   "settings": {
     "appearance": {
-      "label": "外观",
-      "description": "控制站点的整体观感",
+      "label": { "zh-CN": "外观", "en": "Appearance" },
+      "description": {
+        "zh-CN": "控制站点的整体观感",
+        "en": "Controls the overall look and feel"
+      },
       "fields": {
         "accentColor": {
           "type": "color",
-          "label": "强调色",
-          "description": "用于链接、按钮与选中态",
+          "label": { "zh-CN": "强调色", "en": "Accent color" },
+          "description": {
+            "zh-CN": "用于链接、按钮与选中态",
+            "en": "Used for links, buttons and active states"
+          },
           "default": "#89A9C7"
         },
         "layoutWidth": {
           "type": "number",
-          "label": "内容宽度(px)",
+          "label": { "zh-CN": "内容宽度(px)", "en": "Content width (px)" },
           "default": 960,
           "min": 640,
           "max": 1440
         },
         "fontFamily": {
           "type": "select",
-          "label": "正文字体",
+          "label": { "zh-CN": "正文字体", "en": "Body font" },
           "default": "system",
           "options": [
-            { "label": "系统无衬线", "value": "system" },
-            { "label": "衬线（阅读感更强）", "value": "serif" },
-            { "label": "等宽", "value": "mono" }
+            { "label": { "zh-CN": "系统无衬线", "en": "System sans-serif" }, "value": "system" },
+            { "label": { "zh-CN": "衬线（阅读感更强）", "en": "Serif (easier reading)" }, "value": "serif" },
+            { "label": { "zh-CN": "等宽", "en": "Monospace" }, "value": "mono" }
           ]
         },
         "showSidebar": {
           "type": "boolean",
-          "label": "显示侧边栏",
-          "description": "首页右侧展示插槽与站点信息",
+          "label": { "zh-CN": "显示侧边栏", "en": "Show sidebar" },
+          "description": {
+            "zh-CN": "首页右侧展示插槽与站点信息",
+            "en": "Renders slots and site info in the right column"
+          },
           "default": true
         },
         "postsPerPage": {
           "type": "number",
-          "label": "每页文章数（展示用）",
+          "label": { "zh-CN": "每页文章数（展示用）", "en": "Posts per page (display only)" },
           "default": 10,
           "min": 1,
           "max": 50
@@ -62,34 +98,34 @@
       }
     },
     "header": {
-      "label": "页眉",
+      "label": { "zh-CN": "页眉", "en": "Header" },
       "fields": {
         "tagline": {
           "type": "text",
-          "label": "站点副标题",
+          "label": { "zh-CN": "站点副标题", "en": "Site tagline" },
           "default": "记录、思考与沉淀",
           "maxLength": 80
         },
         "showSearch": {
           "type": "boolean",
-          "label": "显示搜索入口",
+          "label": { "zh-CN": "显示搜索入口", "en": "Show search entry" },
           "default": true
         }
       }
     },
     "footer": {
-      "label": "页脚",
+      "label": { "zh-CN": "页脚", "en": "Footer" },
       "fields": {
         "footerText": {
           "type": "text",
-          "label": "页脚文字",
+          "label": { "zh-CN": "页脚文字", "en": "Footer text" },
           "default": "Powered by RiceNote",
           "maxLength": 160
         },
         "icp": {
           "type": "url",
-          "label": "备案链接",
-          "description": "可留空",
+          "label": { "zh-CN": "备案链接", "en": "ICP filing link" },
+          "description": { "zh-CN": "可留空", "en": "Optional" },
           "default": ""
         }
       }

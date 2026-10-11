@@ -89,6 +89,44 @@ export async function updatePassword(
   );
 }
 
+/** 更新资料（显示名与邮箱）；未提供的字段保持原值。 */
+export async function updateProfile(
+  db: PluginDatabase,
+  userId: number,
+  input: { displayName?: string; email?: string }
+): Promise<void> {
+  const assignments: string[] = [];
+  const params: unknown[] = [];
+  if (input.displayName !== undefined) {
+    assignments.push('display_name = ?');
+    params.push(input.displayName);
+  }
+  if (input.email !== undefined) {
+    assignments.push('email = ?');
+    params.push(input.email);
+  }
+  if (assignments.length === 0) return;
+
+  params.push(userId);
+  await db.execute(
+    `UPDATE rn_identity_users SET ${assignments.join(', ')}, updated_at = NOW() WHERE id = ?`,
+    params
+  );
+}
+
+/** 判断邮箱是否已被其他账号占用。 */
+export async function emailTaken(
+  db: PluginDatabase,
+  email: string,
+  exceptUserId: number
+): Promise<boolean> {
+  const rows = await db.query<{ id: number }>(
+    'SELECT id FROM rn_identity_users WHERE email = ? AND id <> ? LIMIT 1',
+    [email, exceptUserId]
+  );
+  return rows.length > 0;
+}
+
 export async function createSession(
   db: PluginDatabase,
   input: {

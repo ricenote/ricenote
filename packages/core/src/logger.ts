@@ -1,9 +1,13 @@
 /**
  * 结构化日志。
  *
- * - 输出 JSON Lines，便于采集与检索；
- * - 自动附加请求 ID 与插件边界字段；
- * - 内置敏感字段脱敏，避免会话密钥、密码被写入日志。
+ * 双通道输出（关键设计）：
+ * - **日志文件**永远是 JSON Lines：可被 `LogsReader` / 采集器稳定解析；
+ * - **终端**默认人可读（对齐、着色、键值对），仅在交互式终端或显式
+ *   `LOG_FORMAT=pretty` 时启用，非 TTY（CI、被重定向到文件）自动降级为 JSON，
+ *   避免把控制字符写进流水线。
+ *
+ * 另外内置敏感字段脱敏，避免会话密钥、密码被写入日志。
  */
 
 import { appendFileSync, mkdirSync } from 'node:fs';
@@ -22,12 +26,44 @@ const LEVEL_WEIGHT: Record<LogLevel, number> = {
 /** 需要脱敏的字段名（大小写不敏感）。 */
 const SENSITIVE_KEY = /(password|passwd|secret|token|credential|authorization|cookie)/i;
 
+/** 终端输出格式。 */
+export type LogFormat = 'pretty' | 'json';
+
+/**
+ * 解析终端输出格式。
+ *
+ * 优先级：显式参数 → `LOG_FORMAT` 环境变量 → TTY 自动判断。
+ * 非交互式环境（被重定向、CI）默认 JSON，避免控制字符污染管道。
+ */
+export function resolveLogFormat(value?: string): LogFormat {
+  const explicit = (value ?? process.env.LOG_FORMAT ?? '').trim().toLowerCase();
+  if (explicit === 'pretty') return 'pretty';
+  if (explicit === 'json') return 'json';
+  return process.stdout.isTTY === true ? 'pretty' : 'json';
+}
+
+/** 终端着色开关：非 TTY 或显式 NO_COLOR 时关闭。 */
+function useColor(): boolean {
+  return process.stdout.isTTY === true && process.env.NO_COLOR === undefined;
+}
+
+const COLOR: Record<LogLevel, string> = {
+  debug: '\u001b[90m',
+  info: '\u001b[36m',
+  warn: '\u001b[33m',
+  error: '\u001b[31m'
+};
+const RESET = '\u001b[0m';
+const DIM = '\u001b[90m';
+
 export interface LoggerOptions {
   level: LogLevel;
   /** 写入日志文件的绝对路径；为空则只输出到 stdout。 */
   filePath?: string;
   /** 附加到每条日志的固定字段。 */
   bindings?: Record<string, unknown>;
+  /** 终端输出格式；缺省自动判断。日志文件不受影响，始终为 JSON Lines。 */
+  format?: LogFormat;
 }
 
 export interface Logger {
@@ -58,10 +94,12 @@ function sanitize(value: unknown, depth = 0): unknown {
 
 class JsonLogger implements Logger {
   private readonly threshold: number;
+  private readonly format: LogFormat;
   private fileReady = false;
 
   constructor(private readonly options: LoggerOptions) {
     this.threshold = LEVEL_WEIGHT[options.level];
+    this.format = options.format ?? resolveLogFormat();
     if (options.filePath) {
       try {
         mkdirSync(path.dirname(options.filePath), { recursive: true });
@@ -106,20 +144,64 @@ class JsonLogger implements Logger {
       ...(meta ? (sanitize(meta) as Record<string, unknown>) : {})
     };
 
-    const line = `${JSON.stringify(record)}\n`;
+    const jsonLine = `${JSON.stringify(record)}\n`;
+    const consoleLine = this.format === 'pretty' ? prettyLine(record, useColor()) : jsonLine;
+
     if (level === 'error' || level === 'warn') {
-      process.stderr.write(line);
+      process.stderr.write(consoleLine);
     } else {
-      process.stdout.write(line);
+      process.stdout.write(consoleLine);
     }
+
+    // 文件始终写结构化 JSON：终端格式只影响人眼，不影响可检索性
     if (this.fileReady && this.options.filePath) {
       try {
-        appendFileSync(this.options.filePath, line, 'utf8');
+        appendFileSync(this.options.filePath, jsonLine, 'utf8');
       } catch {
         /* 日志文件不可写时静默降级，不影响主流程 */
       }
     }
   }
+}
+
+/** 把一条日志记录渲染为人可读的一行。 */
+function prettyLine(record: Record<string, unknown>, color: boolean): string {
+  const { ts, level, message, ...rest } = record;
+  const { bindings, fields } = splitFields(rest);
+
+  const time = typeof ts === 'string' ? ts.slice(11, 19) : '--:--:--';
+  const levelText = String(level ?? 'info').toUpperCase().padEnd(5);
+  const scope = bindings.length > 0 ? ` ${bindings.join(' ')}` : '';
+  const suffix = fields.length > 0 ? `  ${fields.join(' ')}` : '';
+
+  if (!color) return `${time} ${levelText}${scope}${message}${suffix}\n`;
+  const tint = COLOR[(level as LogLevel) ?? 'info'] ?? '';
+  return `${DIM}${time}${RESET} ${tint}${levelText}${RESET}${DIM}${scope}${RESET} ${String(message)}${DIM}${suffix}${RESET}\n`;
+}
+
+/**
+ * 拆分附加字段。
+ *
+ * 插件作用域（`plugin` / `requestId` 等）提到消息之前便于扫读，
+ * 业务字段以 `key=value` 排在消息之后。
+ */
+function splitFields(rest: Record<string, unknown>): { bindings: string[]; fields: string[] } {
+  const bindings: string[] = [];
+  const fields: string[] = [];
+  for (const [key, value] of Object.entries(rest)) {
+    if (value === undefined) continue;
+    const text = typeof value === 'string' ? value : JSON.stringify(value);
+    if (key === 'plugin' || key === 'requestId') {
+      bindings.push(`[${text}]`);
+      continue;
+    }
+    fields.push(`${key}=${truncate(text)}`);
+  }
+  return { bindings, fields };
+}
+
+function truncate(text: string, max = 160): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
 /** 创建日志器。 */

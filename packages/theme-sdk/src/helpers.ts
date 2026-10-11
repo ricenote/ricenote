@@ -7,13 +7,25 @@
 
 import type { ThemeSettingValues } from '@ricenote/shared';
 
-/** 全局公开站点信息。 */
+/**
+ * 全局公开站点信息。
+ *
+ * 取值来自「`.env` 默认值 → 后台站点设置覆盖」，因此后台改完立即生效。
+ */
 export interface SiteContext {
   id: string;
   title: string;
   description: string;
   url: string;
   language: string;
+  /** 站点 Logo（媒体库相对路径或外部地址）；未设置时为空。 */
+  logoUrl?: string;
+  /** 站点图标（favicon）地址；未设置时为空。 */
+  faviconUrl?: string;
+  /** 页脚备案号文本；未设置时为空。 */
+  icpText?: string;
+  /** 备案查询链接；未设置时为空。 */
+  icpUrl?: string;
 }
 
 /** 当前页面信息，由提供页面的插件决定。 */
@@ -62,6 +74,26 @@ export interface PostsContext {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+/**
+ * 自定义页面内容（仅在 `kind = 'page'` 的页面提供，变量名为 `content`）。
+ *
+ * 变量名刻意不叫 `page`：`page` 已被 Core 用作页面元信息
+ * （kind / title / canonicalUrl），两者混用会让模板难以阅读。
+ */
+export interface PageContentContext {
+  id: number;
+  title: string;
+  slug: string;
+  /** 已消毒并标记为受信任的正文 HTML。 */
+  html: string;
+  /** 站点相对地址，例如 `/page/about`。 */
+  url: string;
+  /** 命中的页面模板键（主题 pageTemplates 声明）；未选择时省略。 */
+  template?: string;
+  publishedAt?: string;
+  updatedAt: string;
 }
 
 /** 分页信息（archive / search 页面通用）。 */

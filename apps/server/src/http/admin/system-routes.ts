@@ -14,15 +14,19 @@ import {
   RiceNoteError,
   SERVICE_CONTRACTS,
   type ContentCommentsService,
+  type ContentPagesService,
   type ContentPostsService,
   type DashboardStats,
   type IdentityAuthService,
   type MediaService,
   type PluginSummary,
   type RuntimeLogQuery,
-  type SiteSettings
+  type SiteSettings,
+  type SiteSettingsUpdate,
+  type SystemStateDto
 } from '@ricenote/shared';
 import {
+  APP_VERSION,
   BackupService,
   LogsReader,
   RESTORE_ZIP_GUARD,
@@ -73,6 +77,9 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
       const commentCounts = comments ? await comments.countByStatus() : undefined;
       if (!comments) missingServices.push(SERVICE_CONTRACTS.CONTENT_COMMENTS);
 
+      const pages = k.services.tryUse<ContentPagesService>(SERVICE_CONTRACTS.CONTENT_PAGES);
+      const pageCounts = pages ? await pages.countByStatus() : undefined;
+
       const stats: DashboardStats = {
         site: {
           version: health.version,
@@ -88,6 +95,15 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
           published: postCounts.published ?? 0,
           draft: postCounts.draft ?? 0
         },
+        ...(pageCounts
+          ? {
+              pages: {
+                total: pageCounts.total ?? 0,
+                published: pageCounts.published ?? 0,
+                draft: pageCounts.draft ?? 0
+              }
+            }
+          : {}),
         users: {
           total: userCount.total ?? 0,
           activeSessions
@@ -123,21 +139,105 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
     })
   );
 
-  /** 站点信息。 */
+  /** 站点信息（`.env` 默认值 + 后台覆盖后的生效值）。 */
   app.get(
     '/site',
     guard(kernel, {}, async ({ kernel: k, reply }) => {
-      const active = await k.themeManager.getActive();
-      const payload: SiteSettings = {
-        siteId: k.config.site.id,
-        title: k.config.site.title,
-        description: k.config.site.description,
-        url: k.config.http.siteUrl,
-        language: k.config.site.language,
-        activeThemeId: active.manifest.id
-      };
-      return reply.send({ data: payload });
+      return reply.send({ data: await readSiteSettings(k) });
     })
+  );
+
+  /**
+   * 修改站点信息。
+   *
+   * 与插件设置的差别：站点信息**不需要重启**即可生效
+   * （读取路径是 `rn_site_settings` + 内存缓存，渲染与 `ctx.site` 都实时取值），
+   * 因此写入后只需失效 HTML 缓存。
+   */
+  app.put(
+    '/site',
+    guard<SiteSettingsUpdate>(
+      kernel,
+      { permission: 'theme.manage' },
+      async ({ kernel: k, request, reply, body, auth, ip, requestId }) => {
+        const patch = body ?? {};
+        const result = await k.site.update(patch, auth.user.id);
+
+        // 站点标题/描述会出现在每个页面上，必须整体清缓存（缓存键也含站点 revision）
+        k.cache.clear();
+
+        await k.audit.record({
+          action: 'site.settings.update',
+          actorId: auth.user.id,
+          actorName: auth.user.username,
+          targetType: 'site',
+          targetId: k.config.site.id,
+          ip,
+          requestId,
+          detail: { revision: result.revision, fields: Object.keys(patch) }
+        });
+
+        return reply.send({ data: await readSiteSettings(k) });
+      }
+    )
+  );
+
+  /* ------------------------------ 运行状态与重启 ------------------------------ */
+
+  /**
+   * 运行状态：是否存在待生效（需重启）变更。
+   *
+   * 顶栏的「重启」按钮依赖它；前端在重启后轮询该端点判断服务是否恢复。
+   */
+  app.get(
+    '/system/state',
+    guard(kernel, {}, async ({ kernel: k, reply }) => {
+      return reply.send({ data: buildSystemState(k) });
+    })
+  );
+
+  /**
+   * 一键重启（进程内软重启，ADR-004 / ADR-012）。
+   *
+   * 语义：
+   * - 先返回 202（受理），随后由 `ServerSupervisor` 关停 HTTP → 关停内核 →
+   *   重新 bootstrap → 重新监听同一端口；
+   * - 重启期间新请求返回 503 `RN_RESTART_IN_PROGRESS`，前端据此展示"重启中"；
+   * - 权限点为 `system.restart`（仅管理员 `*` 天然具备）：重启会短暂中断服务，
+   *   不应下放给内容编辑者。
+   */
+  app.post(
+    '/system/restart',
+    guard<{ reason?: string }>(
+      kernel,
+      { permission: 'system.restart' },
+      async ({ kernel: k, request, reply, body, auth, ip, requestId }) => {
+        const state = k.runtime.state();
+        const reason =
+          String(body?.reason ?? '').trim() ||
+          state.reason ||
+          '管理员从后台发起了重启';
+
+        await k.audit.record({
+          action: 'system.restart',
+          actorId: auth.user.id,
+          actorName: auth.user.username,
+          targetType: 'system',
+          targetId: k.config.site.id,
+          ip,
+          requestId,
+          detail: { reason, pendingReason: state.reason ?? null }
+        });
+
+        await k.runtime.requestRestart({ reason, actorId: auth.user.id });
+
+        reply.statusCode = 202;
+        return reply.send({
+          data: { accepted: true, restarting: true },
+          state: buildSystemState(k)
+        });
+      }
+    )
   );
 
   /** 审计日志。 */
@@ -308,6 +408,12 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
         const result = await backups.restoreFromSnapshot(name);
 
         k.cache.clear();
+        // 数据库已被整体覆盖：内存中的插件状态/站点信息都必须靠重启重新装载
+        await k.site.refresh().catch(() => undefined);
+        await k.runtime.markRestartRequired({
+          reason: `已从快照 ${name} 恢复数据，重启后生效`,
+          actorId: auth.user.id
+        });
 
         await k.audit.record({
           action: 'backup.snapshot.restore',
@@ -388,6 +494,11 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
 
       // 数据库已被覆盖，HTML 缓存必须整体失效
       k.cache.clear();
+      await k.site.refresh().catch(() => undefined);
+      await k.runtime.markRestartRequired({
+        reason: `已从备份包 ${uploaded.filename} 恢复数据，重启后生效`,
+        actorId: auth.user.id
+      });
 
       await k.audit.record({
         action: 'backup.restore',
@@ -414,6 +525,45 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
       });
     })
   );
+}
+
+/** 组装完整的站点设置 DTO（生效值 + 当前激活主题）。 */
+async function readSiteSettings(k: RiceNoteKernel): Promise<SiteSettings> {
+  const info = k.site.info();
+  let activeThemeId = '';
+  try {
+    activeThemeId = (await k.themeManager.getActive()).manifest.id;
+  } catch {
+    activeThemeId = '';
+  }
+
+  return {
+    siteId: info.siteId,
+    title: info.title,
+    description: info.description,
+    url: info.url,
+    language: info.language,
+    activeThemeId,
+    ...(info.logoUrl ? { logoUrl: info.logoUrl } : {}),
+    ...(info.faviconUrl ? { faviconUrl: info.faviconUrl } : {}),
+    ...(info.icpText ? { icpText: info.icpText } : {}),
+    ...(info.icpUrl ? { icpUrl: info.icpUrl } : {}),
+    revision: info.revision,
+    overridden: info.overridden
+  };
+}
+
+/** 组装运行状态 DTO。 */
+function buildSystemState(k: RiceNoteKernel): SystemStateDto {
+  const state = k.runtime.state();
+  return {
+    restartRequired: state.restartRequired,
+    ...(state.reason ? { reason: state.reason } : {}),
+    ...(state.requestedAt ? { requestedAt: state.requestedAt } : {}),
+    restarting: state.restarting,
+    version: APP_VERSION,
+    startedAt: k.startedAt
+  };
 }
 
 /** 生成文件名用的 `YYYYMMDD-HHmmss` 时间戳。 */

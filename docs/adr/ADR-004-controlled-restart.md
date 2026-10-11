@@ -46,7 +46,21 @@
 - CLI 需要提供 `ricenote plugin enable/disable` 以便脚本化重启流程；
 - 不可在请求处理中途卸载插件（必须等待进程重启）。
 
+## 修订（2026-10-11，见 ADR-012）
+
+本 ADR 的决策**不变**：仍然不热卸载路由，启停仍是"重启生效"语义。
+
+变更的是"重启"这个动作的执行方式：从**人工运维**改为**后台一键的进程内软重启**
+（`POST /api/admin/system/restart` → 关停 HTTP → 关停内核 → 重新 bootstrap → 重新监听）。
+也就是说 ADR-012 让本 ADR 的约束对用户**不再可见**，而不是放松了约束。
+
+同时新增了一条配套规则：任何需要重启才生效的写操作都必须调用
+`core.runtime@1` 的 `markRestartRequired()`，后台顶栏据此显示「重启」按钮，
+不再依赖用户记住"哪些操作需要重启"。
+
 ## 相关实现
 
 - `packages/core/src/plugins/lifecycle.ts`：状态机与资源注销
 - `packages/core/src/plugins/manager.ts`：启停前置校验与依赖阻塞
+- `packages/core/src/system/runtime.ts`：待生效标记与重启受理（ADR-012）
+- `apps/server/src/runtime/supervisor.ts`：软重启编排（ADR-012）

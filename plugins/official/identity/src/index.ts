@@ -26,6 +26,7 @@ import {
   countActiveSessions,
   countUsers,
   createSession,
+  emailTaken,
   findActiveSession,
   findUserById,
   findUserByUsername,
@@ -36,6 +37,7 @@ import {
   revokeUserSessions,
   updateLastLogin,
   updatePassword,
+  updateProfile,
   toAdminUserSummary,
   type UserRow
 } from './repository.js';
@@ -171,6 +173,79 @@ export default definePlugin({
         // 改密后强制其他会话失效
         await revokeUserSessions(db, user.id);
         await ctx.events.emit('identity.user.password.changed.v1', { userId: user.id });
+      },
+
+      /**
+       * 修改本人资料（显示名与邮箱）。
+       *
+       * 与改密的差别：资料修改属于低风险操作，调用方已通过会话认证，
+       * 因此不再要求原密码；但邮箱必须唯一，否则会出现"两个账号同一邮箱"
+       * 导致后续找回/通知行为不可预期。
+       */
+      async updateProfile(input) {
+        const user = await findUserById(db, input.userId);
+        if (!user) {
+          throw new RiceNoteError(ErrorCode.NOT_FOUND, '用户不存在', { status: 404 });
+        }
+
+        const displayName =
+          input.displayName === undefined ? undefined : String(input.displayName).trim();
+        const email = input.email === undefined ? undefined : String(input.email).trim();
+
+        if (displayName !== undefined) {
+          if (displayName.length === 0) {
+            throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '显示名不能为空', { status: 400 });
+          }
+          if (displayName.length > 120) {
+            throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '显示名不得超过 120 字', { status: 400 });
+          }
+        }
+        if (email !== undefined) {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 190) {
+            throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '邮箱格式不正确', { status: 400 });
+          }
+          if (await emailTaken(db, email, user.id)) {
+            throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, `邮箱已被占用：${email}`, {
+              status: 409
+            });
+          }
+        }
+
+        await updateProfile(db, user.id, {
+          ...(displayName === undefined ? {} : { displayName }),
+          ...(email === undefined ? {} : { email })
+        });
+
+        const updated = await findUserById(db, user.id);
+        await ctx.events.emit('identity.user.profile.updated.v1', { userId: user.id });
+        return toAuthUser(updated ?? user);
+      },
+
+      /**
+       * 管理员重置他人密码。
+       *
+       * 语义：不需要原密码（管理员代操作），重置后强制该用户**全部会话**失效。
+       * 这也是"不能借重置接口改自己密码"的原因 —— 本人改密必须走
+       * `changePassword`（校验原密码），避免管理员会话被滥用后无声接管账号。
+       */
+      async resetPassword(input) {
+        const user = await findUserById(db, input.userId);
+        if (!user) {
+          throw new RiceNoteError(ErrorCode.NOT_FOUND, '用户不存在', { status: 404 });
+        }
+
+        const strengthError = validatePasswordStrength(input.newPassword, user.username);
+        if (strengthError) {
+          throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, strengthError, { status: 400 });
+        }
+
+        await updatePassword(db, user.id, await hashPassword(input.newPassword));
+        const revoked = await revokeUserSessions(db, user.id);
+        await ctx.events.emit('identity.user.password.changed.v1', {
+          userId: user.id,
+          byAdmin: true
+        });
+        ctx.logger.warn('管理员重置了用户密码', { userId: user.id, revokedSessions: revoked });
       },
 
       async listUsers(query) {
@@ -338,6 +413,38 @@ export default definePlugin({
 
         reply.statusCode = 201;
         reply.json({ data: { id: userId, username } });
+      }
+    });
+
+    /**
+     * 管理员重置他人密码。
+     *
+     * 刻意拒绝"重置自己"：本人改密必须走 `/me/password` 并校验原密码，
+     * 否则一个被盗用的管理员会话可以无声地把账号密码换掉。
+     */
+    ctx.routes.adminApi({
+      method: 'POST',
+      path: '/users/:userId/password',
+      permission: 'user.manage',
+      handler: async (request, reply) => {
+        const target = Number((request.params as { userId?: string }).userId);
+        if (!Number.isInteger(target) || target <= 0) {
+          throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '用户 ID 非法', { status: 400 });
+        }
+        if (request.viewer?.user.id === target) {
+          throw new RiceNoteError(
+            ErrorCode.VALIDATION_FAILED,
+            '不能通过重置接口修改自己的密码，请使用「个人资料 → 修改密码」（需要校验原密码）',
+            { status: 400 }
+          );
+        }
+
+        const body = (request.body ?? {}) as { newPassword?: string };
+        await service.resetPassword({
+          userId: target,
+          newPassword: String(body.newPassword ?? '')
+        });
+        reply.json({ data: { id: target, reset: true } });
       }
     });
 

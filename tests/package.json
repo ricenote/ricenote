@@ -13,6 +13,7 @@
   "dependencies": {
     "@ricenote/core": "workspace:*",
     "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/server": "workspace:*",
     "@ricenote/shared": "workspace:*",
     "@ricenote/theme-sdk": "workspace:*",
     "adm-zip": "^0.5.16",

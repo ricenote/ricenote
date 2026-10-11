@@ -1,0 +1,17 @@
+{
+  "name": "@ricenote/plugin-pages",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 页面插件：独立页面的创建、发布与前台展示",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*",
+    "marked": "^15.0.4"
+  }
+}

@@ -14,6 +14,8 @@ export interface PostRow {
   content_html: string;
   cover_media_id: number | null;
   status: string;
+  /** 主题声明的模板键；NULL 表示使用主题默认文章模板。 */
+  template: string | null;
   seo_title: string | null;
   seo_description: string | null;
   published_at: Date | string | null;
@@ -22,7 +24,7 @@ export interface PostRow {
 }
 
 const COLUMNS = `id, site_id, author_id, title, slug, excerpt, content, content_html,
-  cover_media_id, status, seo_title, seo_description, published_at, created_at, updated_at`;
+  cover_media_id, status, template, seo_title, seo_description, published_at, created_at, updated_at`;
 
 export interface PageInput {
   page: number;
@@ -270,6 +272,7 @@ export async function insertPost(
     contentHtml: string;
     status: PostStatus;
     coverMediaId?: number | null;
+    template?: string | null;
     seoTitle?: string;
     seoDescription?: string;
   }
@@ -277,8 +280,8 @@ export async function insertPost(
   const result = await db.execute(
     `INSERT INTO rn_posts
        (site_id, author_id, title, slug, excerpt, content, content_html, cover_media_id, status,
-        seo_title, seo_description, published_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        template, seo_title, seo_description, published_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       input.siteId,
       input.authorId,
@@ -289,6 +292,7 @@ export async function insertPost(
       input.contentHtml,
       input.coverMediaId ?? null,
       input.status,
+      input.template ?? null,
       input.seoTitle ?? null,
       input.seoDescription ?? null,
       input.status === 'published' ? new Date() : null
@@ -308,6 +312,7 @@ export async function updatePost(
     contentHtml: string;
     status: PostStatus;
     coverMediaId?: number | null;
+    template?: string | null;
     seoTitle?: string;
     seoDescription?: string;
   }
@@ -316,7 +321,7 @@ export async function updatePost(
   await db.execute(
     `UPDATE rn_posts
         SET title = ?, slug = ?, excerpt = ?, content = ?, content_html = ?, status = ?,
-            cover_media_id = ?, seo_title = ?, seo_description = ?,
+            cover_media_id = ?, template = ?, seo_title = ?, seo_description = ?,
             published_at = CASE
               WHEN ? = 'published' AND published_at IS NULL THEN NOW()
               WHEN ? = 'published' THEN published_at
@@ -332,6 +337,7 @@ export async function updatePost(
       input.contentHtml,
       input.status,
       input.coverMediaId ?? null,
+      input.template ?? null,
       input.seoTitle ?? null,
       input.seoDescription ?? null,
       input.status,
