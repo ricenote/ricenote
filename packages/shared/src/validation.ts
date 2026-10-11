@@ -19,8 +19,14 @@ const addFormats = addFormatsImport as unknown as FormatsPlugin;
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
-/** 兼容 `src/` 与 `dist/` 两种目录深度，逐个候选探测 Schema 文件。 */
-function resolveSchemaPath(fileName: string): string {
+/**
+ * 兼容 `src/` 与 `dist/` 两种目录深度，逐个候选探测 `manifests/` 下的文件。
+ *
+ * 导出给 `catalog.ts` 复用：官方插件目录（`plugin-catalog.json`）与各 Schema
+ * 放在同一个 `manifests/` 目录里，解析规则必须一致，否则会出现
+ * "Schema 找得到、清单找不到"这种只在打包后才暴露的问题。
+ */
+export function resolveManifestPath(fileName: string): string {
   const candidates = [
     path.resolve(moduleDir, '..', 'manifests', fileName),
     path.resolve(moduleDir, '..', '..', 'manifests', fileName)
@@ -44,7 +50,7 @@ let settingsSchemaCache: Record<string, unknown> | undefined;
 export function getPluginSchema(): Record<string, unknown> {
   if (!pluginSchemaCache) {
     pluginSchemaCache = JSON.parse(
-      readFileSync(resolveSchemaPath('plugin.schema.json'), 'utf8')
+      readFileSync(resolveManifestPath('plugin.schema.json'), 'utf8')
     ) as Record<string, unknown>;
   }
   return pluginSchemaCache;
@@ -54,7 +60,7 @@ export function getPluginSchema(): Record<string, unknown> {
 export function getThemeSchema(): Record<string, unknown> {
   if (!themeSchemaCache) {
     themeSchemaCache = JSON.parse(
-      readFileSync(resolveSchemaPath('theme.schema.json'), 'utf8')
+      readFileSync(resolveManifestPath('theme.schema.json'), 'utf8')
     ) as Record<string, unknown>;
   }
   return themeSchemaCache;
@@ -70,7 +76,7 @@ export function getThemeSchema(): Record<string, unknown> {
 export function getSettingsSchema(): Record<string, unknown> {
   if (!settingsSchemaCache) {
     settingsSchemaCache = JSON.parse(
-      readFileSync(resolveSchemaPath('settings.schema.json'), 'utf8')
+      readFileSync(resolveManifestPath('settings.schema.json'), 'utf8')
     ) as Record<string, unknown>;
   }
   return settingsSchemaCache;

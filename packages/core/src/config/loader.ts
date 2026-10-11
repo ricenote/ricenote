@@ -44,9 +44,32 @@ export interface RiceNoteConfig {
     /** 备份与恢复前快照的存放目录。 */
     backupsDir: string;
     pluginsDir: string;
-    /** 第三方插件的安装目录（后台 ZIP 上传安装的落盘位置）。 */
+    /** 第三方插件的安装目录（后台安装与 ZIP 上传的落盘位置）。 */
     pluginsInstallDir: string;
+    /**
+     * 额外的本地插件根目录（开发调试用）。
+     *
+     * 这些目录会被发现机制一起扫描，因此**改动即生效**（配合开发期自动重启），
+     * 不需要"安装"这个动作。来自 `RICENOTE_LOCAL_PLUGINS`（逗号分隔）。
+     */
+    localPluginDirs: string[];
     themesDir: string;
+  };
+  /**
+   * 插件安装来源相关配置。
+   *
+   * `registry` / `token` 只从环境变量读取：**不落库、不进日志**，
+   * 避免把私有源凭据写进数据库或后台界面。
+   */
+  pluginRegistry: { registry: string; token?: string };
+  /** 安装器行为开关。 */
+  pluginInstall: {
+    /** 是否允许依赖安装脚本与构建脚本执行（默认允许；后台以高风险确认明示）。 */
+    allowScripts: boolean;
+    /** 单条命令超时（秒）。 */
+    commandTimeoutSeconds: number;
+    /** 开发期是否监视本地插件目录并自动重启（生产无意义）。 */
+    watchLocalDirs: boolean;
   };
   site: {
     id: string;
@@ -205,7 +228,21 @@ export function loadConfig(options: LoadConfigOptions = {}): RiceNoteConfig {
       backupsDir: path.join(storageDir, 'backups'),
       pluginsDir: path.resolve(rootDir, env('PLUGINS_DIR', './plugins/official')),
       pluginsInstallDir: path.resolve(rootDir, env('PLUGINS_INSTALL_DIR', './plugins/third-party')),
+      localPluginDirs: env('RICENOTE_LOCAL_PLUGINS', '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+        .map((item) => path.resolve(rootDir, item)),
       themesDir: path.resolve(rootDir, env('THEMES_DIR', './themes'))
+    },
+    pluginRegistry: {
+      registry: env('RICENOTE_NPM_REGISTRY', 'https://registry.npmjs.org'),
+      ...(process.env.RICENOTE_NPM_TOKEN ? { token: process.env.RICENOTE_NPM_TOKEN.trim() } : {})
+    },
+    pluginInstall: {
+      allowScripts: boolEnv('RICENOTE_ALLOW_INSTALL_SCRIPTS', true),
+      commandTimeoutSeconds: intEnv('RICENOTE_INSTALL_TIMEOUT_SECONDS', 600),
+      watchLocalDirs: boolEnv('RICENOTE_WATCH_LOCAL_PLUGINS', true)
     },
     site: {
       id: env('SITE_ID', 'default'),

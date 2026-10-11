@@ -61,7 +61,8 @@ export class AdminMenuRegistry {
     });
 
     return filtered
-      .map((entry) => entry.item)
+      // 补上 pluginId：前端需要据此判断"这个入口属于哪个插件、当前是否可用"
+      .map((entry) => ({ ...entry.item, pluginId: entry.pluginId }))
       .sort((left, right) => (right.order ?? 0) - (left.order ?? 0) || left.id.localeCompare(right.id));
   }
 

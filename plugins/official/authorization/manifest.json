@@ -3,7 +3,7 @@
   "id": "rice.authorization",
   "name": "角色与权限",
   "description": "实现角色、权限点与用户-角色分派；Core 的安全网关据此执行 fail-closed 鉴权。",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -18,8 +18,20 @@
     "services:consume",
     "events:subscribe",
     "events:publish",
-    "routes:admin",
-    "admin:menu"
+    "routes:admin"
   ],
-  "migrations": "./migrations"
+  "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "users.roles",
+        "label": "角色与权限",
+        "path": "/roles",
+        "icon": "ShieldCheck",
+        "order": 20,
+        "permission": "user.manage",
+        "entry": "./admin/main.js"
+      }
+    ]
+  }
 }

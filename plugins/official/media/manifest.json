@@ -3,7 +3,7 @@
   "id": "rice.media",
   "name": "媒体库",
   "description": "负责文件上传、媒体元数据登记与公开访问；主题设置中的 image 字段保存的就是媒体 ID。",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -15,10 +15,22 @@
     "services:consume",
     "routes:admin",
     "routes:public",
-    "media:store",
-    "admin:menu"
+    "media:store"
   ],
   "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "media.library",
+        "label": "媒体库",
+        "path": "/media",
+        "icon": "Image",
+        "order": 10,
+        "permission": "media.manage",
+        "entry": "./admin/main.js"
+      }
+    ]
+  },
   "settingsSchema": {
     "upload": {
       "label": { "zh-CN": "上传", "en": "Uploads" },

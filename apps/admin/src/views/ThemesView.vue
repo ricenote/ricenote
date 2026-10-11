@@ -2,14 +2,10 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { Check, ExternalLink, Eye, History, RotateCcw, Save } from 'lucide-vue-next';
 import type { ThemeSettingsGroupDto, ThemeSummary } from '@ricenote/shared';
-import { ApiError, api } from '@/api/client';
+import { api, ApiError, Badge, Button, Card, formatDateTime } from '@ricenote/admin-sdk';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/stores/toast';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
 import SettingsForm from '@/components/settings/SettingsForm.vue';
-import { formatDateTime } from '@/lib/utils';
 
 const auth = useAuth();
 const toast = useToast();

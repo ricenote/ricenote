@@ -13,6 +13,7 @@ import { ErrorCode, isRiceNoteError } from '@ricenote/shared';
 import { renderDatabaseDownPage } from './recovery/recovery-mode.js';
 import { startDiagnosticServer, startHttpServer } from './server.js';
 import { ServerSupervisor } from './runtime/supervisor.js';
+import { startLocalPluginWatcher } from './runtime/local-plugin-watcher.js';
 import { APP_VERSION } from './version.js';
 
 async function main(): Promise<void> {
@@ -31,10 +32,25 @@ async function main(): Promise<void> {
     // 注入重启机制：Core 只受理请求，真正关停/重建由 supervisor 完成
     supervisor.wire(kernel);
 
+    /*
+     * 开发期监视"本地插件目录"（`RICENOTE_LOCAL_PLUGINS`）：
+     * 改动即自动重启内核。只在开发环境开启 —— 生产环境改文件应当由
+     * 部署流程负责，而不是进程自己去猜。
+     */
+    const watchLocalPlugins =
+      kernel.config.env === 'development' && kernel.config.pluginInstall.watchLocalDirs
+        ? startLocalPluginWatcher({
+            config: kernel.config,
+            logger: kernel.logger,
+            supervisor
+          })
+        : undefined;
+
     kernel.logger.info('HTTP 服务已就绪', {
       url: `http://${kernel.config.http.host}:${kernel.config.http.port}`,
       siteUrl: kernel.config.http.siteUrl,
-      restart: 'available via POST /api/admin/system/restart'
+      restart: 'available via POST /api/admin/system/restart',
+      ...(watchLocalPlugins ? { watchingLocalPlugins: watchLocalPlugins.dirs } : {})
     });
 
     let shuttingDown = false;
@@ -42,6 +58,7 @@ async function main(): Promise<void> {
       if (shuttingDown) return;
       shuttingDown = true;
       kernel.logger.info('收到关停信号', { signal });
+      watchLocalPlugins?.close();
       const current = supervisor.currentKernel;
       await supervisor.currentServer.close().catch(() => undefined);
       await current.shutdown().catch(() => undefined);

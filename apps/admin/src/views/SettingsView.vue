@@ -2,16 +2,9 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { BookOpen, Cpu, Image, Save, ScrollText, Server, Upload, X } from 'lucide-vue-next';
 import type { AuditLogEntry, MediaSummary, SiteSettings } from '@ricenote/shared';
-import { ApiError, api } from '@/api/client';
+import { api, ApiError, Badge, Button, Card, formatDateTime, Input, Label, Textarea } from '@ricenote/admin-sdk';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/stores/toast';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
-import Input from '@/components/ui/Input.vue';
-import Label from '@/components/ui/Label.vue';
-import Textarea from '@/components/ui/Textarea.vue';
-import { formatDateTime } from '@/lib/utils';
 
 interface CapabilitySnapshot {
   capabilities: string[];

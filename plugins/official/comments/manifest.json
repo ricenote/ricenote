@@ -3,7 +3,7 @@
   "id": "rice.comments",
   "name": "评论",
   "description": "提供访客评论、嵌套回复、四态审核（待审/通过/垃圾/回收）、关键词与频率反垃圾，以及后台评论审核台。",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -16,10 +16,22 @@
     "routes:public",
     "routes:admin",
     "events:publish",
-    "slots:register",
-    "admin:menu"
+    "slots:register"
   ],
   "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "comments.moderate",
+        "label": "评论审核",
+        "path": "/comments",
+        "icon": "MessageSquare",
+        "order": 20,
+        "permission": "comment.moderate",
+        "entry": "./admin/main.js"
+      }
+    ]
+  },
   "settingsSchema": {
     "general": {
       "label": { "zh-CN": "通用", "en": "General" },

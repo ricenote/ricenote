@@ -85,14 +85,11 @@ export default definePlugin({
     registerNavigationSlot(ctx, runtime, service);
     registerAdminRoutes(ctx, { service });
 
-    ctx.adminMenu.add({
-      id: 'navigation.items',
-      label: '导航栏',
-      path: '/navigation',
-      icon: 'Navigation',
-      order: 18,
-      permission: 'nav.view'
-    });
+    /*
+     * 后台菜单与界面来自 manifest.admin.pages（声明式）：
+     * Core 负责注册菜单、托管 `admin/main.js` 并计算前端入口 URL，
+     * 因此这里不再调用 ctx.adminMenu.add，也不需要 admin:menu 能力。
+     */
 
     /* 内容变化：仅在"该内容确实被导航引用"时清缓存 */
     for (const spec of CONTENT_EVENTS) {

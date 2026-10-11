@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ricenote.dev/schemas/plugin-catalog.schema.json",
+  "title": "RiceNote Plugin Catalog",
+  "description": "官方插件目录（推荐插件清单）：安装向导、扩展中心与发布校验共用的唯一事实来源。",
+  "type": "object",
+  "required": ["schemaVersion", "appVersion", "plugins"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "清单结构版本，v1 固定为 1。"
+    },
+    "appVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$",
+      "description": "这份清单随哪个 RiceNote 版本发布。"
+    },
+    "plugins": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "npm",
+          "version",
+          "category",
+          "label",
+          "description",
+          "capabilities",
+          "requires",
+          "repository",
+          "license"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$",
+            "maxLength": 80,
+            "description": "插件 ID，必须与 manifest.json 的 id 一致。"
+          },
+          "npm": {
+            "type": "string",
+            "pattern": "^@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$",
+            "description": "npm 包名（作用域包，如 @ricenote/plugin-posts）。"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$",
+            "description": "推荐版本（精确版本，随主程序发布）。"
+          },
+          "category": {
+            "enum": ["required", "recommended", "optional", "example"],
+            "description": "向导档位：required 不可取消；recommended 默认勾选。"
+          },
+          "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "capabilities": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "与 manifest.capabilities 一致，便于展示与校验。"
+          },
+          "requires": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "依赖的其他插件 ID（用于安装顺序与必需项联动）。"
+          },
+          "repository": { "type": "string", "pattern": "^https://" },
+          "license": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

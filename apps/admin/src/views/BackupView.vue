@@ -2,13 +2,8 @@
 import { computed, onMounted, ref } from 'vue';
 import { AlertTriangle, Archive, Download, HardDrive, RotateCcw, Trash2, Upload } from 'lucide-vue-next';
 import type { BackupManifest, BackupSnapshot } from '@ricenote/shared';
-import { ApiError, api, saveBlob } from '@/api/client';
+import { api, ApiError, Badge, Button, Card, Dialog, formatBytes, formatDateTime, saveBlob } from '@ricenote/admin-sdk';
 import { useToast } from '@/stores/toast';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
-import Dialog from '@/components/ui/Dialog.vue';
-import { formatBytes, formatDateTime } from '@/lib/utils';
 
 interface InspectResult {
   manifest: BackupManifest;

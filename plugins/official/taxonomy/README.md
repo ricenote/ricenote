@@ -10,12 +10,12 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.taxonomy` |
-| version | `1.0.0` |
+| version | `1.1.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.taxonomy@1`、`taxonomy.internal@1` |
 | requires | 无 |
-| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:admin`、`admin:menu` |
+| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:admin` |
 | migrations | `0001_taxonomy.sql` |
 | 数据表 | `rn_terms`、`rn_term_relations` |
 
@@ -47,9 +47,19 @@
 
 无。
 
-### 后台菜单
+### 后台界面
+
+界面文件位于 `admin/main.js`：**零构建纯 ESM**（不安装依赖、不打包，模板即字符串），
+组件（Card/Button/Dialog/Select/Input/Textarea/Field/Icon…）已由宿主全局注册，
+依赖只来自 `/admin-sdk/v1/ricenote-admin.js`。
+
+菜单与入口由 `manifest.json` 的 `admin.pages` 声明式提供，Core 负责注册菜单、
+托管界面文件并计算前端入口 URL（无需插件再调用 `ctx.adminMenu.add`）：
 
 `{ id: 'taxonomy.terms', label: '分类与标签', path: '/taxonomy', icon: 'Tags', order: 15, permission: 'post.view' }`
+
+- 入口 URL：`/plugin-admin/rice.taxonomy/main.js`
+- 访问权限：页面读取需 `post.view`；新建 / 编辑 / 删除词条需 `taxonomy.manage`
 
 ## 数据模型
 

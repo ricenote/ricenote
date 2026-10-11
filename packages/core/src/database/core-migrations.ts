@@ -144,5 +144,49 @@ ALTER TABLE rn_site_state
   ADD COLUMN restart_reason VARCHAR(500) NULL,
   ADD COLUMN restart_requested_at DATETIME NULL;
 `
+  },
+  {
+    /*
+     * 插件来源元数据 + 后台任务表。
+     *
+     * 来源从"只有 ZIP 上传"扩展为 registry / git / local 三路（ADR-015），
+     * 因此需要记录"装的哪个来源、哪个引用、解析到什么版本"：
+     * 扩展中心据此展示，更新检查据此判断，卸载/回滚也据此定位。
+     *
+     * 回填口径：v0.4.0 之前只有「官方目录（随仓库分发）」与「ZIP 上传」两种投放方式，
+     * 二者都没有版本解析与更新检查能力，统一记为 `local`；
+     * `installed_via` 保持 NULL —— 当时无法区分是上传安装还是手工拷贝目录，
+     * 与其猜一个值，不如留空并在界面标注"历史记录"。
+     */
+    name: '0005_plugin_source_and_jobs',
+    sql: `
+ALTER TABLE rn_plugins
+  ADD COLUMN source_type      VARCHAR(16)  NULL,
+  ADD COLUMN source_spec      VARCHAR(500) NULL,
+  ADD COLUMN source_ref       VARCHAR(200) NULL,
+  ADD COLUMN resolved_version VARCHAR(64)  NULL,
+  ADD COLUMN integrity        VARCHAR(200) NULL,
+  ADD COLUMN installed_via    VARCHAR(16)  NULL;
+
+UPDATE rn_plugins SET source_type = 'local' WHERE source_type IS NULL;
+
+CREATE TABLE IF NOT EXISTS rn_plugin_jobs (
+  id           VARCHAR(40)   NOT NULL,
+  plugin_id    VARCHAR(120)  NULL,
+  action       VARCHAR(16)   NOT NULL,
+  source_json  JSON          NOT NULL,
+  status       VARCHAR(16)   NOT NULL,
+  step         VARCHAR(16)   NULL,
+  progress     TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  log_text     MEDIUMTEXT    NULL,
+  error        VARCHAR(1000) NULL,
+  actor_id     BIGINT UNSIGNED NULL,
+  started_at   DATETIME      NOT NULL,
+  finished_at  DATETIME      NULL,
+  PRIMARY KEY (id),
+  KEY idx_rn_plugin_jobs_created (started_at),
+  KEY idx_rn_plugin_jobs_plugin (plugin_id, started_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+`
   }
 ];

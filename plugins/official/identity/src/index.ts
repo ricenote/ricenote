@@ -475,15 +475,11 @@ export default definePlugin({
       }
     });
 
-    /* ---------- 后台菜单 ---------- */
-    ctx.adminMenu.add({
-      id: 'users.list',
-      label: '用户',
-      path: '/users',
-      icon: 'Users',
-      order: 30,
-      permission: 'user.manage'
-    });
+    /*
+     * 后台菜单与界面来自 manifest.admin.pages（声明式）：
+     * Core 负责注册菜单、托管 `admin/main.js` 并计算前端入口 URL，
+     * 因此这里不再调用 ctx.adminMenu.add，也不需要 admin:menu 能力。
+     */
 
     ctx.logger.info('identity 插件已就绪', {
       provides: ctx.manifest.provides,

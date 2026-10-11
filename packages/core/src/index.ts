@@ -71,10 +71,53 @@ export {
   type InvalidPlugin,
   type DiscoveryResult
 } from './plugins/manifest.js';
-export { installPluginFromZip, PLUGIN_ZIP_GUARD, type InstallPluginInput } from './plugins/installer.js';
+export { installPluginFromZip, type InstallPluginInput } from './plugins/installer.js';
+export { PLUGIN_ZIP_GUARD, PLUGIN_EXTENSIONS } from './plugins/install/package-validation.js';
+export {
+  installPlugin,
+  type InstallPluginRequest,
+  type InstallPluginOutcome,
+  type InstallProgress,
+  type InstallStep
+} from './plugins/install/orchestrator.js';
+export {
+  resolveSource,
+  parsePackageSpec,
+  pickVersion,
+  validateGitRepo,
+  verifyIntegrity,
+  type InstallSourceInput,
+  type ResolvedSource,
+  type SourceResolveContext
+} from './plugins/install/sources.js';
+export {
+  detectToolchain,
+  runCommand,
+  requirePackageManager,
+  requireGit,
+  type ToolchainInfo,
+  type PackageManagerKind,
+  type RunOptions,
+  type RunResult
+} from './plugins/install/toolchain.js';
+export {
+  PluginInstallRunner,
+  type PluginInstallRunnerDeps,
+  type InstallRunnerPluginPort,
+  type InstalledPluginInfo,
+  type SubmitJobInput,
+  type JobSource
+} from './plugins/install/jobs.js';
 export { resolveDependencies, findDependents, topologicalSort, buildCapabilityIndex, type DependencyProblem, type ResolutionResult } from './plugins/dependency-resolver.js';
 export { createPluginContext, type ContextFactoryDeps, type PluginContextBundle } from './plugins/context-factory.js';
 export { AdminMenuRegistry } from './plugins/admin-menu.js';
+export {
+  PLUGIN_ADMIN_URL_PREFIX,
+  pluginAdminEntryUrl,
+  registerDeclaredAdminPages,
+  resolveAdminPages,
+  type ResolvedAdminPage
+} from './plugins/admin-pages.js';
 export { PluginStore, type StoredPlugin } from './plugins/plugin-store.js';
 export {
   buildPluginSettingsGroups,

@@ -14,13 +14,9 @@ import {
   Users
 } from 'lucide-vue-next';
 import type { DashboardStats, PluginSummary } from '@ricenote/shared';
-import { api } from '@/api/client';
+import { api, Badge, Button, Card, formatDateTime, formatDuration } from '@ricenote/admin-sdk';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/stores/toast';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
-import { formatDateTime, formatDuration } from '@/lib/utils';
 
 const auth = useAuth();
 const toast = useToast();
@@ -188,7 +184,12 @@ onMounted(load);
       <Card class="p-5">
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-semibold text-foreground">最近更新</h2>
-          <RouterLink :to="{ name: 'posts' }" class="text-xs text-muted-foreground underline-offset-2 hover:underline">
+          <!--
+            用**路径**而不是路由名：`posts` 现在是插件注册的路由（名字是 `plugin:/posts`），
+            `{ name: 'posts' }` 在 vue-router 里会直接抛 "No match" 并打断渲染。
+            路径始终可解析，插件未启用时由兜底页面给出明确提示。
+          -->
+          <RouterLink to="/posts" class="text-xs text-muted-foreground underline-offset-2 hover:underline">
             全部文章
           </RouterLink>
         </div>

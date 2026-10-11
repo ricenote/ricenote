@@ -126,6 +126,29 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 `/themes*`、`/plugins*`、`/logs`（`system.maintain`）、`/backup*`（`system.maintain`）、
 `/system/state`（仅登录）、`/system/restart`（`system.restart`）。
 
+插件安装相关的 Core API（ADR-015，读需 `plugin.view`、写需 `plugin.install`）：
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| POST | `/plugins/install` | `plugin.install` | multipart 压缩包（归入 `local` 来源），返回 202 + 任务 |
+| POST | `/plugins/install/source` | `plugin.install` | JSON 来源：`registry` / `git` / `directory` |
+| POST | `/plugins/:id/update` | `plugin.install` | 沿用已记录的来源更新（本地来源与无来源记录时拒绝） |
+| POST | `/plugins/:id/remove` | `plugin.install` | 卸载（内置插件、存在启用依赖时拒绝） |
+| GET | `/plugins/updates` | `plugin.view` | 更新检查（本地来源标注为不可检查） |
+| GET | `/plugins/jobs`、`/plugins/jobs/:jobId` | `plugin.view` | 安装任务历史与单个任务日志 |
+
+### 2.5 后台界面与插件界面的静态托管（Core 拥有，不属于插件）
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/admin-sdk/v1/*` | 公开 | 后台界面 SDK 与 Vue/Vue Router 产物（宿主与插件共用，保证单实例）；生产 `immutable`、开发 `no-cache` |
+| GET | `/admin/*` | 公开 | 后台 SPA 产物（含前端路由回退） |
+| GET | `/plugin-admin/:pluginId/*` | 需登录 + 插件已启用 | 插件自带后台界面的资源，路径限定在该插件 `admin/` 目录内，`no-cache` |
+| GET | `/theme-assets/:themeId/*` | 公开 | 主题静态资源 |
+
+三者共用同一套静态分发规则（MIME 白名单、`nosniff`、路径归一化防穿越、
+产物缺失仅告警不崩），实现见 `apps/server/src/http/static-assets.ts`。
+
 ---
 
 ## 3. 事件
@@ -215,6 +238,19 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 Core 固定入口（不来自插件）：仪表盘 `/`、外观中心 `/themes`、扩展中心 `/plugins`、
 运行日志 `/logs`、备份与恢复 `/backup`、系统设置 `/settings`；个人资料 `/profile` 位于右上角用户菜单。
 
+**菜单是怎么来的（v0.4.0 起）**：官方插件统一用**声明式** ——
+`manifest.json` 的 `admin.pages[]`（`id/label/path/icon/order/permission/entry`）。
+Core 在插件启动时读取声明并注册菜单，同时：
+
+- 把 `entry`（`./admin/main.js`）换算成前端入口 URL
+  `/plugin-admin/<pluginId>/main.js`，随菜单一起下发给后台（`AdminMenuItem.entryUrl`）；
+- 保留 `ctx.adminMenu.add` 作为兼容路径（第三方插件仍可用），两者混用时 ID 与路径不得重复；
+- 插件停用后条目消失，但 `GET /menu` 仍会下发 `available: false` 的"声明占位"，
+  使直接访问该书签时给出"由插件提供、当前未启用"的提示。
+
+界面代码位于插件目录 `admin/` 下，由 `/plugin-admin/:pluginId/**` 托管
+（需登录 + 插件已启用），详见 `docs/plugin-api/v1.md` 第 16 节与 ADR-014。
+
 ---
 
 ## 6. 主题侧扩展点
@@ -288,8 +324,9 @@ Core 固定入口（不来自插件）：仪表盘 `/`、外观中心 `/themes`�
 | `comment.moderate` | 审核与管理评论 | comments 后台 |
 | `theme.view` | 查看主题 | 外观中心、`/api/admin/themes` |
 | `theme.manage` | 管理主题与设置 | 主题激活/设置/安装，**站点信息写入** |
-| `plugin.view` | 查看插件 | 扩展中心、能力清单 |
-| `plugin.manage` | 启用与配置插件 | 插件启停/安装/**设置保存** |
+| `plugin.view` | 查看插件 | 扩展中心、能力清单、安装任务与更新检查 |
+| `plugin.manage` | 启用与配置插件 | 插件启停/**设置保存** |
+| `plugin.install` | 安装、更新与卸载插件（等同授予其服务器代码执行权限） | `/plugins/install*`、`/plugins/:id/update|remove`、CLI `plugin install/update/remove`（默认仅 `administrator`） |
 | `user.manage` | 管理用户与角色 | identity 用户管理、authorization 角色 |
 | `system.audit` | 查看审计日志 | `/api/admin/audit` |
 | `system.maintain` | 系统维护（日志与备份恢复） | `/logs`、`/backup*` |

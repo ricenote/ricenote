@@ -8,7 +8,21 @@
 export const CONFIG_SCHEMA = {
   $id: 'https://ricenote.dev/schemas/config.schema.json',
   type: 'object',
-  required: ['env', 'logLevel', 'http', 'database', 'security', 'bootstrap', 'paths', 'site'],
+  required: [
+    'env',
+    'logLevel',
+    'http',
+    'database',
+    'security',
+    'bootstrap',
+    'paths',
+    'site',
+    'seedPlugins',
+    'preview',
+    'render',
+    'pluginRegistry',
+    'pluginInstall'
+  ],
   additionalProperties: false,
   properties: {
     env: { enum: ['development', 'production', 'test'] },
@@ -72,6 +86,7 @@ export const CONFIG_SCHEMA = {
         'backupsDir',
         'pluginsDir',
         'pluginsInstallDir',
+        'localPluginDirs',
         'themesDir'
       ],
       additionalProperties: false,
@@ -84,6 +99,7 @@ export const CONFIG_SCHEMA = {
         backupsDir: { type: 'string', minLength: 1 },
         pluginsDir: { type: 'string', minLength: 1 },
         pluginsInstallDir: { type: 'string', minLength: 1 },
+        localPluginDirs: { type: 'array', items: { type: 'string', minLength: 1 } },
         themesDir: { type: 'string', minLength: 1 }
       }
     },
@@ -118,6 +134,26 @@ export const CONFIG_SCHEMA = {
       properties: {
         cacheEnabled: { type: 'boolean' },
         cacheTtlSeconds: { type: 'integer', minimum: 0, maximum: 86400 }
+      }
+    },
+    pluginRegistry: {
+      type: 'object',
+      required: ['registry'],
+      additionalProperties: false,
+      properties: {
+        registry: { type: 'string', pattern: '^https?://' },
+        // 私有源令牌：只从环境变量读取，不进数据库、不进日志
+        token: { type: 'string', minLength: 1 }
+      }
+    },
+    pluginInstall: {
+      type: 'object',
+      required: ['allowScripts', 'commandTimeoutSeconds', 'watchLocalDirs'],
+      additionalProperties: false,
+      properties: {
+        allowScripts: { type: 'boolean' },
+        commandTimeoutSeconds: { type: 'integer', minimum: 30, maximum: 3600 },
+        watchLocalDirs: { type: 'boolean' }
       }
     }
   }

@@ -99,6 +99,63 @@
       "allOf": [
         { "$ref": "https://ricenote.dev/schemas/settings.schema.json#/definitions/settingsSchema" }
       ]
+    },
+    "admin": {
+      "type": "object",
+      "description": "插件自带后台界面的声明：界面代码放在插件目录的 ./admin/ 下，Core 负责托管并把每页注册为后台菜单入口。",
+      "additionalProperties": false,
+      "required": ["pages"],
+      "properties": {
+        "pages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "path", "entry"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9._-]{1,80}$",
+                "description": "菜单项 ID，全局唯一，例如 posts.list。"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$",
+                "maxLength": 180,
+                "description": "后台前端路由路径，必须以 / 开头且全局唯一（例如 /posts）。"
+              },
+              "icon": {
+                "type": "string",
+                "maxLength": 60,
+                "description": "图标名（见后台界面 SDK 的受控图标集）。"
+              },
+              "order": { "type": "number" },
+              "permission": {
+                "type": "string",
+                "maxLength": 80,
+                "description": "访问该页面所需权限点；为空表示仅需登录。"
+              },
+              "entry": {
+                "type": "string",
+                "pattern": "^\\./admin/[A-Za-z0-9._/-]+\\.js$",
+                "description": "相对插件目录的界面入口模块（零构建 ESM），例如 ./admin/main.js。"
+              },
+              "style": {
+                "type": "string",
+                "pattern": "^\\./admin/[A-Za-z0-9._/-]+\\.css$",
+                "description": "可选：插件自带样式（相对插件目录），声明后由宿主动态注入；不声明则不加载。"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

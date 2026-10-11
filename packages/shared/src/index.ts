@@ -14,10 +14,22 @@ export * from './embed.js';
 export * from './manifests.js';
 export * from './types/dto.js';
 export * from './types/services.js';
+export * from './types/catalog.js';
 export {
   createManifestValidator,
   getPluginSchema,
   getThemeSchema,
   getSettingsSchema,
+  resolveManifestPath,
   type ManifestValidator
 } from './validation.js';
+export {
+  getPluginCatalog,
+  findCatalogEntryById,
+  findCatalogEntryByNpm,
+  catalogPackageNames,
+  requiredCatalogEntries,
+  defaultSelectedEntries,
+  withRequiredDependencies,
+  resetCatalogCache
+} from './catalog.js';

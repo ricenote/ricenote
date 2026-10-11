@@ -4,6 +4,8 @@
 
 - **小内核**：Core 只提供引导、安全边界、插件/主题注册、路由、服务、事件、数据库访问与渲染基础设施。
 - **业务皆插件**：文章、独立页面、导航栏、分类标签、媒体、用户与权限、评论、搜索、SEO 全部以独立插件实现，可独立开发、启停与升级。
+- **插件自带后台界面**：插件在 `admin/` 下写零构建的前端模块即可获得完整管理页面（后台提供通用宿主与 [`@ricenote/admin-sdk`](packages/admin-sdk) 组件库），Core 里不再有插件专属页面。
+- **三路来源安装插件**：npm Registry（含依赖解析与版本更新检查）、Git 仓库（tag / 提交 / 分支）、本地目录（含压缩包），后台与 CLI 共用同一套编排、任务队列与实时日志，升级失败自动回滚。
 - **零构建主题**：主题 = `theme.json` + `templates/*.njk` + `assets/*`，只需 HTML/CSS 与可选 JavaScript。
 - **易部署**：面向个人 VPS，提供 Docker Compose（MySQL 8.4 + server + Nginx）。
 
@@ -76,6 +78,33 @@ pnpm start            # 启动服务端（默认 http://localhost:3000）
 首次启动时，服务端会依据 `RICENOTE_SEED_PLUGINS` 自动安装并启用官方插件，
 并按 `BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD` 创建初始管理员
 （该用户会被自动授予 `administrator` 角色）。
+
+### 5.1 安装与更新插件（命令行）
+
+后台「扩展中心」与 CLI 共用同一套编排与任务队列，行为一致：
+
+```bash
+# npm Registry（主路径：自动解析依赖、按语义化版本检查更新）
+pnpm plugin install ricenote-plugin-nav@^1.2.0
+
+# Git 仓库（tag / 提交 / 分支；取源码后按 scripts.build 构建）
+pnpm plugin install --git https://github.com/acme/ricenote-nav.git --ref v1.2.0
+
+# 本地目录 / 压缩包（离线兜底，不参与版本管理）
+pnpm plugin install --dir /srv/plugins/my-plugin
+pnpm plugin install --zip ./my-plugin.zip
+
+pnpm plugin updates            # 检查可用更新
+pnpm plugin update <pluginId>  # 按已记录的来源更新
+pnpm plugin remove <pluginId>  # 卸载（内置插件与存在依赖时拒绝）
+pnpm plugin jobs               # 安装任务历史与日志
+```
+
+开发期想「改动即生效」，把插件目录登记到 `RICENOTE_LOCAL_PLUGINS`
+（逗号分隔）即可：它们参与插件发现、不需要"安装"，且开发环境会监视变化并自动重启内核。
+
+> 安装第三方插件等同授予其在服务器上执行代码的权限（可执行依赖安装与构建脚本）。
+> 私有源用 `RICENOTE_NPM_REGISTRY` / `RICENOTE_NPM_TOKEN` 配置（只读环境变量，不落库）。
 
 ### 6. 访问
 

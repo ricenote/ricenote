@@ -2,15 +2,8 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { Activity, ChevronDown, ChevronRight, RefreshCw } from 'lucide-vue-next';
 import type { LogLevelName, RuntimeLogEntry, RuntimeLogFileInfo } from '@ricenote/shared';
-import { ApiError, api } from '@/api/client';
+import { api, ApiError, Badge, Button, Card, formatBytes, Input, Label, Select } from '@ricenote/admin-sdk';
 import { useToast } from '@/stores/toast';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
-import Input from '@/components/ui/Input.vue';
-import Label from '@/components/ui/Label.vue';
-import Select from '@/components/ui/Select.vue';
-import { formatBytes } from '@/lib/utils';
 
 interface LogsResponse {
   data: RuntimeLogEntry[];

@@ -69,6 +69,17 @@ export function discoverPluginsFrom(pluginsDirs: readonly string[]): DiscoveryRe
   return { plugins, invalid };
 }
 
+/**
+ * 是否属于安装过程中的瞬时/隐藏目录。
+ *
+ * - `.incoming-*` / `.backup-*`：编排器换名落盘期间的中间态；
+ * - 以 `.` 开头：约定为隐藏目录（编辑器交换文件、备份脚本等）。
+ */
+function isTransientDir(name: string): boolean {
+  if (name.startsWith('.')) return true;
+  return /\.(incoming|backup)-[0-9a-f]+$/.test(name);
+}
+
 /** 扫描单个插件根目录（一级子目录即插件目录）。 */
 function scanPluginRoot(root: string, seenIds: Map<string, string>): DiscoveryResult {
   const plugins: LoadedPlugin[] = [];
@@ -80,6 +91,14 @@ function scanPluginRoot(root: string, seenIds: Map<string, string>): DiscoveryRe
 
   const entries = readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
+    /*
+     * 跳过安装器的**瞬时目录**与隐藏目录。
+     *
+     * 必须显式排除：这些目录里往往也带着完整的 `manifest.json`（它们是某个插件的
+     * 副本），一旦被当成插件目录，就会出现"同一个 ID 有两个来源"的冲突，
+     * 把一个可以自愈的清理失败放大成"插件加载不上"的故障。
+     */
+    .filter((entry) => !isTransientDir(entry.name))
     .map((entry) => entry.name)
     .sort();
 

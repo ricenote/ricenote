@@ -5,43 +5,32 @@ import {
   Archive,
   ChevronDown,
   ExternalLink,
-  FileStack,
-  FileText,
-  Image,
   LayoutDashboard,
   LogOut,
   Menu,
-  MessageSquare,
-  Navigation,
   Palette,
   Puzzle,
   RotateCw,
   ScrollText,
   Settings,
-  Shield,
-  Tags,
   UserRound,
-  Users,
   X
 } from 'lucide-vue-next';
-import type { AdminMenuItem } from '@ricenote/shared';
-import { ApiError, api } from '@/api/client';
-import Button from '@/components/ui/Button.vue';
-import Dialog from '@/components/ui/Dialog.vue';
+import { ApiError, Button, cn, Dialog, resolveIcon } from '@ricenote/admin-sdk';
 import { useAuth } from '@/stores/auth';
+import { useAdminMenu } from '@/stores/menu';
 import { useSystemState } from '@/stores/system';
 import { useToast } from '@/stores/toast';
-import { cn } from '@/lib/utils';
 
 const auth = useAuth();
 const toast = useToast();
 const system = useSystemState();
+const menu = useAdminMenu();
 const route = useRoute();
 const router = useRouter();
 
 const drawerOpen = ref(false);
 const userMenuOpen = ref(false);
-const pluginMenu = ref<AdminMenuItem[]>([]);
 const restartDialogOpen = ref(false);
 
 /** 运行状态轮询间隔：让「重启」按钮在别处改动后也能及时出现。 */
@@ -87,17 +76,6 @@ const coreNav: NavItem[] = [
   { name: 'settings', path: '/settings', label: '系统设置', icon: Settings }
 ];
 
-const pluginIcon: Record<string, unknown> = {
-  FileText,
-  FileStack,
-  Tags,
-  Image,
-  Users,
-  MessageSquare,
-  Navigation,
-  ShieldCheck: Shield
-};
-
 /**
  * 判断插件贡献的菜单路径是否有对应的前端路由。
  *
@@ -108,20 +86,38 @@ const pluginIcon: Record<string, unknown> = {
 function resolveRouteName(path: string): string {
   try {
     const resolved = router.resolve(path);
-    return resolved.matched.length > 0 ? String(resolved.name ?? '') : '';
+    if (resolved.matched.length === 0) return '';
+
+    const name = String(resolved.name ?? '');
+    if (name.length === 0) return '';
+
+    /*
+     * **带参数的路由不能只按 name 跳转**：`{ name }` 缺少必需参数时 vue-router
+     * 会直接抛错。
+     *
+     * 这里踩到的是兜底路由：插件页面尚未注册（登录后菜单刚到、`syncPluginRoutes`
+     * 还没跑）时，`/posts` 会解析到 `/:pathMatch(.*)*` → 拿到 name `not-found`
+     * 与一个 `pathMatch` 参数 → `{ name: 'not-found' }` 抛 "No match"。
+     * 这类路径一律退化为普通链接（与上面"未注册即降级"的意图一致）。
+     */
+    if (Object.keys(resolved.params).length > 0) return '';
+
+    return name;
   } catch {
     return '';
   }
 }
 
 const navItems = computed(() => {
-  const contributed = pluginMenu.value
+  // 插件入口来自全局菜单 store（侧栏、路由注册、"未启用"提示共用同一份数据）；
+  // 图标走 SDK 的受控图标集，插件无需自行引 lucide。
+  const contributed = menu.visibleItems.value
     .filter((item) => auth.can(item.permission))
     .map<NavItem>((item) => ({
       name: resolveRouteName(item.path),
       path: item.path,
       label: item.label,
-      icon: pluginIcon[item.icon ?? ''] ?? FileText,
+      icon: resolveIcon(item.icon),
       ...(item.permission ? { permission: item.permission } : {})
     }));
 
@@ -138,15 +134,13 @@ function isActive(path: string): boolean {
 }
 
 async function loadMenu(): Promise<void> {
-  try {
-    pluginMenu.value = await api.get<AdminMenuItem[]>('/menu');
-  } catch {
-    pluginMenu.value = [];
-  }
+  // 强制刷新：登录用户可能变化（权限不同 → 可见入口不同）
+  await menu.load(true);
 }
 
 async function handleLogout(): Promise<void> {
   await auth.logout();
+  menu.reset();
   toast.info('已退出登录');
   await router.push({ name: 'login' });
 }

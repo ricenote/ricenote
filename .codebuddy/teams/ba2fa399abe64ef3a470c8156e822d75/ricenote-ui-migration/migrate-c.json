@@ -1,0 +1,20 @@
+[
+  {
+    "id": "msg-1791730758013-isj92r",
+    "from": "team-lead",
+    "to": "migrate-c",
+    "type": "message",
+    "content": "进度同步：请告诉我当前状态（已完成哪些页面 / 正在做哪个 / `pnpm build` 与 `pnpm validate` 是否通过）。注意：**不要**反复跑 `pnpm build`——我这边在跑测试，构建产物被并发改写会让插件加载失败。完成后请直接给最终报告（迁移清单 + 差异说明）并停止改动。",
+    "timestamp": "2026-10-11T14:59:18.013Z",
+    "read": true
+  },
+  {
+    "id": "shutdown-1791731404950",
+    "from": "team-lead",
+    "to": "migrate-c",
+    "type": "shutdown_request",
+    "content": "{\"type\":\"shutdown_request\",\"request_id\":\"shutdown-1791731404950\",\"timeout_ms\":60000,\"reason\":\"用户与角色权限两个界面已迁移并验证通过（/users、/roles 均正常渲染），你的工作已合并。可以停止工作了，谢谢。\",\"from\":\"team-lead\",\"timestamp\":\"2026-10-11T15:10:04.950Z\"}",
+    "timestamp": "2026-10-11T15:10:04.950Z",
+    "read": true
+  }
+]

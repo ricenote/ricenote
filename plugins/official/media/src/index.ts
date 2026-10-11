@@ -259,14 +259,11 @@ export default definePlugin({
       }
     });
 
-    ctx.adminMenu.add({
-      id: 'media.library',
-      label: '媒体库',
-      path: '/media',
-      icon: 'Image',
-      order: 10,
-      permission: 'media.manage'
-    });
+    /*
+     * 后台菜单与界面来自 manifest.admin.pages（声明式）：
+     * Core 负责注册菜单、托管 `admin/main.js` 并计算前端入口 URL，
+     * 因此这里不再调用 ctx.adminMenu.add，也不需要 admin:menu 能力。
+     */
 
     ctx.logger.info('media 插件已就绪', { uploadsDir, maxFileBytes });
   },

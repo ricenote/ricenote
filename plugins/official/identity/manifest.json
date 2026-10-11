@@ -3,7 +3,7 @@
   "id": "rice.identity",
   "name": "身份与认证",
   "description": "提供用户账号、会话与登录取证能力；角色与权限由 authorization 插件负责。",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -15,10 +15,22 @@
     "services:consume",
     "routes:admin",
     "events:publish",
-    "events:subscribe",
-    "admin:menu"
+    "events:subscribe"
   ],
   "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "users.list",
+        "label": "用户",
+        "path": "/users",
+        "icon": "Users",
+        "order": 30,
+        "permission": "user.manage",
+        "entry": "./admin/main.js"
+      }
+    ]
+  },
   "settingsSchema": {
     "session": {
       "label": { "zh-CN": "会话", "en": "Sessions" },

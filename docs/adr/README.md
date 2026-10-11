@@ -17,6 +17,8 @@
 | [ADR-011](ADR-011-runtime-site-settings-and-plugin-settings.md) | 站点信息运行时覆盖生效；插件设置声明式表单 + 重启生效 | 已接受 |
 | [ADR-012](ADR-012-in-process-soft-restart.md) | 后台一键重启采用进程内软重启（修订 ADR-004 的执行方式） | 已接受 |
 | [ADR-013](ADR-013-navigation-ownership.md) | 顶部导航栏由独立插件 `rice.navigation` 拥有，导航项只引用内容 ID | 已接受 |
+| [ADR-014](ADR-014-plugin-owned-admin-ui.md) | 插件自带后台界面 + 后台界面 SDK（零构建、动态挂载、单 Vue 实例） | 已接受 |
+| [ADR-015](ADR-015-plugin-sources-and-install-orchestration.md) | 插件三路来源（npm/Git/本地）、三段式安装编排与任务队列（修订 ADR-007） | 已接受 |
 
 ## 说明书「待定项」的默认取值（M0–M2 实现依据）
 
@@ -65,3 +67,11 @@ v0.3.0「架构改造」把"页面"提升为与"文章"并列的内容形态，�
 
 - ADR-013：导航栏归独立插件独占（单一写入者），导航项只引用内容 ID，
   引用解析失败时前台跳过、后台提示；v1 只做一级导航
+
+v0.4.0「插件平台化」进一步把**后台界面**交还给插件，并重写插件安装方式：
+
+- ADR-014：插件自带后台界面（`admin/main.js` 零构建）+ 后台界面 SDK；
+  Core 只提供通用宿主与托管，宿主与插件共用同一份 Vue/SDK 实例
+- ADR-015：插件安装从"ZIP 上传"扩展为 npm Registry / Git 仓库 / 本地目录三路来源，
+  统一 `resolve → prepare → commit` 编排（失败必回滚）+ 任务队列与实时日志；
+  ZIP 降级为本地来源的一种入口（修订 ADR-007 的白名单与"非目标"口径）

@@ -4,7 +4,7 @@
  * 状态存于数据库而非文件，保证多实例部署与容器重启后行为一致。
  */
 
-import type { PluginState } from '@ricenote/shared';
+import type { PluginSourceInfo, PluginSourceType, PluginState } from '@ricenote/shared';
 import type { DatabaseAdapter } from '../database/adapter.js';
 import type { LoadedPlugin } from './manifest.js';
 
@@ -18,6 +18,8 @@ export interface StoredPlugin {
   builtin: boolean;
   path: string;
   lastError?: string;
+  /** 来源元数据（v0.4.0 起记录；老的记录已回填为 `local`）。 */
+  source?: PluginSourceInfo;
   installedAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +34,12 @@ interface PluginRow {
   builtin: number;
   path: string;
   last_error: string | null;
+  source_type: string | null;
+  source_spec: string | null;
+  source_ref: string | null;
+  resolved_version: string | null;
+  integrity: string | null;
+  installed_via: string | null;
   installed_at: Date | string;
   updated_at: Date | string;
 }
@@ -40,26 +48,103 @@ function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
+/** 把一行来源列还原成 DTO；缺来源类型时返回 undefined（未知来源）。 */
+function toSource(row: PluginRow): PluginSourceInfo | undefined {
+  if (!row.source_type || !row.source_spec) return undefined;
+  return {
+    type: row.source_type as PluginSourceType,
+    spec: row.source_spec,
+    ...(row.source_ref ? { ref: row.source_ref } : {}),
+    ...(row.resolved_version ? { resolvedVersion: row.resolved_version } : {}),
+    ...(row.integrity ? { integrity: row.integrity } : {}),
+    ...(row.installed_via ? { via: row.installed_via as 'directory' | 'zip' } : {})
+  };
+}
+
 export class PluginStore {
   constructor(private readonly db: DatabaseAdapter) {}
 
   async list(): Promise<StoredPlugin[]> {
     const rows = await this.db.query<PluginRow>(
-      'SELECT id, name, version, api_version, state, enabled, builtin, path, last_error, installed_at, updated_at FROM rn_plugins'
+      `SELECT id, name, version, api_version, state, enabled, builtin, path, last_error,
+              source_type, source_spec, source_ref, resolved_version, integrity, installed_via,
+              installed_at, updated_at
+       FROM rn_plugins`
     );
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      version: row.version,
-      apiVersion: row.api_version,
-      state: row.state as PluginState,
-      enabled: row.enabled === 1,
-      builtin: row.builtin === 1,
-      path: row.path,
-      ...(row.last_error ? { lastError: row.last_error } : {}),
-      installedAt: toDate(row.installed_at),
-      updatedAt: toDate(row.updated_at)
-    }));
+    return rows.map((row) => {
+      const source = toSource(row);
+      return {
+        id: row.id,
+        name: row.name,
+        version: row.version,
+        apiVersion: row.api_version,
+        state: row.state as PluginState,
+        enabled: row.enabled === 1,
+        builtin: row.builtin === 1,
+        path: row.path,
+        ...(row.last_error ? { lastError: row.last_error } : {}),
+        ...(source ? { source } : {}),
+        installedAt: toDate(row.installed_at),
+        updatedAt: toDate(row.updated_at)
+      };
+    });
+  }
+
+  /**
+   * 写入来源元数据。
+   *
+   * 只在安装/更新成功（或识别出内置来源）时调用；`undefined` 表示清空。
+   * 与 `upsert()` 分开是有意的 —— 启动期每次都会 upsert（同步版本号等），
+   * 若在那里写来源，会把"手工放置的目录"覆盖成错误的来源信息。
+   *
+   * **记录不存在时会补一条最小记录**：安装刚完成、内核还没重启时，
+   * `rn_plugins` 里还没有这个插件（它由启动期的发现有过程写入）。
+   * 若只做 UPDATE，来源会被静默丢弃 —— 表现为"装完显示来源未知"。
+   */
+  async setSource(
+    id: string,
+    source: PluginSourceInfo | undefined,
+    meta?: { name?: string; version?: string; dir?: string }
+  ): Promise<void> {
+    const values = [
+      source?.type ?? null,
+      source?.spec ?? null,
+      source?.ref ?? null,
+      source?.resolvedVersion ?? null,
+      source?.integrity ?? null,
+      source?.via ?? null
+    ];
+
+    const existing = await this.db.query<{ id: string }>(
+      'SELECT id FROM rn_plugins WHERE id = ? LIMIT 1',
+      [id]
+    );
+
+    if (existing.length === 0) {
+      await this.db.execute(
+        `INSERT INTO rn_plugins
+           (id, name, version, api_version, state, enabled, builtin, path, manifest_json,
+            source_type, source_spec, source_ref, resolved_version, integrity, installed_via,
+            installed_at, updated_at)
+         VALUES (?, ?, ?, '^0.0.0', 'VALIDATED', 0, 0, ?, CAST('{}' AS JSON), ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          id,
+          meta?.name ?? id,
+          meta?.version ?? '0.0.0',
+          meta?.dir ?? '',
+          ...values
+        ]
+      );
+      return;
+    }
+
+    await this.db.execute(
+      `UPDATE rn_plugins
+         SET source_type = ?, source_spec = ?, source_ref = ?, resolved_version = ?,
+             integrity = ?, installed_via = ?, updated_at = updated_at
+       WHERE id = ?`,
+      [...values, id]
+    );
   }
 
   async listIds(): Promise<string[]> {
@@ -94,6 +179,16 @@ export class PluginStore {
         manifestJson
       ]
     );
+  }
+
+  /**
+   * 删除插件记录（卸载用）。
+   *
+   * 只删元数据，**不碰插件自己的数据表** —— 与既有启停语义一致：
+   * 插件的数据要先备份，卸载不自动 drop（ADR-007）。
+   */
+  async remove(id: string): Promise<void> {
+    await this.db.execute('DELETE FROM rn_plugins WHERE id = ?', [id]);
   }
 
   async isKnown(id: string): Promise<boolean> {

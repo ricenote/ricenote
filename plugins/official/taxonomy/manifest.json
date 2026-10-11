@@ -3,7 +3,7 @@
   "id": "rice.taxonomy",
   "name": "分类与标签",
   "description": "提供分类（category）与标签（tag）两类词条及其与文章的关联能力。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -13,8 +13,20 @@
     "database:own",
     "services:provide",
     "services:consume",
-    "routes:admin",
-    "admin:menu"
+    "routes:admin"
   ],
-  "migrations": "./migrations"
+  "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "taxonomy.terms",
+        "label": "分类与标签",
+        "path": "/taxonomy",
+        "icon": "Tags",
+        "order": 15,
+        "permission": "post.view",
+        "entry": "./admin/main.js"
+      }
+    ]
+  }
 }

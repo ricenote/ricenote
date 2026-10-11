@@ -1,0 +1,32 @@
+{
+  "name": "ricenote-ui-migration",
+  "mainConversationId": "ba2fa399abe64ef3a470c8156e822d75",
+  "workspacePath": "c:/dev/ricenote",
+  "createdAt": "2026-10-11T14:21:33.942Z",
+  "options": {
+    "workspacePath": "c:/dev/ricenote"
+  },
+  "members": [
+    {
+      "memberId": "view-inventory@ricenote-ui-migration",
+      "name": "view-inventory",
+      "role": "盘点 8 个后台视图能力清单",
+      "sessionId": "55ef6506633d4972bd1ae3eb0067b577",
+      "status": "completed"
+    },
+    {
+      "memberId": "migrate-b@ricenote-ui-migration",
+      "name": "migrate-b",
+      "role": "迁移分类媒体评论三个界面",
+      "sessionId": "60fe4ef7ba414a25a7bb0eb3e30d9a80",
+      "status": "running"
+    },
+    {
+      "memberId": "migrate-c@ricenote-ui-migration",
+      "name": "migrate-c",
+      "role": "迁移用户与角色两个界面",
+      "sessionId": "7ac0309767cc406b8c6c94e4768af4bf",
+      "status": "running"
+    }
+  ]
+}

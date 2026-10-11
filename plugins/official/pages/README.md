@@ -89,6 +89,21 @@ countByStatus()                        // 统计（仪表盘）
 
 `{ id: 'pages.list', label: '页面', path: '/pages', icon: 'FileStack', order: 15, permission: 'page.view' }`
 
+## 后台界面（插件自带）
+
+界面代码就在本插件目录内，**零构建**（纯 ESM + 模板字符串，不装依赖、不打包）：
+
+| 项 | 值 |
+| --- | --- |
+| 入口 | `admin/main.js`（`defineAdminPage` 导出页面组件） |
+| 托管 URL | `/plugin-admin/rice.pages/main.js`（需登录；插件启用时才可取） |
+| 菜单声明 | `manifest.json` → `admin.pages[]`：id `pages.list`、路径 `/pages`、图标 `FileStack`、权限 `page.view` |
+| 依赖 | 仅 `/admin-sdk/v1/ricenote-admin.js`（宿主与插件共用同一份 SDK 与同一份 Vue 实例） |
+
+列表、筛选、抽屉式编辑、状态与模板选择等能力与迁移前一致；模板下拉的可选项来自
+**当前主题声明**的 `pageTemplates`（主题未声明时只有"跟随主题默认"）。
+开发方式与样式可用范围见 `docs/plugin-api/v1.md` 第 16 节与 ADR-014。
+
 ## 设置项（settingsSchema）
 
 | 分组 | 字段 | 类型 | 默认值 | 说明 |

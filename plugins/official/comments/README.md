@@ -8,12 +8,12 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.comments` |
-| version | `1.0.0` |
+| version | `1.2.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.comments@1` |
 | requires | 无（`content.posts@1` 为软依赖） |
-| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:public`、`routes:admin`、`events:publish`、`slots:register`、`admin:menu` |
+| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:public`、`routes:admin`、`events:publish`、`slots:register` |
 | migrations | `0001_comments.sql` |
 | 数据表 | `rn_comments` |
 
@@ -71,9 +71,19 @@
 
 本插件**不发布事件**，也不订阅事件。
 
-### 后台菜单
+### 后台界面
+
+界面文件位于 `admin/main.js`：**零构建纯 ESM**（不安装依赖、不打包，模板即字符串），
+组件（AdminPage/Card/Button/Badge/Dialog/Input/Icon…）已由宿主全局注册，
+依赖只来自 `/admin-sdk/v1/ricenote-admin.js`。
+
+菜单与入口由 `manifest.json` 的 `admin.pages` 声明式提供，Core 负责注册菜单、
+托管界面文件并计算前端入口 URL（无需插件再调用 `ctx.adminMenu.add`）：
 
 `{ id: 'comments.moderate', label: '评论审核', path: '/comments', icon: 'MessageSquare', order: 20, permission: 'comment.moderate' }`
+
+- 入口 URL：`/plugin-admin/rice.comments/main.js`
+- 访问权限：页面及列表 / 计数 / 审核操作均需 `comment.moderate`
 
 ## 审核状态机
 

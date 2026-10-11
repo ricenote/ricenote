@@ -153,14 +153,11 @@ export default definePlugin({
       }
     });
 
-    ctx.adminMenu.add({
-      id: 'taxonomy.terms',
-      label: '分类与标签',
-      path: '/taxonomy',
-      icon: 'Tags',
-      order: 15,
-      permission: 'post.view'
-    });
+    /*
+     * 后台菜单与界面来自 manifest.admin.pages（声明式）：
+     * Core 负责注册菜单、托管 `admin/main.js` 并计算前端入口 URL，
+     * 因此这里不再调用 ctx.adminMenu.add，也不需要 admin:menu 能力。
+     */
 
     ctx.logger.info('taxonomy 插件已就绪', { contracts: [SERVICE_CONTRACTS.CONTENT_TAXONOMY] });
   },

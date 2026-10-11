@@ -94,6 +94,21 @@
 
 `{ id: 'posts.list', label: '文章', path: '/posts', icon: 'FileText', order: 50, permission: 'post.view' }`
 
+## 后台界面（插件自带）
+
+界面代码就在本插件目录内，**零构建**（纯 ESM + 模板字符串，不装依赖、不打包）：
+
+| 项 | 值 |
+| --- | --- |
+| 入口 | `admin/main.js`（`defineAdminPage` 导出页面组件） |
+| 托管 URL | `/plugin-admin/rice.posts/main.js`（需登录；插件启用时才可取） |
+| 菜单声明 | `manifest.json` → `admin.pages[]`：id `posts.list`、路径 `/posts`、图标 `FileText`、权限 `post.view` |
+| 依赖 | 仅 `/admin-sdk/v1/ricenote-admin.js`（宿主与插件共用同一份 SDK 与同一份 Vue 实例） |
+
+服务端分页（每页 10）、状态筛选、关键词搜索、Markdown 正文、词条多选、
+发布/归档与批量删除的权限门控（`post.write` / `post.publish` / `post.delete`）与迁移前一致。
+开发方式与样式可用范围见 `docs/plugin-api/v1.md` 第 16 节与 ADR-014。
+
 ## 设置项（`settingsSchema`，后台自动生成表单）
 
 后台「扩展中心 → 文章 → 设置」。保存后需**重启服务**生效（`ctx.config` 是插件启动期快照）。

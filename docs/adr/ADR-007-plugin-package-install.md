@@ -55,7 +55,28 @@ M4 的退出标准也要求验证"第三方插件可独立安装与升级"。
 ## 相关实现
 
 - `packages/core/src/plugins/installer.ts`：`installPluginFromZip()` 与 `PLUGIN_ZIP_GUARD`
-- `packages/core/src/themes/zip-guard.ts`：共用的 ZIP 安全校验
+- `packages/core/src/themes/zip-guard.ts`：共用的 ZIP 安全校验（v0.4.0 后为三条来源共用）
 - `apps/server/src/http/admin/plugins-routes.ts`：`POST /api/admin/plugins/install`
 - `apps/admin/src/views/PluginsView.vue`：扩展中心上传安装与风险提示
 - `tests/unit/plugin-installer.test.ts`：安装、升级、恶意包、目录占用
+
+## 修订记录
+
+### 2026-10-11：ZIP 降级为本地来源的一种入口（ADR-015）
+
+本 ADR 的核心结论（**同一份两阶段安全校验、单进程无沙箱、安装后需重启**）不变，
+但以下三点被 ADR-015 修订：
+
+1. **"管理期只有 ZIP 上传"不再成立**：安装来源扩展为 npm Registry / Git 仓库 / 本地目录三路，
+   ZIP 上传保留为 `local` 来源的**离线入口形式**（`via: 'zip'`），
+   与其余来源共用同一套 `resolve → prepare → commit` 编排与任务队列。
+   因此安装端点由同步返回安装结果改为返回**任务**（202），
+   并且写操作权限点从 `plugin.manage` 收紧为 **`plugin.install`**（默认仅 `administrator`）。
+2. **决策 4 的扩展名白名单放宽**：新增 `.css` / `.html` / `.wasm` 与字体图片类型
+   （插件自带后台界面需要；`.node` 仍被禁止），体积上限 16MB/64MB → 32MB/96MB。
+3. **"允许依赖安装脚本"**：三路来源都会在 `prepare` 阶段调用包管理器/构建脚本，
+   这是"安装即授予服务器代码执行权限"的直接体现，因此后台必须高风险确认 + 审计。
+   这与本 ADR 中"v1 没有真实沙箱"的结论一致，只是把它落到了流程上。
+
+另外，本 ADR 当年对说明书 §1.2「非目标」的解释（"不做从 URL 自动下载"）被**收窄回原文**：
+原文禁止的是通用主题 SSR 适配器与**插件市场支付**，从注册表解析安装不属于非目标。

@@ -9,12 +9,7 @@
  * 已由服务端按站点语言解析为字符串，前端不再处理多语言。
  */
 import type { SettingsFieldDto, SettingsGroupDto } from '@ricenote/shared';
-import Card from '@/components/ui/Card.vue';
-import Input from '@/components/ui/Input.vue';
-import Label from '@/components/ui/Label.vue';
-import Select from '@/components/ui/Select.vue';
-import Switch from '@/components/ui/Switch.vue';
-import Textarea from '@/components/ui/Textarea.vue';
+import { Card, Input, Label, Select, Switch, Textarea } from '@ricenote/admin-sdk';
 
 const props = defineProps<{
   groups: SettingsGroupDto[];

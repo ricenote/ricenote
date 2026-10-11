@@ -10,12 +10,12 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.identity` |
-| version | `1.1.0` |
+| version | `1.3.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `identity.auth@1`、`identity.users@1` |
 | requires | 无 |
-| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:admin`、`events:publish`、`events:subscribe`、`admin:menu` |
+| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:admin`、`events:publish`、`events:subscribe` |
 | migrations | `0001_identity.sql` |
 | 数据表 | `rn_identity_users`、`rn_identity_sessions` |
 
@@ -63,9 +63,17 @@
 订阅：`core.runtime.started.v1`（在 authorization 订阅就绪后创建初始管理员，
 避免"事件已发但无人处理"导致管理员拿不到角色）。
 
-### 后台菜单
+### 后台界面
 
-`{ id: 'users.list', label: '用户', path: '/users', icon: 'Users', order: 30, permission: 'user.manage' }`
+菜单项由 `manifest.json` 的 `admin.pages` 声明（不再调用 `ctx.adminMenu.add`，也无需 `admin:menu` 能力）：
+
+`{ id: 'users.list', label: '用户', path: '/users', icon: 'Users', order: 30, permission: 'user.manage', entry: './admin/main.js' }`
+
+界面代码位于 `admin/main.js`，是**零构建**的纯 ESM 模块（不打包、不装依赖），由 Core 托管并注入同一份 SDK：
+
+- 用户列表：状态、角色、最后登录；服务端分页与关键词搜索；
+- 新建用户：用户名 / 显示名 / 邮箱 / 初始密码 / 角色；
+- 管理员**重置他人密码**：本人行显示「用「个人资料」改密」指引，重置前有二次确认（后端刻意拒绝重置自己）。
 
 ## 设置项（`settingsSchema`，后台自动生成表单）
 

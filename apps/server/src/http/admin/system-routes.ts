@@ -129,13 +129,29 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
     })
   );
 
-  /** 后台导航菜单（由插件贡献，按当前用户权限过滤）。 */
+  /**
+   * 后台导航菜单（由插件贡献，按当前用户权限过滤）。
+   *
+   * 除"当前可用的入口"外，还会带上**插件已停用但声明过**的页面
+   * （`available: false`）：这样直接访问那些地址时，前台能给出
+   * "该功能由插件提供、当前未启用"的明确提示，而不是 404 或静默跳回仪表盘。
+   * 侧栏会过滤掉它们，因此不会污染导航。
+   */
   app.get(
     '/menu',
     guard(kernel, {}, async ({ kernel: k, reply, auth }) => {
       const user = await k.gateway.describeUser(auth);
-      const items = k.adminMenu.list(user.permissions.includes('*') ? undefined : user.permissions);
-      return reply.send({ data: items });
+      const permissions = user.permissions.includes('*') ? undefined : user.permissions;
+
+      const items = k.adminMenu.list(permissions);
+      const registered = new Set(items.map((item) => item.path));
+
+      const declared = k.plugins
+        .declaredAdminPages()
+        .filter((item) => !registered.has(item.path))
+        .filter((item) => !item.permission || !permissions || permissions.includes(item.permission));
+
+      return reply.send({ data: [...items, ...declared] });
     })
   );
 

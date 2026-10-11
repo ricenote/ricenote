@@ -1,33 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import {
-  AlertTriangle,
-  Archive,
-  Link2,
-  Power,
-  RefreshCw,
-  Settings2,
-  ShieldAlert,
-  Upload
-} from 'lucide-vue-next';
+import { AlertTriangle, Link2, Power, RefreshCw, Settings2, ShieldAlert, Trash2, Download } from 'lucide-vue-next';
 import type {
-  PluginInstallResult,
+  PluginJobDto,
   PluginSettingsDto,
   PluginState,
   PluginSummary,
+  PluginUpdateInfo,
+  PluginUpdateReport,
   ValidationIssue
 } from '@ricenote/shared';
-import { ApiError, api } from '@/api/client';
+import { api, ApiError, Badge, Button, Card, Dialog } from '@ricenote/admin-sdk';
 import { useAuth } from '@/stores/auth';
 import { useSystemState } from '@/stores/system';
 import { useToast } from '@/stores/toast';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
-import Dialog from '@/components/ui/Dialog.vue';
 import SettingsForm from '@/components/settings/SettingsForm.vue';
-import { formatBytes } from '@/lib/utils';
-
+import PluginInstallCard from '@/components/plugins/PluginInstallCard.vue';
+import PluginJobPanel from '@/components/plugins/PluginJobPanel.vue';
 /** 声明式设置表单的值（键为插件声明的字段名）。 */
 const settingsValues = reactive<Record<string, unknown>>({});
 
@@ -152,54 +141,94 @@ async function saveSettings(): Promise<void> {
   }
 }
 
-/* ------------------------------ 插件包安装 ------------------------------ */
+/* --------------------------- 安装 / 更新 / 卸载 --------------------------- */
 
-const installFile = ref<File | null>(null);
-const installInput = ref<HTMLInputElement | null>(null);
-const installing = ref(false);
-const installDragActive = ref(false);
-const installResult = ref<PluginInstallResult | null>(null);
+const canInstall = computed(() => auth.can('plugin.install'));
 
-function pickInstallFile(file: File | null): void {
-  installResult.value = null;
-  if (file && !file.name.toLowerCase().endsWith('.zip')) {
-    toast.error('插件包必须是 .zip 文件');
-    installFile.value = null;
-    return;
-  }
-  installFile.value = file;
-}
+/** 更新检查结果（按 pluginId 索引；未检查或不可检查时为空）。 */
+const updates = ref<Record<string, PluginUpdateInfo>>({});
+const updateCheckedAt = ref('');
+/** 当前正在查看的任务（安装卡片自己管理，更新/卸载由这里托管）。 */
+const activeJob = ref<PluginJobDto | null>(null);
+const jobOpen = ref(false);
+const busyAction = ref<string | null>(null);
 
-function onInstallDrop(event: DragEvent): void {
-  installDragActive.value = false;
-  pickInstallFile(event.dataTransfer?.files?.[0] ?? null);
-}
-
-async function installPlugin(): Promise<void> {
-  if (!installFile.value) return;
-  installing.value = true;
+async function loadUpdates(): Promise<void> {
   try {
-    const formData = new FormData();
-    formData.append('file', installFile.value);
-    const result = await api.upload<PluginInstallResult>('/plugins/install', formData);
-
-    installResult.value = result;
-    installFile.value = null;
-    if (installInput.value) installInput.value.value = '';
-    toast.success(
-      result.upgraded
-        ? `已升级 ${result.pluginId} 到 v${result.version}，请重启进程使其生效`
-        : `已安装 ${result.pluginId} v${result.version}，启用后需重启进程`
-    );
-    await load();
-  } catch (error) {
-    toast.error(error instanceof ApiError ? error.message : '插件安装失败');
-  } finally {
-    installing.value = false;
+    const report = await api.get<PluginUpdateReport>('/plugins/updates');
+    updates.value = Object.fromEntries(report.items.map((item) => [item.pluginId, item]));
+    updateCheckedAt.value = report.checkedAt;
+  } catch {
+    /*
+     * 更新检查需要联网（npm registry / git 远端）。检查失败不应影响扩展中心
+     * 的可用性，因此这里静默降级为"暂无更新信息"。
+     */
+    updates.value = {};
+    updateCheckedAt.value = '';
   }
 }
 
-onMounted(load);
+/** 更新：沿用已记录的来源，无需管理员再填一次。 */
+async function updatePlugin(plugin: PluginSummary): Promise<void> {
+  busyAction.value = plugin.id;
+  try {
+    const job = await api.post<PluginJobDto>(`/plugins/${plugin.id}/update`, {});
+    activeJob.value = job;
+    jobOpen.value = true;
+    toast.info(`已提交 ${plugin.id} 的更新任务`);
+  } catch (error) {
+    toast.error(error instanceof ApiError ? error.message : '更新任务提交失败');
+  } finally {
+    busyAction.value = null;
+  }
+}
+
+async function removePlugin(plugin: PluginSummary): Promise<void> {
+  const confirmed = window.confirm(
+    `确定卸载「${plugin.name}」（${plugin.id}）？\n\n` +
+      '将删除插件目录与安装记录；插件自己的数据表不会被删除（ADR-007）。'
+  );
+  if (!confirmed) return;
+
+  busyAction.value = plugin.id;
+  try {
+    const job = await api.post<PluginJobDto>(`/plugins/${plugin.id}/remove`, {});
+    activeJob.value = job;
+    jobOpen.value = true;
+    toast.info(`已提交 ${plugin.id} 的卸载任务`);
+  } catch (error) {
+    toast.error(error instanceof ApiError ? error.message : '卸载任务提交失败');
+  } finally {
+    busyAction.value = null;
+  }
+}
+
+/** 任务结束：刷新列表与更新信息（安装会改变两者的内容）。 */
+function onJobFinished(finished: PluginJobDto): void {
+  jobOpen.value = false;
+  activeJob.value = finished;
+  void load();
+  void loadUpdates();
+  system.refresh().catch(() => undefined);
+}
+
+/** 来源信息的中文标签与地址。 */
+function sourceLabel(plugin: PluginSummary): string {
+  const source = plugin.source;
+  if (!source) return '来源未知（v0.4.0 之前安装）';
+  if (source.type === 'registry') {
+    return `npm：${source.spec}${source.resolvedVersion ? ` → ${source.resolvedVersion}` : ''}`;
+  }
+  if (source.type === 'git') {
+    return `Git：${source.spec}#${source.ref ?? 'HEAD'}`;
+  }
+  return `本地：${source.spec || '（未记录路径）'}${source.via === 'zip' ? '（压缩包）' : ''}`;
+}
+
+onMounted(() => {
+  void load();
+  void loadUpdates();
+});
 </script>
 
 <template>
@@ -234,70 +263,8 @@ onMounted(load);
       </div>
     </Card>
 
-    <!-- 插件包安装 -->
-    <Card v-if="canManage" class="p-4">
-      <div class="flex items-center gap-2">
-        <Archive class="h-4 w-4 text-muted-foreground" />
-        <h2 class="text-sm font-semibold text-foreground">上传安装插件包</h2>
-      </div>
-      <p class="mt-1 text-xs text-muted-foreground">
-        插件包为包含 <span class="font-mono text-foreground">manifest.json</span> 与构建产物入口的 ZIP。
-        包体会先做完整安全校验（路径穿越、符号链接、体积与类型白名单），校验通过后才会落盘。
-      </p>
-
-      <div class="mt-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-        <div
-          class="flex cursor-pointer flex-col items-center gap-1.5 rounded-md border border-dashed px-4 py-6 text-center transition-colors"
-          :class="installDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-foreground/30'"
-          @dragover.prevent="installDragActive = true"
-          @dragleave.prevent="installDragActive = false"
-          @drop.prevent="onInstallDrop"
-          @click="installInput?.click()"
-        >
-          <Upload class="h-5 w-5 text-muted-foreground" />
-          <p class="text-xs text-foreground">
-            {{ installFile ? installFile.name : '点击选择或拖拽插件 ZIP 到此处' }}
-          </p>
-          <p class="text-[11px] text-muted-foreground">
-            {{ installFile ? formatBytes(installFile.size) : '同 ID 的插件会被视为升级并整体替换目录' }}
-          </p>
-        </div>
-
-        <div class="flex gap-2">
-          <Button :disabled="!installFile" :loading="installing" @click="installPlugin">
-            <Upload class="h-3.5 w-3.5" />
-            安装 / 升级
-          </Button>
-          <Button
-            v-if="installFile"
-            variant="ghost"
-            @click="
-              () => {
-                installFile = null;
-                if (installInput) installInput.value = '';
-              }
-            "
-          >
-            取消
-          </Button>
-        </div>
-      </div>
-
-      <input ref="installInput" type="file" accept=".zip" class="hidden" @change="pickInstallFile(($event.target as HTMLInputElement).files?.[0] ?? null)">
-
-      <div v-if="installResult" class="mt-3 rounded-md border border-border bg-muted/40 p-3 text-xs">
-        <p class="font-medium text-foreground">
-          {{ installResult.upgraded ? '已升级' : '已安装' }} {{ installResult.name }}（{{ installResult.pluginId }}）
-        </p>
-        <dl class="mt-2 grid grid-cols-2 gap-y-1.5">
-          <dt class="text-muted-foreground">版本</dt>
-          <dd class="text-foreground">v{{ installResult.version }}</dd>
-          <dt class="text-muted-foreground">安装目录</dt>
-          <dd class="font-mono text-foreground">{{ installResult.dir }}</dd>
-        </dl>
-        <p class="mt-2 text-warning">安装已完成，请重启服务端进程使其生效。</p>
-      </div>
-    </Card>
+    <!-- 插件安装：三种来源（npm / Git / 本地）+ 任务实时日志 -->
+    <PluginInstallCard :can-install="canInstall" @finished="onJobFinished" />
 
     <!-- 诊断 -->
     <Card
@@ -339,16 +306,26 @@ onMounted(load);
               <h2 class="text-sm font-semibold text-foreground">{{ plugin.name }}</h2>
               <Badge :variant="stateTone[plugin.state]">{{ stateLabel[plugin.state] }}</Badge>
               <Badge v-if="plugin.builtin" variant="outline">官方</Badge>
+              <Badge v-if="updates[plugin.id]?.updateAvailable" variant="warning">
+                可更新 {{ updates[plugin.id]?.latestVersion }}
+              </Badge>
             </div>
             <p class="mt-1 font-mono text-[11px] text-muted-foreground">
               {{ plugin.id }} · v{{ plugin.version }} · API {{ plugin.apiVersion }}
+            </p>
+            <p class="mt-1 truncate text-[11px] text-muted-foreground" :title="sourceLabel(plugin)">
+              {{ sourceLabel(plugin) }}
             </p>
             <p v-if="plugin.description" class="mt-2 text-xs leading-relaxed text-muted-foreground">
               {{ plugin.description }}
             </p>
           </div>
 
-          <div class="flex shrink-0 items-center gap-1.5">
+          <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+            <Button v-if="canInstall && updates[plugin.id]?.updateAvailable" size="sm" :loading="busyAction === plugin.id" @click="updatePlugin(plugin)">
+              <Download class="h-3.5 w-3.5" />
+              更新
+            </Button>
             <Button variant="ghost" size="sm" @click="openSettings(plugin)">
               <Settings2 class="h-3.5 w-3.5" />
               设置
@@ -362,6 +339,17 @@ onMounted(load);
             >
               <Power class="h-3.5 w-3.5" />
               {{ plugin.enabled ? '禁用' : '启用' }}
+            </Button>
+            <Button
+              v-if="canInstall && !plugin.builtin"
+              variant="ghost"
+              size="sm"
+              class="text-destructive hover:text-destructive"
+              :loading="busyAction === plugin.id"
+              @click="removePlugin(plugin)"
+            >
+              <Trash2 class="h-3.5 w-3.5" />
+              卸载
             </Button>
           </div>
         </div>
@@ -400,9 +388,25 @@ onMounted(load);
           </div>
 
           <p v-if="plugin.lastError" class="text-[11px] text-destructive">错误：{{ plugin.lastError }}</p>
+
+          <!-- 更新状态：可更新 / 不可检查的原因（本地来源与历史记录） -->
+          <p v-if="updates[plugin.id]?.updateAvailable" class="text-[11px] text-warning">
+            有可用更新：{{ updates[plugin.id]?.latestVersion }}（当前 v{{ plugin.version }}）
+          </p>
+          <p
+            v-else-if="updates[plugin.id] && !updates[plugin.id]?.checkable && updates[plugin.id]?.note"
+            class="text-[11px] text-muted-foreground"
+          >
+            {{ updates[plugin.id]?.note }}
+          </p>
         </div>
       </Card>
     </div>
+
+    <!-- 更新 / 卸载任务：进度与实时日志 -->
+    <Dialog v-model:open="jobOpen" title="插件任务" width="lg">
+      <PluginJobPanel :job="activeJob" @finished="onJobFinished" />
+    </Dialog>
 
     <!-- 插件设置：按 settingsSchema 声明自动生成表单 -->
     <Dialog

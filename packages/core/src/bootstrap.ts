@@ -41,6 +41,7 @@ import { HtmlCache } from './render/cache.js';
 import { ThemeRenderer } from './render/renderer.js';
 import { AdminMenuRegistry } from './plugins/admin-menu.js';
 import { PluginManager, type PluginBootstrapReport } from './plugins/manager.js';
+import { PluginInstallRunner } from './plugins/install/jobs.js';
 import { ThemeManager } from './themes/manager.js';
 import { SessionManager } from './security/session.js';
 import { CsrfManager, LoginThrottle } from './security/csrf.js';
@@ -93,6 +94,13 @@ export interface RiceNoteKernel {
   site: SiteSettingsProvider;
   /** 待重启状态与重启请求（机制由进程入口注入）。 */
   runtime: RestartCoordinator;
+  /**
+   * 插件安装任务队列（安装 / 更新 / 卸载）。
+   *
+   * 后台与 CLI 共用同一个执行器：任务在进程内串行执行、状态落库，
+   * 因此 CLI 装到一半与后台点安装不会互相踩磁盘。
+   */
+  installer: PluginInstallRunner;
   /** 当前实际启用的能力契约（供 `has_feature()` 使用）。 */
   enabledCapabilities(): string[];
   /** 判断某能力是否可用（支持 capability 契约、全名或短名）。 */
@@ -312,6 +320,27 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
     });
     const pluginReport = await plugins.bootstrap();
 
+    /*
+     * 安装任务队列：与后台/CLI 共用。
+     *
+     * 依赖 `plugins.recordSource`（写来源与内存记录）与 `restart.markRestartRequired`
+     * （安装后必须重启才生效），因此必须在两者之后创建。
+     */
+    const installer = new PluginInstallRunner({
+      db,
+      config,
+      logger,
+      plugins,
+      markRestartRequired: (input) => restart.markRestartRequired(input),
+      audit: (input) =>
+        audit.record({
+          action: input.action,
+          ...(input.actorId === undefined ? {} : { actorId: input.actorId }),
+          ...(input.targetId === undefined ? {} : { targetType: 'plugin', targetId: input.targetId }),
+          detail: input.detail
+        })
+    });
+
     const enabledCapabilities = (): string[] => {
       const provided: string[] = [];
       for (const plugin of plugins.summary()) {
@@ -432,6 +461,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       gateway,
       site: siteProvider,
       runtime: restart,
+      installer,
       enabledCapabilities,
       hasFeature: (query: string) => capabilityMatches(enabledCapabilities(), query),
       pluginReport,

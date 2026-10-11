@@ -1,0 +1,43 @@
+{
+  "name": "@ricenote/admin-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 后台界面 SDK：设计令牌、UI 组件、管理 API 客户端与组合式能力（后台 SPA 与插件后台界面共用同一份）",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./style.css": "./src/styles/index.css"
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "vite build && vue-tsc --noEmit",
+    "build:browser": "vite build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0"
+  },
+  "dependencies": {
+    "@ricenote/shared": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-vue-next": "^0.469.0",
+    "tailwind-merge": "^2.5.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.1",
+    "tailwindcss": "3.4.17",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
+    "vue-tsc": "^2.2.0"
+  }
+}

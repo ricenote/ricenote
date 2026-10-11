@@ -104,11 +104,29 @@ function cookieHeader(): string {
   return [...jar.entries()].map(([key, value]) => `${key}=${value}`).join('; ');
 }
 
+/**
+ * 不带任何 Cookie/CSRF 的裸请求。
+ *
+ * 用于验证"未登录时受保护资源的行为"（守卫必须 fail-closed）。
+ */
+async function rawRequest(
+  method: string,
+  url: string
+): Promise<{ status: number; headers: Headers; text: string }> {
+  const response = await fetch(`${origin}${url}`, { method, headers: { Accept: '*/*' } });
+  return { status: response.status, headers: response.headers, text: await response.text() };
+}
+
 async function request(
   method: string,
   url: string,
   options: { body?: unknown; csrf?: boolean } = {}
-): Promise<{ status: number; json: Record<string, unknown> | undefined; text: string }> {
+): Promise<{
+  status: number;
+  headers: Headers;
+  json: Record<string, unknown> | undefined;
+  text: string;
+}> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (options.csrf ?? method !== 'GET') {
     const token = jar.get('ricenote_csrf');
@@ -136,7 +154,7 @@ async function request(
   } catch {
     json = undefined;
   }
-  return { status: response.status, json, text };
+  return { status: response.status, headers: response.headers, json, text };
 }
 
 function data<T>(response: { json: Record<string, unknown> | undefined }): T {
@@ -367,5 +385,76 @@ describe('页面 HTTP 闭环', () => {
     });
     assert.equal(response.status, 400);
     assert.match(response.text, /RN_VALIDATION_FAILED/);
+  });
+});
+
+describe('插件自带界面的托管（/admin-sdk 与 /plugin-admin）', () => {
+  it('SDK 产物公开可取，且带正确的 MIME 与 nosniff', async () => {
+    for (const file of ['vue.js', 'vue-router.js', 'ricenote-admin.js']) {
+      const response = await request('GET', `/admin-sdk/v1/${file}`);
+      assert.equal(response.status, 200, `${file} 应该可取`);
+      assert.equal(response.headers.get('content-type'), 'text/javascript; charset=utf-8');
+      assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+      assert.ok(response.text.length > 1000, `${file} 内容不应为空`);
+    }
+  });
+
+  it('SDK 产物：扩展名白名单之外一律 404，且防路径穿越', async () => {
+    assert.equal((await request('GET', '/admin-sdk/v1/nope.js')).status, 404);
+    assert.equal((await request('GET', '/admin-sdk/v1/%2e%2e%2f%2e%2e%2fpackage.json')).status, 404);
+    assert.equal((await request('GET', '/admin-sdk/v1/%2e%2e%2fpackage.json')).status, 404);
+  });
+
+  it('SDK 产物内部引用的是托管 URL（宿主与插件共用同一份 Vue）', async () => {
+    const bundle = await request('GET', '/admin-sdk/v1/ricenote-admin.js');
+    assert.match(bundle.text, /\/admin-sdk\/v1\/vue\.js/);
+
+    // vue-router 的官方浏览器产物内部是裸模块名，构建时已改写为托管 URL
+    const router = await request('GET', '/admin-sdk/v1/vue-router.js');
+    assert.doesNotMatch(router.text, /from\s*"vue"/);
+  });
+
+  it('插件界面资源：未登录 401，登录后可取且不缓存', async () => {
+    // 未登录：清空会话后访问应被守卫拦住
+    const anonymous = await rawRequest('GET', '/plugin-admin/rice.navigation/main.js');
+    assert.equal(anonymous.status, 401);
+
+    const response = await request('GET', '/plugin-admin/rice.navigation/main.js');
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-cache', '插件资源不带指纹，必须回源校验');
+    assert.match(response.text, /defineAdminPage/);
+  });
+
+  it('插件界面资源：未知插件、缺失文件与穿越一律 404', async () => {
+    assert.equal((await request('GET', '/plugin-admin/rice.nope/main.js')).status, 404);
+    assert.equal((await request('GET', '/plugin-admin/rice.navigation/nope.js')).status, 404);
+    assert.equal(
+      (await request('GET', '/plugin-admin/rice.navigation/%2e%2e%2fmanifest.json')).status,
+      404,
+      '不允许读到 admin/ 之外的文件'
+    );
+  });
+
+  it('菜单下发插件入口 URL 与所属插件', async () => {
+    const items = data<Array<{ path: string; pluginId?: string; entryUrl?: string }>>(
+      await request('GET', '/api/admin/menu')
+    );
+    const navigation = items.find((item) => item.path === '/navigation');
+
+    assert.ok(navigation, '声明了 admin.pages 的插件应出现在菜单里');
+    assert.equal(navigation?.pluginId, 'rice.navigation');
+    assert.equal(navigation?.entryUrl, '/plugin-admin/rice.navigation/main.js');
+  });
+
+  it('插件停用后：菜单标记不可用，界面资源 404', async () => {
+    assert.ok(kernel);
+    await kernel.plugins.disable('rice.navigation');
+
+    const items = data<Array<{ path: string; available?: boolean }>>(
+      await request('GET', '/api/admin/menu')
+    );
+    const navigation = items.find((item) => item.path === '/navigation');
+    assert.equal(navigation?.available, false, '停用的插件仍应出现在菜单里但标记为不可用');
+    assert.equal((await request('GET', '/plugin-admin/rice.navigation/main.js')).status, 404);
   });
 });

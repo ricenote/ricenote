@@ -8,12 +8,12 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.media` |
-| version | `1.0.0` |
+| version | `1.2.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `media.library@1` |
 | requires | 无 |
-| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:admin`、`routes:public`、`media:store`、`admin:menu` |
+| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:admin`、`routes:public`、`media:store` |
 | migrations | `0001_media.sql` |
 | 数据表 | `rn_media` |
 
@@ -54,9 +54,19 @@ SVG 额外加 `Content-Security-Policy: default-src 'none'; …; sandbox`，
 
 无。
 
-### 后台菜单
+### 后台界面
+
+界面文件位于 `admin/main.js`：**零构建纯 ESM**（不安装依赖、不打包，模板即字符串），
+组件（AdminPage/Card/Button/Input/Icon…）已由宿主全局注册，
+依赖只来自 `/admin-sdk/v1/ricenote-admin.js`。
+
+菜单与入口由 `manifest.json` 的 `admin.pages` 声明式提供，Core 负责注册菜单、
+托管界面文件并计算前端入口 URL（无需插件再调用 `ctx.adminMenu.add`）：
 
 `{ id: 'media.library', label: '媒体库', path: '/media', icon: 'Image', order: 10, permission: 'media.manage' }`
+
+- 入口 URL：`/plugin-admin/rice.media/main.js`
+- 访问权限：页面及列表 / 上传 / 删除均需 `media.manage`（上传的 multipart 字段名为 `file`）
 
 ## 设置项（`settingsSchema`，后台自动生成表单）
 

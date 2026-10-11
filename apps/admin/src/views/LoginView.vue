@@ -2,13 +2,9 @@
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { KeyRound, User } from 'lucide-vue-next';
-import { ApiError } from '@/api/client';
+import { ApiError, Button, Card, Input, Label } from '@ricenote/admin-sdk';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/stores/toast';
-import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
-import Input from '@/components/ui/Input.vue';
-import Label from '@/components/ui/Label.vue';
 
 const auth = useAuth();
 const toast = useToast();

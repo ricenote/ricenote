@@ -52,6 +52,40 @@ export interface PluginDependencyInfo {
   isCapability: boolean;
 }
 
+/**
+ * 插件来源类型。
+ *
+ * - `registry`：npm 包。可一键安装/更新，普通 npm 依赖会被自动解析安装；
+ * - `git`：Git 仓库的某个 tag / commit / 分支。取源码后按插件声明的脚本构建，
+ *   适合开发版与私人插件；
+ * - `local`：本地目录。开发调试直接引用源码；**压缩包上传也归入这一路**
+ *   （离线兜底，没有版本概念，因此不参与更新检查）。
+ */
+export type PluginSourceType = 'registry' | 'git' | 'local';
+
+/** 本地来源的投放方式（仅 `local` 有意义）。 */
+export type PluginLocalVia = 'directory' | 'zip';
+
+/**
+ * 插件来源元数据。
+ *
+ * 后台据此展示"这个插件从哪来、装的哪个版本"，并决定能否检查更新
+ * （只有 `registry` / `git` 可检查）。
+ */
+export interface PluginSourceInfo {
+  type: PluginSourceType;
+  /** 来源地址：npm 包名（含版本区间）/ Git 仓库 URL / 本地目录路径。 */
+  spec: string;
+  /** Git 引用（tag / commit / 分支）；仅 `git` 来源有。 */
+  ref?: string;
+  /** npm 解析后的确切版本；仅 `registry` 来源有。 */
+  resolvedVersion?: string;
+  /** 包完整性校验值（npm 的 `dist.integrity`），仅 `registry` 来源有。 */
+  integrity?: string;
+  /** 本地来源的投放方式；历史记录可能缺失（v0.4.0 之前无法区分）。 */
+  via?: PluginLocalVia;
+}
+
 export interface PluginSummary {
   id: string;
   name: string;
@@ -69,6 +103,8 @@ export interface PluginSummary {
   dependents: string[];
   lastError?: string;
   updatedAt?: string;
+  /** 来源元数据；内置（随仓库分发）的插件也有，类型为 `local`。 */
+  source?: PluginSourceInfo;
 }
 
 export interface PluginToggleRequest {
@@ -122,6 +158,25 @@ export interface AdminMenuItem {
   order?: number;
   /** 访问所需权限点；为空表示仅需登录。 */
   permission?: string;
+  /** 贡献该菜单的插件 ID（Core 注入；后端自有的菜单项没有该字段）。 */
+  pluginId?: string;
+  /**
+   * 插件自带后台界面的入口 URL（Core 计算，前端**不自行拼接**）。
+   *
+   * 有该字段表示"这个页面由插件自己实现"：后台用通用宿主动态 import 它并挂载，
+   * 路径解析与启用态校验都在服务端的托管路由里完成。
+   */
+  entryUrl?: string;
+  /** 插件自带样式的托管 URL（清单声明 `style` 时由 Core 计算）。 */
+  styleUrl?: string;
+  /**
+   * 该入口当前是否可用。
+   *
+   * `false` 表示插件**声明了**这个页面但插件当前未启用（或启动失败）：
+   * 侧栏不展示它，但直接访问该地址时前台会给出"由插件提供、当前未启用"的明确提示，
+   * 而不是撞一个接口 404 或悄悄跳回仪表盘。
+   */
+  available?: boolean;
 }
 
 /* ----------------------------- 主题 ----------------------------- */
@@ -650,6 +705,76 @@ export interface BackupSnapshot {
 
 /* ----------------------------- 插件包安装 ----------------------------- */
 
+/* --------------------------- 插件安装任务与更新 --------------------------- */
+
+export type PluginJobAction = 'install' | 'update' | 'remove';
+export type PluginJobStatus = 'queued' | 'running' | 'succeeded' | 'failed';
+export type PluginJobStep = 'resolve' | 'prepare' | 'commit';
+
+/**
+ * 安装请求里的来源描述（JSON 形式）。
+ *
+ * 压缩包走 multipart 上传端点，因此不在此列 —— 它在后台同样归入 `local` 来源，
+ * 只是入口不同（ADR-015）。
+ */
+export type PluginInstallSourceRequest =
+  | { type: 'registry'; spec: string }
+  | { type: 'git'; repo: string; ref: string }
+  | { type: 'directory'; path: string };
+
+export interface PluginInstallRequest {
+  source: PluginInstallSourceRequest;
+  /**
+   * 是否允许依赖安装脚本与构建脚本执行。
+   *
+   * 缺省沿用服务端配置（默认允许）。后台提交前必须让管理员显式确认
+   * "安装第三方插件等同授予其服务器代码执行权限"。
+   */
+  allowScripts?: boolean;
+}
+
+/**
+ * 安装/更新/卸载任务。
+ *
+ * 任务在服务端**串行执行**（同一时刻只有一个任务在改磁盘），
+ * 后台通过 `GET /plugins/jobs/:id?offset=N` 轮询日志增量。
+ */
+export interface PluginJobDto {
+  id: string;
+  pluginId: string | null;
+  action: PluginJobAction;
+  source: PluginSourceInfo | null;
+  status: PluginJobStatus;
+  step: PluginJobStep | null;
+  /** 0–100。 */
+  progress: number;
+  /** 日志（可能被截断为末尾若干 KB，避免响应体过大）。 */
+  log: string;
+  error: string | null;
+  actorId: number | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+/** 单个插件的更新检查结果。 */
+export interface PluginUpdateInfo {
+  pluginId: string;
+  currentVersion: string;
+  source: PluginSourceInfo;
+  /** 该来源是否支持检查更新（本地目录来源没有版本概念）。 */
+  checkable: boolean;
+  updateAvailable: boolean;
+  /** 可用的最新版本（registry 为 semver；git 为远端提交短哈希）。 */
+  latestVersion?: string;
+  /** 不可检查或检查失败的原因（直接展示给管理员）。 */
+  note?: string;
+}
+
+export interface PluginUpdateReport {
+  checkedAt: string;
+  items: PluginUpdateInfo[];
+}
+
 export interface PluginInstallResult {
   pluginId: string;
   name: string;
@@ -660,6 +785,8 @@ export interface PluginInstallResult {
   upgraded: boolean;
   /** v1 受控重启：安装/升级后必须重启进程才会生效（ADR-004）。 */
   restartRequired: true;
+  /** 本次安装的来源元数据（写入 `rn_plugins`，在扩展中心展示）。 */
+  source?: PluginSourceInfo;
 }
 
 /* ----------------------------- 导航 ----------------------------- */

@@ -9,14 +9,9 @@
 import { onMounted, reactive, ref } from 'vue';
 import { KeyRound, ShieldCheck, UserRound } from 'lucide-vue-next';
 import type { AuthUser } from '@ricenote/shared';
-import { ApiError, api } from '@/api/client';
+import { api, ApiError, Badge, Button, Card, Input, Label } from '@ricenote/admin-sdk';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/stores/toast';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
-import Input from '@/components/ui/Input.vue';
-import Label from '@/components/ui/Label.vue';
 
 const auth = useAuth();
 const toast = useToast();

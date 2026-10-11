@@ -77,6 +77,78 @@ export function validateProject(options: ValidateOptions): ValidationReport {
         issues: [{ path: '/migrations', message: `迁移目录不存在：${plugin.manifest.migrations}`, keyword: 'migrations' }]
       });
     }
+
+    /*
+     * 插件自带后台界面：入口文件必须存在。
+     * 这一条必须在 CI/提交前拦住 —— 否则表现为"菜单入口点进去加载失败"，
+     * 排查成本远高于构建期报错。
+     */
+    for (const page of plugin.manifest.admin?.pages ?? []) {
+      const entryPath = path.resolve(plugin.dir, page.entry);
+      if (!existsSync(entryPath)) {
+        pluginApiIssues.push({
+          dir: plugin.dir,
+          issues: [
+            {
+              path: `/admin/pages/${page.id}`,
+              message: `后台界面入口不存在：${page.entry}`,
+              keyword: 'entry'
+            }
+          ]
+        });
+      }
+      if (page.style && !existsSync(path.resolve(plugin.dir, page.style))) {
+        pluginApiIssues.push({
+          dir: plugin.dir,
+          issues: [
+            {
+              path: `/admin/pages/${page.id}`,
+              message: `后台界面样式不存在：${page.style}`,
+              keyword: 'style'
+            }
+          ]
+        });
+      }
+    }
+  }
+
+  // 后台菜单路径/ID 必须全局唯一：冲突会导致启动时某一个菜单注册失败
+  const menuPaths = new Map<string, string>();
+  const menuIds = new Map<string, string>();
+  for (const plugin of discovery.plugins) {
+    for (const page of plugin.manifest.admin?.pages ?? []) {
+      const pathOwner = menuPaths.get(page.path);
+      if (pathOwner) {
+        pluginApiIssues.push({
+          dir: plugin.dir,
+          issues: [
+            {
+              path: `/admin/pages/${page.id}`,
+              message: `后台路径与插件 ${pathOwner} 冲突：${page.path}`,
+              keyword: 'conflict'
+            }
+          ]
+        });
+      } else {
+        menuPaths.set(page.path, plugin.manifest.id);
+      }
+
+      const idOwner = menuIds.get(page.id);
+      if (idOwner) {
+        pluginApiIssues.push({
+          dir: plugin.dir,
+          issues: [
+            {
+              path: `/admin/pages/${page.id}`,
+              message: `后台页面 ID 与插件 ${idOwner} 冲突：${page.id}`,
+              keyword: 'conflict'
+            }
+          ]
+        });
+      } else {
+        menuIds.set(page.id, plugin.manifest.id);
+      }
+    }
   }
 
   const invalidPlugins = [...pluginIssues, ...pluginApiIssues];

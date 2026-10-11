@@ -1,36 +1,25 @@
 /**
- * 主题静态资源服务。
+ * 主题静态资源服务 + 管理后台 SPA 分发。
  *
  * 路径形如 `/theme-assets/<themeId>/css/style.css?v=1.0.0`。
  * 安全约束：只允许读取主题 `assets/` 目录内的文件，路径归一化后必须仍在该目录下。
+ *
+ * 本文件不再自带 MIME 表与路径解析：这些已抽到 `static-assets.ts`，
+ * 由后台 SPA、后台界面 SDK、插件自带界面共用同一套规则（见该文件顶部说明）。
  */
 
-import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { notFound } from '@ricenote/shared';
 import type { RiceNoteKernel } from '@ricenote/core';
-
-const MIME_TYPES: Record<string, string> = {
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.avif': 'image/avif',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.otf': 'font/otf',
-  '.map': 'application/json; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8'
-};
+import {
+  MIME_TYPES,
+  contentTypeOf,
+  isReadableFile,
+  resolveWithinRoot,
+  sendAsset
+} from './static-assets.js';
 
 /**
  * 挂载管理后台 SPA（构建产物位于 apps/admin/dist）。
@@ -54,22 +43,17 @@ export async function registerAdminSpa(app: FastifyInstance, kernel: RiceNoteKer
     return;
   }
 
-  const sendFile = (reply: FastifyReply, filePath: string, immutable: boolean): FastifyReply => {
-    reply
-      .type(contentTypeOf(filePath))
-      .header('cache-control', immutable ? 'public, max-age=31536000, immutable' : 'no-cache')
-      .header('x-content-type-options', 'nosniff');
-    return reply.send(createReadStream(filePath));
-  };
+  const sendFile = (reply: Parameters<typeof sendAsset>[0], filePath: string, immutable: boolean) =>
+    sendAsset(reply, filePath, {
+      contentType: contentTypeOf(filePath),
+      cache: immutable ? 'immutable' : 'no-cache'
+    });
 
   /** 解析 `/admin` 之下的相对路径，并确保不越出 dist 目录。 */
   const resolveInside = (relative: string): string | undefined => {
     if (!relative) return undefined;
-    const root = path.resolve(adminDir);
-    const resolved = path.resolve(root, relative);
-    if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) return undefined;
-    if (!existsSync(resolved) || !statSync(resolved).isFile()) return undefined;
-    return resolved;
+    const resolved = resolveWithinRoot(adminDir, relative);
+    return isReadableFile(resolved) ? resolved : undefined;
   };
 
   app.get('/admin', (_request, reply) => sendFile(reply, indexPath, false));
@@ -93,31 +77,6 @@ export async function registerAdminSpa(app: FastifyInstance, kernel: RiceNoteKer
   kernel.logger.info('管理后台已挂载', { path: '/admin/', dir: adminDir });
 }
 
-/** 依据扩展名推断 Content-Type（仅在 SPA 分发场景需要，避免引入额外依赖）。 */
-function contentTypeOf(filePath: string): string {
-  const extension = path.extname(filePath).toLowerCase();
-  return (
-    {
-      '.html': 'text/html; charset=utf-8',
-      '.js': 'text/javascript; charset=utf-8',
-      '.mjs': 'text/javascript; charset=utf-8',
-      '.css': 'text/css; charset=utf-8',
-      '.json': 'application/json; charset=utf-8',
-      '.svg': 'image/svg+xml',
-      '.png': 'image/png',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-      '.ico': 'image/x-icon',
-      '.woff': 'font/woff',
-      '.woff2': 'font/woff2',
-      '.ttf': 'font/ttf',
-      '.map': 'application/json; charset=utf-8'
-    }[extension] ?? 'application/octet-stream'
-  );
-}
-
 export function registerThemeAssets(app: FastifyInstance, kernel: RiceNoteKernel): void {
   app.get('/theme-assets/:themeId/*', async (request, reply) => {
     const params = request.params as { themeId: string; '*': string };
@@ -129,26 +88,15 @@ export function registerThemeAssets(app: FastifyInstance, kernel: RiceNoteKernel
       throw notFound(`主题不存在：${themeId}`);
     }
 
-    const assetsRoot = path.resolve(theme.assetsDir);
-    const resolved = path.resolve(assetsRoot, relative);
-
-    if (resolved !== assetsRoot && !resolved.startsWith(`${assetsRoot}${path.sep}`)) {
-      throw notFound('资源路径非法');
-    }
-    if (!existsSync(resolved) || !statSync(resolved).isFile()) {
-      throw notFound(`资源不存在：${relative}`);
-    }
-
-    const extension = path.extname(resolved).toLowerCase();
-    const contentType = MIME_TYPES[extension] ?? 'application/octet-stream';
+    const resolved = resolveWithinRoot(theme.assetsDir, relative);
+    if (!resolved) throw notFound('资源路径非法');
+    if (!isReadableFile(resolved)) throw notFound(`资源不存在：${relative}`);
 
     // 静态资源指纹在 URL 的 ?v= 上，因此可以长缓存
-    reply
-      .type(contentType)
-      .header('cache-control', 'public, max-age=31536000, immutable')
-      .header('x-content-type-options', 'nosniff');
-
-    return reply.send(createReadStream(resolved));
+    return sendAsset(reply, resolved, {
+      contentType: MIME_TYPES[path.extname(resolved).toLowerCase()] ?? 'application/octet-stream',
+      cache: 'immutable'
+    });
   });
 
   // 主题预览图（后台主题卡片使用）
@@ -158,10 +106,9 @@ export function registerThemeAssets(app: FastifyInstance, kernel: RiceNoteKernel
     if (!screenshot || !existsSync(screenshot)) {
       throw notFound('该主题未提供预览图');
     }
-    const extension = path.extname(screenshot).toLowerCase();
-    reply
-      .type(MIME_TYPES[extension] ?? 'application/octet-stream')
-      .header('cache-control', 'private, max-age=300');
-    return reply.send(createReadStream(screenshot));
+    return sendAsset(reply, screenshot, {
+      contentType: MIME_TYPES[path.extname(screenshot).toLowerCase()] ?? 'application/octet-stream',
+      cache: { seconds: 300, private: true }
+    });
   });
 }

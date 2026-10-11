@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/plugin-navigation",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "RiceNote 导航栏插件：自定义链接、页面与文章组成的有序顶部导航",

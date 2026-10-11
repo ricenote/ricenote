@@ -10,12 +10,12 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.authorization` |
-| version | `1.1.0` |
+| version | `1.3.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `identity.authorization@1` |
 | requires | `identity.users@1: ^1.0.0` |
-| capabilities | `database:own`、`services:provide`、`services:consume`、`events:subscribe`、`events:publish`、`routes:admin`、`admin:menu` |
+| capabilities | `database:own`、`services:provide`、`services:consume`、`events:subscribe`、`events:publish`、`routes:admin` |
 | migrations | `0001_authorization.sql` |
 | 数据表 | `rn_authz_roles`、`rn_authz_role_permissions`、`rn_authz_user_roles` |
 
@@ -51,9 +51,17 @@
 （后台创建时可指定 `role`，首个用户自动成为管理员）。这是"事件驱动替代数据依赖"的范例：
 本插件不 import identity，也不需要它的表。
 
-### 后台菜单
+### 后台界面
 
-`{ id: 'users.roles', label: '角色与权限', path: '/roles', icon: 'ShieldCheck', order: 20, permission: 'user.manage' }`
+菜单项由 `manifest.json` 的 `admin.pages` 声明（不再调用 `ctx.adminMenu.add`，也无需 `admin:menu` 能力）：
+
+`{ id: 'users.roles', label: '角色与权限', path: '/roles', icon: 'ShieldCheck', order: 20, permission: 'user.manage', entry: './admin/main.js' }`
+
+界面代码位于 `admin/main.js`，是**零构建**的纯 ESM 模块（不打包、不装依赖），由 Core 托管并注入同一份 SDK：
+
+- 角色列表：描述、内置标记与权限点（`*` 显示为「全部权限」）；
+- 权限点目录：按分组展示；
+- 为用户分配角色：填入用户 ID 选择角色；「不能移除最后一个管理员」由服务端约束，界面给出提示。
 
 ## 权限点目录（1.2.0）
 

@@ -201,14 +201,10 @@ export function registerAdminRoutes(
     }
   });
 
-  ctx.adminMenu.add({
-    id: 'posts.list',
-    label: '文章',
-    path: '/posts',
-    icon: 'FileText',
-    order: 50,
-    permission: 'post.view'
-  });
+  /*
+   * 后台菜单与界面来自 manifest.admin.pages（声明式）：
+   * Core 注册菜单、托管 ./admin/main.js 并计算前端入口 URL，插件无需注册代码。
+   */
 
   runtime.logger.info('管理 API 已注册', {
     routes: [

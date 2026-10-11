@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "0.4.0",
+  "plugins": [
+    {
+      "id": "rice.identity",
+      "npm": "@ricenote/plugin-identity",
+      "version": "1.3.0",
+      "category": "required",
+      "label": "身份与认证",
+      "description": "用户账号、会话与登录能力。缺少它无法登录管理后台，因此安装向导中不可取消。",
+      "capabilities": [
+        "database:own",
+        "services:provide",
+        "services:consume",
+        "routes:admin",
+        "events:publish",
+        "events:subscribe"
+      ],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-identity",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.authorization",
+      "npm": "@ricenote/plugin-authorization",
+      "version": "1.3.0",
+      "category": "required",
+      "label": "角色与权限",
+      "description": "角色、权限点与用户-角色分派。缺它时安全网关的鉴权全部拒绝（fail-closed），因此不可取消。",
+      "capabilities": [
+        "database:own",
+        "services:provide",
+        "services:consume",
+        "events:subscribe",
+        "events:publish",
+        "routes:admin"
+      ],
+      "requires": ["rice.identity"],
+      "repository": "https://github.com/ricenote/plugin-authorization",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.posts",
+      "npm": "@ricenote/plugin-posts",
+      "version": "1.5.0",
+      "category": "recommended",
+      "label": "文章",
+      "description": "文章撰写、发布、归档与前台页面（首页、文章页、分类与标签归档），并向搜索插件注册可搜索数据源。",
+      "capabilities": [
+        "database:own",
+        "services:provide",
+        "services:consume",
+        "routes:public",
+        "routes:admin",
+        "events:publish",
+        "events:subscribe",
+        "slots:register"
+      ],
+      "requires": ["rice.identity"],
+      "repository": "https://github.com/ricenote/plugin-posts",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.pages",
+      "npm": "@ricenote/plugin-pages",
+      "version": "1.2.0",
+      "category": "recommended",
+      "label": "页面",
+      "description": "独立页面：创建「关于我们」「联系方式」等固定内容页，支持自定义地址、状态、排序与页面模板选择。",
+      "capabilities": [
+        "database:own",
+        "services:provide",
+        "services:consume",
+        "routes:public",
+        "routes:admin",
+        "events:publish",
+        "events:subscribe",
+        "slots:register"
+      ],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-pages",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.navigation",
+      "npm": "@ricenote/plugin-navigation",
+      "version": "1.1.0",
+      "category": "recommended",
+      "label": "导航栏",
+      "description": "顶部导航栏的唯一来源：把自定义链接、页面与文章编排成有序导航项，通过 header.navigation 插槽输出。",
+      "capabilities": [
+        "database:own",
+        "services:provide",
+        "services:consume",
+        "routes:admin",
+        "events:subscribe",
+        "slots:register"
+      ],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-navigation",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.taxonomy",
+      "npm": "@ricenote/plugin-taxonomy",
+      "version": "1.1.0",
+      "category": "recommended",
+      "label": "分类与标签",
+      "description": "分类（category）与标签（tag）两类词条，以及它们与文章的关联能力。",
+      "capabilities": [
+        "database:own",
+        "services:provide",
+        "services:consume",
+        "routes:admin"
+      ],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-taxonomy",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.media",
+      "npm": "@ricenote/plugin-media",
+      "version": "1.2.0",
+      "category": "recommended",
+      "label": "媒体库",
+      "description": "文件上传、媒体元数据登记与公开访问；主题设置中的 image 字段保存的就是媒体 ID。",
+      "capabilities": [
+        "database:own",
+        "services:provide",
+        "services:consume",
+        "routes:admin",
+        "routes:public",
+        "media:store"
+      ],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-media",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.comments",
+      "npm": "@ricenote/plugin-comments",
+      "version": "1.2.0",
+      "category": "recommended",
+      "label": "评论",
+      "description": "访客评论、嵌套回复、四态审核（待审/通过/垃圾/回收）、关键词与频率反垃圾，以及后台评论审核台。",
+      "capabilities": [
+        "database:own",
+        "services:provide",
+        "services:consume",
+        "routes:public",
+        "routes:admin",
+        "events:publish",
+        "slots:register"
+      ],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-comments",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.search",
+      "npm": "@ricenote/plugin-search",
+      "version": "1.1.0",
+      "category": "recommended",
+      "label": "搜索",
+      "description": "全站搜索：提供可搜索数据源注册契约（content.search@1）与 /search 页面，跨内容类型聚合结果。",
+      "capabilities": ["services:provide", "routes:public", "events:subscribe"],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-search",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.seo",
+      "npm": "@ricenote/plugin-seo",
+      "version": "1.1.0",
+      "category": "recommended",
+      "label": "SEO",
+      "description": "搜索引擎优化：注入 Open Graph、Twitter Card 与 JSON-LD 结构化数据，并提供 sitemap.xml 与 robots.txt。",
+      "capabilities": ["routes:public", "services:consume", "slots:register"],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-seo",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.hello",
+      "npm": "@ricenote/plugin-hello",
+      "version": "1.0.0",
+      "category": "example",
+      "label": "Hello 示例",
+      "description": "演示插件发现、依赖解析、路由注册、服务发布与事件订阅的最小示例，可作为编写插件的起手模板。",
+      "capabilities": [
+        "routes:public",
+        "services:provide",
+        "events:publish",
+        "events:subscribe",
+        "admin:menu"
+      ],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-hello",
+      "license": "MIT"
+    }
+  ]
+}

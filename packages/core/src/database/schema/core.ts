@@ -19,6 +19,17 @@ export const rnPlugins = mysqlTable('rn_plugins', {
   path: varchar('path', { length: 500 }).notNull(),
   manifestJson: json('manifest_json').notNull(),
   lastError: varchar('last_error', { length: 1000 }),
+  /*
+   * 来源元数据（v0.4.0）：决定后台如何展示"从哪来"以及能否检查更新。
+   * 历史记录（v0.4.0 之前）只有 ZIP 上传这一条路径，已回填为 `local`；
+   * `installed_via` 对历史记录保持 NULL（当时无法区分上传与手工拷贝目录）。
+   */
+  sourceType: varchar('source_type', { length: 16 }),
+  sourceSpec: varchar('source_spec', { length: 500 }),
+  sourceRef: varchar('source_ref', { length: 200 }),
+  resolvedVersion: varchar('resolved_version', { length: 64 }),
+  integrity: varchar('integrity', { length: 200 }),
+  installedVia: varchar('installed_via', { length: 16 }),
   installedAt: datetime('installed_at', { mode: 'date' }).notNull(),
   updatedAt: datetime('updated_at', { mode: 'date' }).notNull()
 });

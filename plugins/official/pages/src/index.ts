@@ -70,14 +70,10 @@ export default definePlugin({
     registerPublicPages(ctx, runtime);
     registerAdminRoutes(ctx, { service, defaultPageSize: runtime.listPageSize });
 
-    ctx.adminMenu.add({
-      id: 'pages.list',
-      label: '页面',
-      path: '/pages',
-      icon: 'FileStack',
-      order: 15,
-      permission: 'page.view'
-    });
+    /*
+     * 后台菜单与界面来自 manifest.admin.pages（声明式）：
+     * Core 注册菜单、托管 ./admin/main.js 并计算前端入口 URL，插件无需注册代码。
+     */
 
     /* 页面模板是否可用取决于主题声明，因此放到"全部插件启动完成"之后上报 */
     ctx.events.on('core.runtime.started.v1', () => {

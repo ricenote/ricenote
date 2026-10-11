@@ -215,11 +215,29 @@ describe('rice.navigation：导航栏', () => {
     assert.ok(kernel);
     assert.ok(kernel.services.has('content.navigation@1'));
     assert.ok(kernel.slots.ownedBy('rice.navigation').includes('header.navigation'));
-    assert.ok(kernel.adminMenu.list().some((item) => item.id === 'navigation.items'));
     assert.ok(
       kernel.router.adminRoutesList().some((route) => route.path.startsWith('/navigation')),
       '管理 API 应注册在 /navigation 前缀下'
     );
+  });
+
+  it('后台界面由 manifest 声明：菜单带 entryUrl，界面由插件自带', () => {
+    assert.ok(kernel);
+    const items = kernel.adminMenu.list();
+    const navigation = items.find((item) => item.path === '/navigation');
+
+    assert.ok(navigation, '声明了 admin.pages 的插件应自动注册菜单');
+    assert.equal(navigation?.pluginId, 'rice.navigation');
+    assert.equal(navigation?.permission, 'nav.view');
+    assert.equal(
+      navigation?.entryUrl,
+      '/plugin-admin/rice.navigation/main.js',
+      'Core 应把 ./admin/main.js 换算成前端可直接 import 的托管 URL'
+    );
+
+    // 已启动插件的入口默认可用（不显式设置 available）
+    const declared = kernel.plugins.declaredAdminPages();
+    assert.equal(declared.find((item) => item.path === '/navigation')?.available, true);
   });
 
   it('自定义链接、页面与文章都能加入导航，并按后台顺序渲染', async () => {
@@ -422,6 +440,15 @@ describe('rice.navigation：导航栏', () => {
       false
     );
     assert.equal(await renderNavigationSlot('/'), '', '禁用后导航插槽为空');
+
+    // 后台界面：菜单条目消失，但声明仍在并标记为不可用（前台据此给出"未启用"提示）
+    assert.ok(
+      !kernel.adminMenu.list().some((item) => item.path === '/navigation'),
+      '停用后注册的菜单项应被回收'
+    );
+    const declaredAfter = kernel.plugins.declaredAdminPages().find((item) => item.path === '/navigation');
+    assert.equal(declaredAfter?.available, false, '声明仍在，但标记为不可用');
+    assert.equal(declaredAfter?.entryUrl, '/plugin-admin/rice.navigation/main.js');
 
     // 覆盖 rice.navigation 的句柄回收（assertNoLeaks 只校验已停止的插件）
     kernel.plugins.assertNoLeaks();

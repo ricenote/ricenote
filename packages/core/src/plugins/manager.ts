@@ -8,6 +8,8 @@
  * - 停用前校验反向依赖，禁止破坏其他插件。
  */
 
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import {
   PLUGIN_API_VERSION,
   type Plugin,
@@ -18,8 +20,10 @@ import {
 import {
   ErrorCode,
   RiceNoteError,
+  type AdminMenuItem,
   type EffectiveSiteInfo,
   type PluginState,
+  type PluginSourceInfo,
   type PluginSummary,
   type PluginDependencyInfo,
   type PluginSettingsDto
@@ -33,6 +37,7 @@ import type { EventBus } from '../events/bus.js';
 import type { RouterRegistry } from '../routing/registry.js';
 import type { SlotRegistry } from '../render/slots.js';
 import type { AdminMenuRegistry } from './admin-menu.js';
+import { registerDeclaredAdminPages, resolveAdminPages } from './admin-pages.js';
 import {
   discoverPlugins,
   discoverPluginsFrom,
@@ -115,7 +120,16 @@ export class PluginManager {
   async bootstrap(): Promise<PluginBootstrapReport> {
     const { config, logger, migrations, events } = this.deps;
 
-    const discovery = discoverPluginsFrom([config.paths.pluginsDir, config.paths.pluginsInstallDir]);
+    /*
+     * 三个根目录都参与发现：官方目录、第三方安装目录、以及配置登记的本地开发目录。
+     * 本地目录的存在让"开发调试直接引用源码、改动即生效"成为可能 ——
+     * 它们不需要任何安装动作（见 `RICENOTE_LOCAL_PLUGINS`）。
+     */
+    const discovery = discoverPluginsFrom([
+      config.paths.pluginsDir,
+      config.paths.pluginsInstallDir,
+      ...config.paths.localPluginDirs
+    ]);
     this.invalidPlugins = discovery.invalid;
     this.loaded = new Map(discovery.plugins.map((plugin) => [plugin.manifest.id, plugin]));
 
@@ -131,6 +145,9 @@ export class PluginManager {
     // 1) 同步发现结果到 rn_plugins（首次启动按种子配置启用）
     const existing = new Map((await this.store.list()).map((row) => [row.id, row]));
     const seed = new Set(config.seedPlugins);
+    /** 本次启动生效的来源（新建内置来源后同步进内存，避免再查一次库）。 */
+    const sourceById = new Map<string, PluginSourceInfo>();
+
     for (const plugin of this.loaded.values()) {
       const id = plugin.manifest.id;
       const known = existing.get(id);
@@ -139,6 +156,28 @@ export class PluginManager {
         await this.store.upsert(plugin, { enabled, state: enabled ? 'INSTALLED' : 'VALIDATED' });
       } else {
         await this.store.upsert(plugin, { enabled: known.enabled, state: known.state });
+      }
+
+      /*
+       * 内置插件（随仓库一起分发）的来源**每次启动都以仓库路径为准**。
+       *
+       * 不沿用历史记录：内置插件的实际代码位置是确定的（就在 plugins/official 下），
+       * 若沿用旧值，会出现"指向一个已被删除的目录"这类陈旧来源
+       * （例如某次以同 ID 安装到 third-party、随后该目录被清理）。
+       * 它也没有版本解析与更新检查，但扩展中心需要能区分"从哪来"。
+       *
+       * 非内置插件则保留已记录的来源 —— registry / git / zip 的记录是权威的。
+       */
+      if (plugin.builtin) {
+        const source: PluginSourceInfo = {
+          type: 'local',
+          spec: path.relative(config.paths.rootDir, plugin.dir),
+          via: 'directory'
+        };
+        await this.store.setSource(id, source);
+        sourceById.set(id, source);
+      } else if (known?.source) {
+        sourceById.set(id, known.source);
       }
     }
 
@@ -155,10 +194,12 @@ export class PluginManager {
     this.records = new Map();
     for (const plugin of this.loaded.values()) {
       const id = plugin.manifest.id;
+      const source = sourceById.get(id);
       this.records.set(id, {
         id,
         state: enabledIds.has(id) ? 'INSTALLED' : 'DISABLED',
-        enabled: enabledIds.has(id)
+        enabled: enabledIds.has(id),
+        ...(source ? { source } : {})
       });
     }
 
@@ -183,7 +224,7 @@ export class PluginManager {
     for (const id of excluded) {
       const problem = this.problems.find((item) => item.pluginId === id);
       const message = problem?.message ?? '依赖解析失败';
-      this.records.set(id, { id, state: 'FAILED', enabled: true, lastError: message });
+      this.patchRecord(id, { state: 'FAILED', enabled: true, lastError: message });
       await this.store.setState(id, 'FAILED', message);
       logger.error('插件因依赖问题被排除', { plugin: id, error: message });
     }
@@ -196,18 +237,18 @@ export class PluginManager {
       const id = plugin.manifest.id;
       try {
         await this.installMigrations(plugin);
-        this.records.set(id, { id, state: 'ENABLED', enabled: true });
+        this.patchRecord(id, { state: 'ENABLED', enabled: true });
         await this.store.setState(id, 'ENABLED');
 
         await this.startPlugin(plugin);
         started.push(id);
-        this.records.set(id, { id, state: 'STARTED', enabled: true, startedAt: Date.now() });
+        this.patchRecord(id, { state: 'STARTED', enabled: true, startedAt: Date.now() });
         await this.store.setState(id, 'STARTED');
         logger.info('插件已启动', { plugin: id, version: plugin.manifest.version });
       } catch (error) {
         const message = error instanceof RiceNoteError ? `${error.code}: ${error.message}` : String(error);
         failed.push({ id, error: message });
-        this.records.set(id, { id, state: 'FAILED', enabled: true, lastError: message });
+        this.patchRecord(id, { state: 'FAILED', enabled: true, lastError: message });
         await this.store.setState(id, 'FAILED', message);
         logger.error('插件启动失败', { plugin: id, error: message });
         await this.safeStop(id);
@@ -274,10 +315,24 @@ export class PluginManager {
 
     if (module.setup) {
       await module.setup(bundle.context);
-      this.records.set(plugin.manifest.id, { id: plugin.manifest.id, state: 'ENABLED', enabled: true });
+      this.patchRecord(plugin.manifest.id, { state: 'ENABLED', enabled: true });
     }
     if (module.start) {
       await module.start(bundle.context);
+    }
+
+    /*
+     * 声明式后台界面（manifest.admin.pages）：
+     * 与插件在 start() 里自己调用 ctx.adminMenu.add 等价，但插件无需写注册代码。
+     * 句柄同样交给 bundle 回收，因此"插件停止 = 菜单消失"保持一致。
+     */
+    const pageDisposers = registerDeclaredAdminPages(plugin, this.deps.adminMenu, this.deps.logger);
+    if (pageDisposers.length > 0) {
+      bundle.disposers.push(...pageDisposers);
+      this.deps.logger.debug('插件后台界面已注册', {
+        plugin: plugin.manifest.id,
+        pages: pageDisposers.length
+      });
     }
   }
 
@@ -294,7 +349,7 @@ export class PluginManager {
       return { restartRequired: true };
     }
     await this.store.setEnabled(pluginId, true);
-    this.records.set(pluginId, { id: pluginId, state: 'ENABLED', enabled: true });
+    this.patchRecord(pluginId, { state: 'ENABLED', enabled: true });
     await this.store.setState(pluginId, 'ENABLED');
     return { restartRequired: true };
   }
@@ -325,7 +380,7 @@ export class PluginManager {
     await this.safeStop(pluginId);
     await this.store.setEnabled(pluginId, false);
     await this.store.setState(pluginId, 'DISABLED');
-    this.records.set(pluginId, { id: pluginId, state: 'DISABLED', enabled: false, stoppedAt: Date.now() });
+    this.patchRecord(pluginId, { state: 'DISABLED', enabled: false, stoppedAt: Date.now() });
     return { restartRequired: true };
   }
 
@@ -426,6 +481,28 @@ export class PluginManager {
     return this.stoppedIds.size;
   }
 
+  /**
+   * 更新内存记录（**合并**而非覆盖）。
+   *
+   * 直接 `records.set(id, { id, state, enabled })` 会把附加字段悄悄抹掉
+   * （来源元数据、此前记录的错误等）—— 状态迁移只应该改状态。
+   */
+  private patchRecord(
+    pluginId: string,
+    patch: Partial<PluginRecord> & { state: PluginState }
+  ): void {
+    const existing = this.records.get(pluginId);
+    const merged: PluginRecord = {
+      ...existing,
+      ...patch,
+      id: pluginId,
+      state: patch.state,
+      // 显式兜底：首次记录（尚无记录）时也要得到一个合法的布尔值
+      enabled: patch.enabled ?? existing?.enabled ?? false
+    };
+    this.records.set(pluginId, merged);
+  }
+
   /** 构建后台需要的插件摘要列表。 */
   summary(): PluginSummary[] {
     const all = [...this.loaded.values()];
@@ -467,9 +544,105 @@ export class PluginManager {
           capabilities: plugin.manifest.capabilities ?? [],
           dependencies,
           dependents: findDependents(all, id).filter((dependent) => enabledIds.has(dependent)),
-          ...(record?.lastError ? { lastError: record.lastError } : {})
+          ...(record?.lastError ? { lastError: record.lastError } : {}),
+          ...(record?.source ? { source: record.source } : {})
         };
       });
+  }
+
+  /**
+   * 插件目录绝对路径。
+   *
+   * 用于托管插件自带的静态资源（后台界面）：托管方必须拿到"受信目录"，
+   * 而不是让调用方拼接路径。
+   */
+  directoryOf(pluginId: string): string | undefined {
+    return this.loaded.get(pluginId)?.dir;
+  }
+
+  /**
+   * 卸载插件：移出内存记录并删除数据库元数据。
+   *
+   * 调用方负责先删磁盘目录（卸载编排里完成）。这里**只处理内核侧状态**，
+   * 插件自己的数据表刻意保留（ADR-007：卸载不自动 drop 表）。
+   */
+  async forget(pluginId: string): Promise<void> {
+    await this.store.remove(pluginId);
+    this.records.delete(pluginId);
+    this.modules.delete(pluginId);
+    this.bundles.delete(pluginId);
+    this.loaded.delete(pluginId);
+  }
+
+  /**
+   * 记录或清除插件的来源元数据。
+   *
+   * 由安装编排与 ZIP 入口在**安装成功之后**调用；`undefined` 表示清除（卸载时用）。
+   * 内存记录同步更新，后台列表无需重新查询数据库。
+   */
+  async recordSource(
+    pluginId: string,
+    source: PluginSourceInfo | undefined,
+    meta?: { name?: string; version?: string; dir?: string }
+  ): Promise<void> {
+    await this.store.setSource(pluginId, source, meta);
+
+    const record = this.records.get(pluginId);
+    if (!record) return;
+    if (source) record.source = source;
+    else delete record.source;
+  }
+
+  /** 插件是否已启用（资源托管与菜单可见性共用同一判定）。 */
+  isEnabled(pluginId: string): boolean {
+    return this.records.get(pluginId)?.enabled ?? false;
+  }
+
+  /** 插件模块是否已启动（后台界面可用性的判定依据）。 */
+  isStarted(pluginId: string): boolean {
+    return this.modules.has(pluginId);
+  }
+
+  /**
+   * 全部**已声明**的后台界面（含当前未启动的插件）。
+   *
+   * 用途：后台菜单除了已注册的可用入口，还要知道"这个地址本该属于哪个插件"，
+   * 才能在插件被停用后给出可解释的提示（而不是 404 或静默跳转）。
+   * 入口文件不存在的声明会被跳过（那属于构建/发布问题，由 validate 拦住）。
+   */
+  declaredAdminPages(): AdminMenuItem[] {
+    const items: AdminMenuItem[] = [];
+    for (const plugin of this.loaded.values()) {
+      let pages;
+      try {
+        pages = resolveAdminPages(plugin);
+      } catch (error) {
+        this.deps.logger.debug('插件后台页面声明无法解析（已跳过）', {
+          plugin: plugin.manifest.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        continue;
+      }
+
+      for (const page of pages) {
+        if (!existsSync(page.entryPath)) continue;
+        // 声明了样式但文件缺失时不下发样式 URL：避免前端加载一个 404
+        const hasStyle = page.stylePath !== undefined && existsSync(page.stylePath);
+        items.push({
+          id: page.id,
+          label: page.label,
+          path: page.path,
+          pluginId: page.pluginId,
+          entryUrl: page.entryUrl,
+          available: this.isStarted(page.pluginId),
+          ...(hasStyle && page.styleUrl ? { styleUrl: page.styleUrl } : {}),
+          ...(page.icon ? { icon: page.icon } : {}),
+          ...(page.order === undefined ? {} : { order: page.order }),
+          ...(page.permission ? { permission: page.permission } : {})
+        });
+      }
+    }
+    return items;
   }
 
   /** 读取插件配置（声明式默认值 + 旧写法默认值 + 站点级覆盖）。 */

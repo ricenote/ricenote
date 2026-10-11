@@ -7,7 +7,109 @@
 
 ## [Unreleased]
 
+插件安装从"上传压缩包"扩展为**三路来源 + 统一编排 + 任务队列**（ADR-015）。
+
 ### Added
+
+- **三种安装来源**：`registry`（npm 包，可带版本区间；自动解析普通依赖、按语义化版本检查更新）、
+  `git`（tag / 提交 / 分支；取源码后按 `scripts.build` 构建）、
+  `local`（本地目录；**压缩包上传降级为这一路的一种入口形式**，`via: 'zip'`）。
+- **统一安装编排**（`packages/core/src/plugins/install/`）：
+  `resolve`（解析来源到工作区）→ `prepare`（校验清单与入口、装依赖、执行构建）→
+  `commit`（换名落盘 + 写来源 + 审计 + 标记待重启）；任一步失败即回滚，
+  **升级失败不会让现有版本消失或留下半成品目录**。
+- **安装任务队列**（表 `rn_plugin_jobs`）：全局串行（同一时刻只有一个任务改磁盘）、
+  同类任务去重（重复提交返回 409）、步骤与进度、末尾 64KB 日志、错误原因、
+  操作者与起止时间；后台与 CLI 共用同一个执行器与同一份任务记录。
+- **来源元数据**（`rn_plugins` 新增 `source_type` / `source_spec` / `source_ref` /
+  `resolved_version` / `integrity` / `installed_via`）：扩展中心与 `plugin list` 展示
+  "从哪来、装的哪个版本"；内置插件每次启动以仓库路径为准刷新，
+  非内置插件保留安装器写下的权威记录。历史记录回填为 `local`。
+- **更新检查**：`GET /api/admin/plugins/updates`（registry 对比 semver、git 对比远端提交、
+  本地来源明确标注不可检查）；扩展中心显示"可更新 vX"徽章与行内更新按钮，
+  CLI 提供 `ricenote plugin updates`。
+- **CLI 命令**：`plugin install <npm 包> | --git <仓库> [--ref <引用>] | --dir <目录> | --zip <包>`、
+  `plugin update <id>`、`plugin remove <id>`、`plugin jobs [jobId]`、`plugin updates`；
+  与后台共用同一套编排与任务队列，行为一致（含 `--no-scripts` 开关）。
+- **开发期本地插件目录监视**：新增配置 `RICENOTE_LOCAL_PLUGINS`（逗号分隔）。
+  这些目录参与插件发现（**不需要"安装"动作**），且开发环境会监视其变化并
+  **自动重启内核**（900ms 抖动合并），实现"改动即生效"。
+- **新权限点 `plugin.install`**（安装 / 更新 / 卸载 / 构建）：默认仅 `administrator` 具备，
+  与 `plugin.manage`（启停与设置）分开 —— 安装会在服务器上执行插件代码。
+- 扩展中心安装体验：三来源分段切换（npm / Git / 本地，本地含压缩包与路径两种方式）、
+  步骤条 + 等宽日志面板（可复制、失败行标红）、高风险确认框
+  （明示"安装等同授予其服务器代码执行权限"，需勾选确认后方可提交，并写入审计）、
+  每行展示来源信息与更新状态。
+
+### Changed
+
+- 插件包白名单与限额放宽（ADR-007 决策 4 修订）：新增 `.css` / `.html` / `.wasm` 与字体图片类型
+  （插件自带后台界面需要），**仍禁止 `.node`**；体积上限 16MB/64MB → 32MB/96MB。
+- `POST /api/admin/plugins/install`（压缩包）改为返回 **202 + 任务**（原先同步返回安装结果），
+  由任务队列串行执行并输出日志；新增 `POST /plugins/install/source`、
+  `POST /plugins/:id/update`、`POST /plugins/:id/remove`、`GET /plugins/updates`、
+  `GET /plugins/jobs[/:id]`。
+- 插件来源登记不再静默丢失：安装完成但内核尚未重启（`rn_plugins` 还没有该插件记录）时，
+  会补写一条最小记录，避免"装完显示来源未知"。
+
+### Fixed
+
+- **仪表盘用路由名跳插件页导致每次登录都抛错**：`DashboardView` 的「全部文章」写的是
+  `:to="{ name: 'posts' }"`，而插件页面路由在 v0.4.0 已改为运行时注册（名字是 `plugin:/posts`），
+  于是 vue-router 抛 "No match" 并打断渲染（控制台可见、页面仍渲染）。
+  改为按路径跳转（始终可解析，插件未启用时由兜底页面给出明确提示）。
+- **侧栏按路由名跳转缺参数时抛错**：插件路由尚未注册（登录后菜单刚到、动态注册还没跑）时，
+  路径会解析到兜底路由 `/:pathMatch(.*)*` 并拿到 `not-found` 这个名字，
+  而它需要 `pathMatch` 参数 → `{ name }` 跳转直接抛错。
+  现在带参数的路由一律退化为普通链接（与"未注册即降级"的既有意图一致）。
+- 危险来源在**路由层**即被拒绝（原先 `ext::` 这类 Git 地址会先进任务队列再失败）：
+  npm 包名与 Git 地址格式在提交时校验，安全边界的白名单校验保持两道（路由 + 解析器）。
+- **安装命令参数按包管理器区分**：`--no-audit` / `--no-fund` 是 npm 专有参数，
+  用 pnpm 时会导致整个安装失败（实测踩到），现在按探测到的包管理器拼参数。
+- 单调仓库内的插件（依赖含 `workspace:` 协议）不再尝试独立安装依赖
+  （在仓库外必然失败），改为跳过安装并使用其构建产物，并给出提示。
+- **插件发现跳过安装器的瞬时目录**（`.incoming-*` / `.backup-*` 与点开头目录）：
+  它们带着完整的 `manifest.json`，一旦被当成插件目录就会出现"同一 ID 两个来源"的冲突，
+  把一个可自愈的清理失败放大成"插件加载不上"的故障。
+- 旧版本备份清理失败时不再留在插件扫描根目录：先尝试移入缓存目录，失败则告警
+  （发现机制已跳过该形态，因此不影响加载）。
+- **CLI 在 `try/finally` 中 `return <promise>` 导致数据库提前关闭**：
+  异步函数返回 promise 时会先执行 `finally`，于是"安装还没开始、连接已关"。
+  相关分支改为 `return await`。
+- 安装时复制插件目录排除 `node_modules`：工作区软链换位置即失效，
+  依赖应由安装阶段重新生成。
+
+## [0.4.0] - 2026-10-11
+
+第四个里程碑版本（插件平台化）。两条主线：**后台界面交还给插件**（插件自带界面 +
+后台界面 SDK，Core 只保留通用宿主）与**导航栏独立成插件**（`rice.navigation`），
+并补齐插件声明式设置表单、站点与账号信息在线修改、以及一键重启闭环。
+
+### Added
+
+**插件自带后台界面与后台界面 SDK（ADR-014）**
+
+- 新增 `packages/admin-sdk`：后台 UI 原子组件（10 个）、设计令牌与后台公共类、
+  `api` 客户端、会话/提示/运行状态等组合式能力集中为**唯一来源**，
+  Core 自有页面与插件界面共用；另新增 9 个复合组件（`AdminPage`、`DataTable`、
+  `Field`、`Pagination`、`Tabs`、`EmptyState`、`LoadingState`、`ConfirmDialog`、`Icon`）
+  与 `defineAdminPage` / `setHostContext` / `navigate` 等插件契约。
+- 插件可自带后台界面：在 `admin/main.js` 导出一个页面组件即可（**零构建**：
+  纯 ESM + 模板字符串，不装依赖、不打包；组件由宿主全局注册，模板里直接用）。
+- manifest 新增可选 `admin.pages[]`（`id`/`label`/`path`/`icon`/`order`/`permission`/`entry`）：
+  Core 自动注册菜单、把 `entry` 换算为前端入口 URL，并在插件启动与 `pnpm validate` 时
+  校验入口文件存在、路径与 ID 全局唯一。`AdminMenuItem` 新增 `pluginId` 与 `entryUrl`
+  （前端不拼接路径）；`available: false` 表示"插件声明了该页面但当前未启用"。
+- Core 新增通用宿主 `PluginHostView`：加载中 / 就绪 / 加载失败 / 未启用四态、
+  `onErrorCaptured` 错误边界（插件出错只降级当前页）、插件自带样式注入；
+  路由由菜单**动态注册**（URL 与插件声明一致，书签不受影响），并新增后台 404 页面
+  （不再把未知地址静默重定向到仪表盘）。
+- 新增两条静态托管：`/admin-sdk/v1/**`（SDK 与 Vue/Vue Router 产物，
+  **宿主与插件共用同一 URL** 以保证单实例）与 `/plugin-admin/:pluginId/**`
+  （插件界面资源，需登录 + 插件已启用 + 路径限定在插件 `admin/` 目录内）；
+  抽出 `apps/server/src/http/static-assets.ts` 统一 MIME 白名单、防穿越、缓存策略与 `nosniff`。
+- SDK 构建期断言"产物不得出现裸模块名，且必须引用托管 Vue"，把"两份 Vue 实例"
+  这类**页面空白且控制台干净**的疑难问题拦在构建期。
 
 **导航栏插件（rice.navigation）与 `content.navigation@1`**
 
@@ -80,6 +182,22 @@
   `rice.authorization` → `1.2.0`（新增并同步 `nav.*` 权限点）。
 - 后台侧栏新增「导航栏」入口（`order: 18`，紧邻「页面」），
   图标映射补充 `Navigation` 与 `FileStack`；页面列表页文案改为引导去「导航栏」引用。
+
+**插件页面迁出 Core（v0.4.0）**
+
+- 8 个插件页面（文章 / 页面 / 导航栏 / 分类与标签 / 媒体库 / 评论审核 / 用户 / 角色与权限）
+  从 `apps/admin/src/views/` 迁入各自插件的 `admin/main.js`；Core 后台只剩自有页面
+  （仪表盘、外观中心、扩展中心、运行日志、备份恢复、个人资料、系统设置、登录）。
+- 后台 SPA 不再打包 Vue / Vue Router / SDK：三者改为加载 Core 托管的同一 URL
+  （开发期 `base` 为 `/`，路由基路径取 `import.meta.env.BASE_URL`）。
+  **这是"宿主与插件共用一份 Vue 与一份全局状态"的前提**：插件界面因此能读到
+  当前登录者与权限，提示条也渲染在宿主容器里。
+- 后台 UI 组件、`api` 客户端、`cn` / `formatDateTime` 等工具从 `apps/admin` 迁入 SDK；
+  `stores/{auth,toast,system}` 改为 SDK 门面（认证状态与菜单状态统一持有，不再有两份）。
+- Tailwind `content` 纳入 SDK 源码与插件 `admin/` 目录，并新增**受控工具类白名单**
+  （`safelist`），使运行时安装的第三方插件也能用到安全子集（不含阴影与毛玻璃类）。
+- 插件不再需要 `admin:menu` 能力（声明式菜单）；官方插件的 `ctx.adminMenu.add`
+  调用全部移除，改为 `manifest.admin.pages` 声明。
 
 ### Removed
 
@@ -461,7 +579,8 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ricenote/ricenote/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ricenote/ricenote/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ricenote/ricenote/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ricenote/ricenote/releases/tag/v0.1.0

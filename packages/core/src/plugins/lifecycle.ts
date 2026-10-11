@@ -55,6 +55,8 @@ export function describeState(state: PluginState): { label: string; tone: 'ok' |
 }
 
 /** 运行期插件状态记录。 */
+import type { PluginSourceInfo } from '@ricenote/shared';
+
 export interface PluginRecord {
   id: string;
   state: PluginState;
@@ -62,4 +64,11 @@ export interface PluginRecord {
   startedAt?: number;
   stoppedAt?: number;
   lastError?: string;
+  /**
+   * 来源元数据（registry / git / local）。
+   *
+   * 与 `lastError` 一样属于"展示用元数据"而非生命周期状态，因此不参与状态机校验，
+   * 但需要在内存记录里保留一份，避免后台列表每次都回查数据库。
+   */
+  source?: PluginSourceInfo;
 }

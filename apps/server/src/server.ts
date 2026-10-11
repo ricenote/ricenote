@@ -12,6 +12,8 @@ import type { RiceNoteKernel } from '@ricenote/core';
 import { adaptReply, adaptRequest } from './http/fastify-adapter.js';
 import { createHttpServer, type CreateServerOptions } from './http/server.js';
 import { registerAdminSpa, registerThemeAssets } from './http/theme-assets.js';
+import { registerAdminSdkAssets } from './http/admin-sdk-assets.js';
+import { registerPluginAdminAssets } from './http/plugin-admin-assets.js';
 import { registerPublicRoutes } from './http/public-routes.js';
 import { PreviewStore } from './http/preview-store.js';
 import { registerSessionRoutes } from './http/admin/session-routes.js';
@@ -36,6 +38,9 @@ export async function startHttpServer(
   const previewStore = new PreviewStore(kernel.config.preview.ttlSeconds);
 
   registerThemeAssets(app, kernel);
+  // 后台界面 SDK 与插件自带界面：宿主与插件从同一份产物加载 Vue（单实例前提）
+  registerAdminSdkAssets(app, kernel);
+  registerPluginAdminAssets(app, kernel);
   await registerAdminSpa(app, kernel);
   registerPublicRoutes(app, kernel, { previewStore });
 

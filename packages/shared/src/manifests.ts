@@ -51,6 +51,41 @@ export interface PluginManifest {
    * 需要完全自定义界面的插件可改为注册自己的后台设置页。
    */
   settingsSchema?: SettingsSchema;
+  /**
+   * 插件自带后台界面的声明。
+   *
+   * 声明后 Core 会：把每页注册为后台菜单入口（按权限过滤）、
+   * 托管 `<插件目录>/admin/**`、并把 `entry` 换算成前端可 import 的托管 URL。
+   */
+  admin?: PluginAdminManifest;
+}
+
+/** 插件自带后台界面中的一个页面。 */
+export interface PluginAdminPageDeclaration {
+  /** 菜单项 ID，全局唯一。 */
+  id: string;
+  /** 菜单显示名。 */
+  label: string;
+  /** 后台前端路由路径（`/` 开头，全局唯一，保持既有书签可用）。 */
+  path: string;
+  /** 图标名（见后台界面 SDK 的受控图标集）。 */
+  icon?: string;
+  order?: number;
+  /** 访问所需权限点；为空表示仅需登录。 */
+  permission?: string;
+  /** 相对插件目录的界面入口（`.js`，零构建 ESM），例如 `./admin/main.js`。 */
+  entry: string;
+  /**
+   * 可选：插件自带样式（相对插件目录的 `.css`）。
+   *
+   * 声明后由宿主在页面挂载时注入；**不声明就不加载** —— 避免宿主去"探测"文件是否存在
+   * （那会在控制台留下一串 404，看起来像故障）。
+   */
+  style?: string;
+}
+
+export interface PluginAdminManifest {
+  pages: PluginAdminPageDeclaration[];
 }
 
 export type ThemeSettingFieldType =
