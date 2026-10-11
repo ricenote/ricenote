@@ -1,0 +1,36 @@
+name: release-packages
+
+on:
+  push:
+    tags: ['packages-v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 只校验不发布
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org   # 会写 .npmrc，凭据取自 NODE_AUTH_TOKEN
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build                              # 发布前必须构建，脚本会校验 dist 存在
+
+      - name: 发布（顺序由脚本保证：shared → SDK → 插件）
+        run: node scripts/release-plugins.mjs ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
