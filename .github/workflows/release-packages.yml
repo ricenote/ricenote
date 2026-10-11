@@ -18,9 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 不写 version：pnpm 版本由根 package.json 的 packageManager 字段决定。
+      # 两处都声明会直接报 "Multiple versions of pnpm specified"（本次踩到过）。
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
