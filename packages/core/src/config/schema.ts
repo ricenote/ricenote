@@ -25,7 +25,7 @@ export const CONFIG_SCHEMA = {
     },
     database: {
       type: 'object',
-      required: ['host', 'port', 'user', 'name', 'connectionLimit', 'readonly'],
+      required: ['host', 'port', 'user', 'name', 'connectionLimit', 'readonly', 'dumpBinary', 'clientBinary'],
       additionalProperties: false,
       properties: {
         host: { type: 'string', minLength: 1 },
@@ -35,7 +35,9 @@ export const CONFIG_SCHEMA = {
         name: { type: 'string', minLength: 1 },
         url: { type: 'string' },
         connectionLimit: { type: 'integer', minimum: 1, maximum: 100 },
-        readonly: { type: 'boolean' }
+        readonly: { type: 'boolean' },
+        dumpBinary: { type: 'string', minLength: 1 },
+        clientBinary: { type: 'string', minLength: 1 }
       }
     },
     security: {
@@ -60,7 +62,17 @@ export const CONFIG_SCHEMA = {
     },
     paths: {
       type: 'object',
-      required: ['rootDir', 'storageDir', 'uploadsDir', 'cacheDir', 'logsDir', 'pluginsDir', 'themesDir'],
+      required: [
+        'rootDir',
+        'storageDir',
+        'uploadsDir',
+        'cacheDir',
+        'logsDir',
+        'backupsDir',
+        'pluginsDir',
+        'pluginsInstallDir',
+        'themesDir'
+      ],
       additionalProperties: false,
       properties: {
         rootDir: { type: 'string', minLength: 1 },
@@ -68,7 +80,9 @@ export const CONFIG_SCHEMA = {
         uploadsDir: { type: 'string', minLength: 1 },
         cacheDir: { type: 'string', minLength: 1 },
         logsDir: { type: 'string', minLength: 1 },
+        backupsDir: { type: 'string', minLength: 1 },
         pluginsDir: { type: 'string', minLength: 1 },
+        pluginsInstallDir: { type: 'string', minLength: 1 },
         themesDir: { type: 'string', minLength: 1 }
       }
     },

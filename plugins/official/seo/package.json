@@ -1,0 +1,16 @@
+{
+  "name": "@ricenote/plugin-seo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote SEO 插件：社交卡片、结构化数据、站点地图与爬虫协议",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*"
+  }
+}

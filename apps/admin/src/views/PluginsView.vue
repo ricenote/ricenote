@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { AlertTriangle, Link2, Power, RefreshCw, ShieldAlert } from 'lucide-vue-next';
-import type { PluginState, PluginSummary, ValidationIssue } from '@ricenote/shared';
+import { AlertTriangle, Archive, Link2, Power, RefreshCw, ShieldAlert, Upload } from 'lucide-vue-next';
+import type { PluginInstallResult, PluginState, PluginSummary, ValidationIssue } from '@ricenote/shared';
 import { ApiError, api } from '@/api/client';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/stores/toast';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
+import { formatBytes } from '@/lib/utils';
 
 interface Diagnostics {
   invalid: { dir: string; id: string | null; issues: ValidationIssue[] }[];
@@ -82,6 +83,53 @@ async function toggle(plugin: PluginSummary): Promise<void> {
   }
 }
 
+/* ------------------------------ 插件包安装 ------------------------------ */
+
+const installFile = ref<File | null>(null);
+const installInput = ref<HTMLInputElement | null>(null);
+const installing = ref(false);
+const installDragActive = ref(false);
+const installResult = ref<PluginInstallResult | null>(null);
+
+function pickInstallFile(file: File | null): void {
+  installResult.value = null;
+  if (file && !file.name.toLowerCase().endsWith('.zip')) {
+    toast.error('插件包必须是 .zip 文件');
+    installFile.value = null;
+    return;
+  }
+  installFile.value = file;
+}
+
+function onInstallDrop(event: DragEvent): void {
+  installDragActive.value = false;
+  pickInstallFile(event.dataTransfer?.files?.[0] ?? null);
+}
+
+async function installPlugin(): Promise<void> {
+  if (!installFile.value) return;
+  installing.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', installFile.value);
+    const result = await api.upload<PluginInstallResult>('/plugins/install', formData);
+
+    installResult.value = result;
+    installFile.value = null;
+    if (installInput.value) installInput.value.value = '';
+    toast.success(
+      result.upgraded
+        ? `已升级 ${result.pluginId} 到 v${result.version}，请重启进程使其生效`
+        : `已安装 ${result.pluginId} v${result.version}，启用后需重启进程`
+    );
+    await load();
+  } catch (error) {
+    toast.error(error instanceof ApiError ? error.message : '插件安装失败');
+  } finally {
+    installing.value = false;
+  }
+}
+
 onMounted(load);
 </script>
 
@@ -114,6 +162,71 @@ onMounted(load);
             当前有 {{ pendingRestart }} 个插件处于待重启状态。
           </p>
         </div>
+      </div>
+    </Card>
+
+    <!-- 插件包安装 -->
+    <Card v-if="canManage" class="p-4">
+      <div class="flex items-center gap-2">
+        <Archive class="h-4 w-4 text-muted-foreground" />
+        <h2 class="text-sm font-semibold text-foreground">上传安装插件包</h2>
+      </div>
+      <p class="mt-1 text-xs text-muted-foreground">
+        插件包为包含 <span class="font-mono text-foreground">manifest.json</span> 与构建产物入口的 ZIP。
+        包体会先做完整安全校验（路径穿越、符号链接、体积与类型白名单），校验通过后才会落盘。
+      </p>
+
+      <div class="mt-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div
+          class="flex cursor-pointer flex-col items-center gap-1.5 rounded-md border border-dashed px-4 py-6 text-center transition-colors"
+          :class="installDragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-foreground/30'"
+          @dragover.prevent="installDragActive = true"
+          @dragleave.prevent="installDragActive = false"
+          @drop.prevent="onInstallDrop"
+          @click="installInput?.click()"
+        >
+          <Upload class="h-5 w-5 text-muted-foreground" />
+          <p class="text-xs text-foreground">
+            {{ installFile ? installFile.name : '点击选择或拖拽插件 ZIP 到此处' }}
+          </p>
+          <p class="text-[11px] text-muted-foreground">
+            {{ installFile ? formatBytes(installFile.size) : '同 ID 的插件会被视为升级并整体替换目录' }}
+          </p>
+        </div>
+
+        <div class="flex gap-2">
+          <Button :disabled="!installFile" :loading="installing" @click="installPlugin">
+            <Upload class="h-3.5 w-3.5" />
+            安装 / 升级
+          </Button>
+          <Button
+            v-if="installFile"
+            variant="ghost"
+            @click="
+              () => {
+                installFile = null;
+                if (installInput) installInput.value = '';
+              }
+            "
+          >
+            取消
+          </Button>
+        </div>
+      </div>
+
+      <input ref="installInput" type="file" accept=".zip" class="hidden" @change="pickInstallFile(($event.target as HTMLInputElement).files?.[0] ?? null)">
+
+      <div v-if="installResult" class="mt-3 rounded-md border border-border bg-muted/40 p-3 text-xs">
+        <p class="font-medium text-foreground">
+          {{ installResult.upgraded ? '已升级' : '已安装' }} {{ installResult.name }}（{{ installResult.pluginId }}）
+        </p>
+        <dl class="mt-2 grid grid-cols-2 gap-y-1.5">
+          <dt class="text-muted-foreground">版本</dt>
+          <dd class="text-foreground">v{{ installResult.version }}</dd>
+          <dt class="text-muted-foreground">安装目录</dt>
+          <dd class="font-mono text-foreground">{{ installResult.dir }}</dd>
+        </dl>
+        <p class="mt-2 text-warning">安装已完成，请重启服务端进程使其生效。</p>
       </div>
     </Card>
 

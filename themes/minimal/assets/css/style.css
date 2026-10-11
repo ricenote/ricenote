@@ -581,3 +581,229 @@ img {
     transition: none !important;
   }
 }
+
+/* ------------------------------- 评论区 ------------------------------- */
+
+/*
+ * 这些类名由 rice.comments 插件的 `post.comments` Slot 输出，属于**插件约定**：
+ * 插件被禁用时整块不输出，主题只需保留 `has_feature('comments')` 判断。
+ * 层级完全由 1px 细边框与背景色区分，不使用阴影。
+ */
+
+.rn-comments__body {
+  margin-top: 1.25rem;
+}
+
+.rn-comments__meta {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--rn-text-soft);
+}
+
+.rn-comments__empty {
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px dashed var(--rn-border);
+  border-radius: var(--rn-radius);
+  color: var(--rn-text-soft);
+  font-size: 0.875rem;
+}
+
+.rn-comments__list,
+.rn-comments__children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rn-comments__children {
+  margin-top: 0.75rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--rn-border);
+}
+
+.rn-comment {
+  margin-bottom: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: var(--rn-surface);
+  border: 1px solid var(--rn-border);
+  border-radius: var(--rn-radius);
+}
+
+.rn-comment__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+  font-size: 0.8125rem;
+}
+
+.rn-comment__author {
+  font-weight: 600;
+  color: var(--rn-text);
+}
+
+.rn-comment__time {
+  color: var(--rn-text-soft);
+}
+
+.rn-comment__body {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.rn-comment__actions {
+  margin-top: 0.4rem;
+}
+
+.rn-comment__reply {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--rn-accent);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.rn-comment__reply:hover {
+  text-decoration: underline;
+}
+
+.rn-comments__pager {
+  display: flex;
+  gap: 0.35rem;
+  margin: 1rem 0;
+}
+
+.rn-pager__link {
+  min-width: 2rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--rn-border);
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+
+.rn-pager__link--active {
+  border-color: var(--rn-accent);
+  background: var(--rn-accent);
+  color: #fff;
+}
+
+.rn-comments__form {
+  margin-top: 1.5rem;
+  padding: 1.1rem;
+  background: var(--rn-surface);
+  border: 1px solid var(--rn-border);
+  border-radius: var(--rn-radius);
+}
+
+.rn-comments__form-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.rn-comments__replying {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rn-accent);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+}
+
+.rn-comments__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.rn-field {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.rn-field__label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.8125rem;
+  color: var(--rn-text-soft);
+}
+
+.rn-field__input {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--rn-border);
+  border-radius: 6px;
+  background: var(--rn-bg);
+  color: var(--rn-text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.rn-field__input:focus-visible {
+  border-color: var(--rn-accent);
+}
+
+.rn-field__textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+/* 蜜罐字段：移出视口而非 display:none —— 部分爬虫会跳过被隐藏的字段 */
+.rn-field--honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.rn-comments__form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.rn-comments__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--rn-text-soft);
+}
+
+.rn-comments__submit {
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--rn-accent);
+  border-radius: 6px;
+  background: var(--rn-accent);
+  color: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.rn-comments__submit:hover {
+  filter: brightness(0.94);
+}
+
+.rn-comments__submit[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rn-comments__message {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.rn-comments__message.is-ok {
+  color: #2f7a4d;
+}
+
+.rn-comments__message.is-error {
+  color: #b4453b;
+}

@@ -10,7 +10,18 @@ import multipart from '@fastify/multipart';
 import { ErrorCode, isRiceNoteError, RiceNoteError } from '@ricenote/shared';
 import type { RiceNoteKernel } from '@ricenote/core';
 
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+/**
+ * Multipart 传输层默认上限。
+ *
+ * 这里只设"传输层"的宽上限，**各业务端点必须再用更严格的限额**：
+ * - media 插件：插件内 `maxFileBytes`（默认 8MB）；
+ * - 主题安装：`DEFAULT_ZIP_GUARD.maxArchiveBytes`（32MB）；
+ * - 插件安装：`PLUGIN_ZIP_GUARD.maxArchiveBytes`（16MB）；
+ * - 备份恢复：`RESTORE_ZIP_GUARD.maxArchiveBytes`（128MB）。
+ *
+ * 之所以不把传输上限压到 8MB：备份恢复包天然可能超过它。
+ */
+export const MAX_UPLOAD_BYTES = 128 * 1024 * 1024;
 export const MAX_JSON_BODY_BYTES = 1024 * 1024;
 
 export interface CreateServerOptions {

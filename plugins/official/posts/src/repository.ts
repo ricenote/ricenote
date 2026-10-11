@@ -123,6 +123,31 @@ export async function listPublishedByIds(
   return { items, total: Number(totalRows[0]?.total ?? 0) };
 }
 
+/**
+ * 批量读取文章标题（**含草稿与归档**）。
+ *
+ * 供其他插件的后台列表展示使用（如评论审核台显示所属文章），
+ * 目的是避免"每个 ID 一次查询"的 N+1 模式。
+ */
+export async function titlesOf(
+  db: PluginDatabase,
+  siteId: string,
+  postIds: number[]
+): Promise<Record<number, string>> {
+  const output: Record<number, string> = {};
+  const unique = [...new Set(postIds.filter((id) => Number.isFinite(id)))];
+  if (unique.length === 0) return output;
+
+  const placeholders = unique.map(() => '?').join(', ');
+  const rows = await db.query<{ id: number; title: string }>(
+    `SELECT id, title FROM rn_posts WHERE site_id = ? AND id IN (${placeholders})`,
+    [siteId, ...unique]
+  );
+
+  for (const row of rows) output[Number(row.id)] = row.title;
+  return output;
+}
+
 export async function searchPublished(
   db: PluginDatabase,
   siteId: string,
@@ -143,6 +168,61 @@ export async function searchPublished(
       ORDER BY published_at DESC, id DESC
       LIMIT ? OFFSET ?`,
     [siteId, like, like, like, limitOf(input), offsetOf(input)]
+  );
+  return { items, total: Number(totalRows[0]?.total ?? 0) };
+}
+
+/** FULLTEXT 检索表达式（列顺序必须与迁移 0002 创建的索引一致）。 */
+const FULLTEXT_MATCH = `MATCH(title, excerpt, content) AGAINST (? IN BOOLEAN MODE)`;
+
+/** ngram 解析器的最短分词长度。 */
+const MIN_FULLTEXT_LENGTH = 2;
+
+/** 布尔模式中具有特殊含义的字符，必须从用户输入中剔除。 */
+const BOOLEAN_SPECIALS = /[+\-><()~*"@\\:]/g;
+
+/**
+ * 归一化全文检索关键词。
+ *
+ * 返回 `undefined` 表示应当回退到 {@link searchPublished}（LIKE）：
+ * 关键词过短（ngram 最短分词为 2）或清洗后为空。
+ */
+export function normalizeFulltextKeyword(keyword: string): string | undefined {
+  const cleaned = keyword.replace(BOOLEAN_SPECIALS, ' ').replace(/\s+/g, ' ').trim();
+  return cleaned.length >= MIN_FULLTEXT_LENGTH ? cleaned : undefined;
+}
+
+/**
+ * 全文检索（迁移 0002 创建的 ngram FULLTEXT 索引）。
+ *
+ * 为什么用**布尔模式短语**而不是自然语言模式：
+ * ngram 会把拉丁词切成 2 字符片段（`Slot` → `Sl` / `lo` / `ot`），
+ * 自然语言模式下命中任一片段即算匹配，实测会出现明显过匹配；
+ * 加引号的短语要求片段按序相邻，语义等价于子串匹配，
+ * 既精确又仍然走索引。
+ *
+ * 入参必须是 {@link normalizeFulltextKeyword} 的返回值。
+ * 索引缺失时 MySQL 会直接报错，由调用方捕获后永久回退。
+ */
+export async function searchPublishedFulltext(
+  db: PluginDatabase,
+  siteId: string,
+  normalizedKeyword: string,
+  input: PageInput
+): Promise<{ items: PostRow[]; total: number }> {
+  const phrase = `"${normalizedKeyword}"`;
+
+  const totalRows = await db.query<{ total: number }>(
+    `SELECT COUNT(*) AS total FROM rn_posts
+      WHERE site_id = ? AND status = 'published' AND ${FULLTEXT_MATCH}`,
+    [siteId, phrase]
+  );
+  const items = await db.query<PostRow>(
+    `SELECT ${COLUMNS}, ${FULLTEXT_MATCH} AS relevance FROM rn_posts
+      WHERE site_id = ? AND status = 'published' AND ${FULLTEXT_MATCH}
+      ORDER BY relevance DESC, published_at DESC, id DESC
+      LIMIT ? OFFSET ?`,
+    [phrase, siteId, phrase, limitOf(input), offsetOf(input)]
   );
   return { items, total: Number(totalRows[0]?.total ?? 0) };
 }

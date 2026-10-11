@@ -15,13 +15,14 @@ import {
 } from '@ricenote/shared';
 import { PLUGIN_API_VERSION } from '@ricenote/plugin-sdk';
 import { THEME_API_VERSION } from '@ricenote/theme-sdk';
-import { discoverPlugins } from '@ricenote/core';
+import { discoverPluginsFrom } from '@ricenote/core';
 
 const validator = createManifestValidator();
 
 export interface ValidateOptions {
   rootDir: string;
-  pluginsDir: string;
+  /** 插件根目录列表（官方 + 第三方安装目录）。 */
+  pluginsDirs: string[];
   themesDir: string;
 }
 
@@ -39,7 +40,7 @@ const RESET = '\u001b[0m';
 
 /** 校验插件与主题清单，返回报告。 */
 export function validateProject(options: ValidateOptions): ValidationReport {
-  const discovery = discoverPlugins(options.pluginsDir);
+  const discovery = discoverPluginsFrom(options.pluginsDirs);
 
   const pluginIssues = discovery.invalid.map((item) => ({ dir: item.dir, issues: item.issues }));
   const pluginApiIssues: { dir: string; issues: ValidationIssue[] }[] = [];
@@ -161,7 +162,7 @@ export function runValidate(options: ValidateOptions): number {
   const report = validateProject(options);
 
   process.stdout.write('\nRiceNote 清单校验\n');
-  process.stdout.write(`${DIM}插件目录：${options.pluginsDir}${RESET}\n`);
+  process.stdout.write(`${DIM}插件目录：${options.pluginsDirs.join('、')}${RESET}\n`);
   process.stdout.write(`${DIM}主题目录：${options.themesDir}${RESET}\n\n`);
 
   if (report.plugin.invalid.length === 0) {

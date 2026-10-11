@@ -51,26 +51,37 @@ export type ThemeSettingFieldType =
   | 'image'
   | 'url';
 
+/**
+ * 可本地化的展示文案。
+ *
+ * 允许两种写法：
+ * - 字符串：单语言直接书写，等价于不声明任何语言标签；
+ * - 对象：语言标签 → 文案，例如 `{ "zh-CN": "主色", "en": "Accent" }`。
+ *
+ * 运行时按 `site.language` 解析：精确匹配 → 基础语言（`zh-CN` → `zh`）→ `en` → 首个非空值。
+ */
+export type LocalizedText = string | Record<string, string>;
+
 export interface ThemeSettingOption {
-  label: string;
+  label: LocalizedText;
   value: string;
 }
 
 export interface ThemeSettingField {
   type: ThemeSettingFieldType;
-  label: string;
-  description?: string;
+  label: LocalizedText;
+  description?: LocalizedText;
   default?: unknown;
   min?: number;
   max?: number;
   maxLength?: number;
-  placeholder?: string;
+  placeholder?: LocalizedText;
   options?: ThemeSettingOption[];
 }
 
 export interface ThemeSettingGroup {
-  label: string;
-  description?: string;
+  label: LocalizedText;
+  description?: LocalizedText;
   fields: Record<string, ThemeSettingField>;
 }
 

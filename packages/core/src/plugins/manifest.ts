@@ -46,22 +46,47 @@ const manifestValidator = createManifestValidator();
 
 /** 扫描插件目录并完成 Manifest 结构与取值校验。 */
 export function discoverPlugins(pluginsDir: string): DiscoveryResult {
+  return discoverPluginsFrom([pluginsDir]);
+}
+
+/**
+ * 扫描**多个**插件根目录并合并结果。
+ *
+ * 用途：官方插件（`plugins/official`）与第三方安装目录（`plugins/third-party`）
+ * 需要同时被内核发现。ID 去重跨全部根目录生效，重复时后出现的根目录记为非法。
+ */
+export function discoverPluginsFrom(pluginsDirs: readonly string[]): DiscoveryResult {
+  const plugins: LoadedPlugin[] = [];
+  const invalid: InvalidPlugin[] = [];
+  const seenIds = new Map<string, string>();
+
+  for (const root of pluginsDirs) {
+    const found = scanPluginRoot(root, seenIds);
+    plugins.push(...found.plugins);
+    invalid.push(...found.invalid);
+  }
+
+  return { plugins, invalid };
+}
+
+/** 扫描单个插件根目录（一级子目录即插件目录）。 */
+function scanPluginRoot(root: string, seenIds: Map<string, string>): DiscoveryResult {
   const plugins: LoadedPlugin[] = [];
   const invalid: InvalidPlugin[] = [];
 
-  if (!existsSync(pluginsDir)) {
+  if (!existsSync(root)) {
     return { plugins, invalid };
   }
 
-  const entries = readdirSync(pluginsDir, { withFileTypes: true })
+  const entries = readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
 
-  const seenIds = new Map<string, string>();
+  const builtin = root.replace(/\\/g, '/').includes('/plugins/official');
 
   for (const name of entries) {
-    const dir = path.join(pluginsDir, name);
+    const dir = path.join(root, name);
     const manifestPath = path.join(dir, 'manifest.json');
 
     if (!existsSync(manifestPath)) {
@@ -106,7 +131,7 @@ export function discoverPlugins(pluginsDir: string): DiscoveryResult {
       dir,
       entryPath: path.resolve(dir, manifest.entry),
       ...(manifest.migrations ? { migrationsDir: path.resolve(dir, manifest.migrations) } : {}),
-      builtin: pluginsDir.replace(/\\/g, '/').includes('/plugins/official')
+      builtin
     });
   }
 

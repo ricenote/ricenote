@@ -146,5 +146,71 @@ export const api = {
     options?: RequestOptions
   ): Promise<{ data: T[]; total: number; page: number; pageSize: number }> {
     return request<{ data: T[]; total: number; page: number; pageSize: number }>('GET', path, options);
+  },
+
+  /**
+   * 下载二进制响应（备份 ZIP 等）。
+   *
+   * 走 POST 而非 GET：导出与恢复都是"显式动作"，且写方法统一由守卫做 CSRF 校验。
+   * 响应体不是 JSON，因此不能复用 `request()` 的信封解包。
+   */
+  async download(
+    path: string,
+    options: { method?: 'POST' | 'GET'; body?: unknown } = {}
+  ): Promise<{ blob: Blob; filename: string }> {
+    const method = options.method ?? 'POST';
+    const headers: Record<string, string> = {
+      Accept: 'application/zip, application/octet-stream'
+    };
+    if (method !== 'GET' && csrfToken) {
+      headers['x-csrf-token'] = csrfToken;
+    }
+
+    const response = await fetch(`/api/admin${path}`, {
+      method,
+      headers,
+      credentials: 'include',
+      ...(options.body === undefined
+        ? {}
+        : {
+            body: JSON.stringify(options.body),
+            headers: { ...headers, 'Content-Type': 'application/json; charset=utf-8' }
+          })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text) as unknown;
+      } catch {
+        parsed = undefined;
+      }
+      const payload =
+        parsed && typeof parsed === 'object' && 'error' in parsed
+          ? ((parsed as { error: ApiErrorPayload }).error as ApiErrorPayload)
+          : { code: `HTTP_${response.status}`, message: text || response.statusText };
+      throw new ApiError(response.status, payload);
+    }
+
+    return { blob: await response.blob(), filename: filenameOf(response.headers.get('content-disposition')) };
   }
 };
+
+/** 从 `Content-Disposition` 解析文件名。 */
+function filenameOf(disposition: string | null): string {
+  const matched = disposition?.match(/filename="?([^";]+)"?/i);
+  return matched?.[1] ?? 'download.bin';
+}
+
+/** 触发浏览器下载（供下载类操作复用）。 */
+export function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}

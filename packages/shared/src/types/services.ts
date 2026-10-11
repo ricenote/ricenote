@@ -9,6 +9,12 @@
 import type {
   AdminUserSummary,
   AuthUser,
+  CommentListQuery,
+  CommentModerateRequest,
+  CommentStatus,
+  CommentSubmitRequest,
+  CommentSummary,
+  CommentThreadItem,
   MediaSummary,
   PostDetail,
   PostListQuery,
@@ -38,6 +44,15 @@ export const SERVICE_CONTRACTS = {
   CONTENT_TAXONOMY: 'content.taxonomy@1',
   /** media 插件提供的媒体库服务。 */
   MEDIA_LIBRARY: 'media.library@1',
+  /**
+   * search 插件提供的可搜索数据源注册表。
+   *
+   * 数据源拥有者（posts 等）主动向本契约注册 `SearchSource`，
+   * 因此两者之间**不存在硬依赖**：search 被禁用时数据源拥有者静默降级。
+   */
+  CONTENT_SEARCH: 'content.search@1',
+  /** comments 插件提供的评论服务。 */
+  CONTENT_COMMENTS: 'content.comments@1',
   /**
    * taxonomy 插件提供的内部服务。
    *
@@ -151,6 +166,12 @@ export interface ContentPostsService {
   listPublishedByTerm(input: { termSlug: string; page: number; pageSize: number }): Promise<PostQueryResult>;
   /** 搜索已发布文章。 */
   searchPublished(input: { keyword: string; page: number; pageSize: number }): Promise<PostQueryResult>;
+  /**
+   * 批量读取文章标题（**含草稿与归档**），供其他插件的后台列表展示。
+   *
+   * 存在的意义是避免"为每个 ID 单独查询"的 N+1 模式；缺失的键不出现在结果中。
+   */
+  titlesOf(postIds: number[]): Promise<Record<number, string>>;
   /** 后台：分页查询（含草稿）。 */
   listForAdmin(query: PostListQuery): Promise<PostQueryResult>;
   /** 后台：详情。 */
@@ -210,6 +231,130 @@ export interface MediaService {
   }): Promise<MediaSummary>;
   remove(id: number): Promise<void>;
   countAll(): Promise<{ total: number; totalSize: number }>;
+}
+
+/* ----------------------------- 搜索 ----------------------------- */
+
+/** 搜索结果中的词条引用（与 PostContext.terms 同构，便于主题复用卡片模板）。 */
+export interface SearchTermRef {
+  id: number;
+  name: string;
+  slug: string;
+  type: string;
+}
+
+/**
+ * 搜索命中的单条结果。
+ *
+ * 除"检索必需"字段外，还携带最小的**展示补充**（作者、封面、词条），
+ * 使主题可以复用同一套结果卡片模板渲染来自不同数据源的结果。
+ */
+export interface SearchHit {
+  /** 数据源内唯一 ID（字符串化）。 */
+  id: string;
+  title: string;
+  excerpt: string;
+  /** 站点相对路径，例如 `/post/hello`。 */
+  url: string;
+  /** 结果类型，例如 `post`。 */
+  type: string;
+  /** 数据源展示名，用于结果分组。 */
+  sourceLabel: string;
+  publishedAt?: string;
+  /** 展示补充：作者显示名。 */
+  authorName?: string;
+  /** 展示补充：封面图 URL。 */
+  coverUrl?: string;
+  /** 展示补充：词条。 */
+  terms?: SearchTermRef[];
+}
+
+export interface SearchQuery {
+  keyword: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface SearchSourceResult {
+  items: SearchHit[];
+  total: number;
+}
+
+/**
+ * 可搜索数据源。
+ *
+ * 由内容拥有者（posts 等）实现并注册到 {@link ContentSearchService}，
+ * 搜索插件只依赖本契约，不感知具体内容类型。
+ */
+export interface SearchSource {
+  /** 数据源标识，例如 `posts`。 */
+  id: string;
+  /** 展示名，用于结果分组。 */
+  label: string;
+  /**
+   * 检索实现。
+   *
+   * 约定：分页由实现方负责；实现方**不得**返回未对公众可见的内容。
+   */
+  query(input: SearchQuery): Promise<SearchSourceResult>;
+}
+
+/**
+ * search 插件提供的可搜索数据源注册表。
+ *
+ * 注册方向为"数据源拥有者主动注册"，因此 posts 与 search 之间不存在硬依赖：
+ * search 被禁用时，数据源拥有者的注册调用静默失败并降级。
+ */
+export interface ContentSearchService {
+  /** 注册数据源；返回注销句柄（插件停止时必须调用）。 */
+  registerSource(source: SearchSource): () => void;
+  /** 按 ID 注销数据源；不存在时静默返回（幂等，便于插件 stop 阶段调用）。 */
+  unregisterSource(id: string): void;
+  /** 列出已注册数据源的描述信息。 */
+  listSources(): Array<{ id: string; label: string }>;
+  /**
+   * 跨数据源检索。
+   *
+   * 语义：按数据源聚合后做**全局分页**；单个数据源失败不影响其他数据源的结果。
+   */
+  search(input: SearchQuery): Promise<{ items: SearchHit[]; total: number }>;
+  /** 是否已有可用数据源。 */
+  hasSources(): boolean;
+}
+
+/* ----------------------------- 评论 ----------------------------- */
+
+export interface CommentCounts {
+  pending: number;
+  approved: number;
+  spam: number;
+  trash: number;
+  total: number;
+}
+
+/** comments 插件提供的评论服务。 */
+export interface ContentCommentsService {
+  /** 前台：读取某文章的已通过评论（线程化，仅含展示字段）。 */
+  listApprovedThreaded(input: { postId: number; page: number; pageSize: number }): Promise<{
+    items: CommentThreadItem[];
+    total: number;
+    /** 该文章全部已通过评论数（含回复）。 */
+    totalApproved: number;
+  }>;
+  /** 前台：提交评论（按插件配置决定进入待审还是直接通过）。 */
+  submit(
+    input: CommentSubmitRequest & { ip?: string; userAgent?: string; userId?: number }
+  ): Promise<{ id: number; status: CommentStatus }>;
+  /** 后台：分页查询。 */
+  listForAdmin(query: CommentListQuery): Promise<{ items: CommentSummary[]; total: number }>;
+  /** 后台：批量审核。 */
+  moderate(input: CommentModerateRequest): Promise<{ affected: number }>;
+  /** 后台：状态统计。 */
+  countByStatus(): Promise<CommentCounts>;
+  /** 批量读取多篇文章的已通过评论数（文章列表使用）。 */
+  countsForPosts(postIds: number[]): Promise<Record<number, number>>;
+  /** 最近评论（仪表盘）。 */
+  recent(limit: number): Promise<CommentSummary[]>;
 }
 
 /* ----------------------------- Core 提供给插件的服务 ----------------------------- */

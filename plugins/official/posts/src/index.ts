@@ -16,6 +16,7 @@ import { definePlugin, type PluginContext } from '@ricenote/plugin-sdk';
 import {
   SERVICE_CONTRACTS,
   type ContentPostsService,
+  type ContentSearchService,
   type CoreHtmlService,
   type CoreSetupService,
   type CoreThemeService
@@ -29,6 +30,7 @@ import {
   usersOf,
   type PostsRuntime
 } from './runtime.js';
+import { POSTS_SOURCE_ID, createPostsSearchSource } from './search-source.js';
 import { createPostsService } from './service.js';
 
 export default definePlugin({
@@ -86,13 +88,40 @@ export default definePlugin({
       if (missing.length > 0) {
         ctx.logger.warn('部分可选依赖不可用，已降级运行', { missing });
       }
+
+      registerSearchSource(ctx, runtime);
     });
   },
 
   async stop(ctx) {
+    // 主动注销数据源：search 插件的注册表在它自己的进程内存中，
+    // posts 停止后若不注销，搜索页会继续拿到指向已停用插件的查询实现。
+    ctx.services
+      .tryUse<ContentSearchService>(SERVICE_CONTRACTS.CONTENT_SEARCH)
+      ?.unregisterSource(POSTS_SOURCE_ID);
+
     ctx.logger.info('posts 插件已停止（注册的路由/服务/Slot 已由 Core 注销）');
   }
 });
+
+/**
+ * 向 search 插件注册可搜索数据源。
+ *
+ * 时机必须等到"全部插件启动完成"（`core.runtime.started.v1`）：
+ * 拓扑排序仅保证依赖在前，不保证 posts 与 search 的先后顺序，
+ * 在 `start()` 里直接取服务会出现"对方还没启动"的假阴性。
+ * search 插件未启用时 `tryUse` 返回 undefined，此处静默跳过。
+ */
+function registerSearchSource(ctx: PluginContext, runtime: PostsRuntime): void {
+  const search = ctx.services.tryUse<ContentSearchService>(SERVICE_CONTRACTS.CONTENT_SEARCH);
+  if (!search) {
+    ctx.logger.info('search 插件未启用，可搜索数据源注册已跳过');
+    return;
+  }
+
+  search.registerSource(createPostsSearchSource(runtime));
+  ctx.logger.info('已向 search 插件注册可搜索数据源', { source: POSTS_SOURCE_ID });
+}
 
 /**
  * 注册文章底部插槽：展示词条与最后更新时间。

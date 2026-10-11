@@ -1,0 +1,61 @@
+# ADR-007：插件包采用「ZIP 上传 + 两阶段安全校验」安装，且与主题安装同构
+
+- 状态：已接受
+- 日期：2026-10-11
+
+## 背景
+
+M1 起插件以「目录即插件」的形式被发现（扫描 `config.paths.pluginsDir`）。这对开发者友好，
+但缺少**面向管理员的安装入口**：说明书第 9 章「扩展」分区要求提供"插件列表、安装、启用、设置、依赖"，
+M4 的退出标准也要求验证"第三方插件可独立安装与升级"。
+
+主题侧在 M2 已经实现了 ZIP 上传安装，并配套了一整套经过测试的安全校验
+（`packages/core/src/themes/zip-guard.ts`）。
+
+## 决策
+
+1. **插件包 = ZIP**，上传后由 Core 安装到独立的第三方插件目录
+   （`config.paths.pluginsInstallDir`，默认 `plugins/third-party`），
+   与官方插件目录 `plugins/official` 物理隔离。
+2. **复用同一套校验实现**：直接调用 `extractZipSafely()`，不新写第二套 ZIP 安全逻辑。
+   通过 `ZipGuardOptions.errorCode` 区分语义错误码（插件包为 `RN_PLUGIN_ARCHIVE_UNSAFE`）。
+3. **两阶段：先全量校验、再落盘**。所有校验在写入任何文件前完成，因此不存在
+   "部分写入后才发现恶意条目"的中间态。流程为：
+   `staging 解压 → 定位插件根 → 校验 manifest 与入口 → 复制到 .incoming-* → 换名`。
+4. **插件包专属限额与类型白名单**：比主题包更严（16MB / 2000 条目 / 64MB 解压上限），
+   且只允许 `.js .mjs .cjs .json .sql .md .txt .map`——插件包不应包含模板与字体等渲染资源，
+   更不允许 `.node` 等原生模块。
+5. **目录占用保护**：目标目录名取插件 ID 的短名（`acme.notes` → `notes`）。
+   若该目录已被**另一个插件 ID** 占用则拒绝安装（409），避免不同厂商的同名插件互相覆盖。
+6. **启用与生效语义不变**：安装只写磁盘与审计日志，是否启用仍由管理员在扩展中心操作，
+   并按 ADR-004 受控重启生效。
+
+## 理由
+
+- 同一份安全实现被两处使用，漏洞修复只需改一处；
+- 官方与第三方插件目录分离，便于备份、审计与"哪些是厂商自带"的判定（`builtin` 标记）；
+- 拒绝不可见的隐式行为：不做"从 URL 自动下载"或"插件市场"，符合说明书第 1.2 章的**非目标**。
+
+## 后果
+
+**正面**
+
+- 第三方插件有了与主题一致的安装体验，且安全边界清晰、可测试；
+- 恶意包（Zip Slip、绝对路径、盘符、反斜杠绕过、符号链接穿越、超限、非法类型）
+  在单元测试中被逐个固定；
+- 升级 = 同 ID 覆盖安装，目录整体替换，不会残留上一版本的旧文件。
+
+**负面 / 约束**
+
+- 插件包体需先在内存中完整缓冲（`request.file()` → `toBuffer()`），
+  因此传输层限额（128MB）必须存在，且各端点需自行收紧；
+- 安装后必须重启进程才能生效，管理员需接受这一延迟；
+- 与主题相同，v1 **没有真实沙箱**，插件在核心进程内运行，界面上必须保留高风险提示。
+
+## 相关实现
+
+- `packages/core/src/plugins/installer.ts`：`installPluginFromZip()` 与 `PLUGIN_ZIP_GUARD`
+- `packages/core/src/themes/zip-guard.ts`：共用的 ZIP 安全校验
+- `apps/server/src/http/admin/plugins-routes.ts`：`POST /api/admin/plugins/install`
+- `apps/admin/src/views/PluginsView.vue`：扩展中心上传安装与风险提示
+- `tests/unit/plugin-installer.test.ts`：安装、升级、恶意包、目录占用

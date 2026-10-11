@@ -22,6 +22,13 @@ export interface ZipGuardOptions {
   maxEntryUncompressedBytes: number;
   maxPathDepth: number;
   allowedExtensions: string[];
+  /**
+   * 校验失败时抛出的错误码。
+   *
+   * 缺省为主题安装错误码；插件包安装与备份恢复各自传入自己的错误码，
+   * 以保证"同一套校验实现、不同语义错误码"。
+   */
+  errorCode?: string;
 }
 
 export const DEFAULT_ZIP_GUARD: ZipGuardOptions = {
@@ -60,9 +67,12 @@ function isSymlink(entry: AdmZip.IZipEntry): boolean {
   return (unixMode & 0xf000) === 0xa000;
 }
 
-function fail(message: string, details?: Record<string, unknown>): never {
-  throw new RiceNoteError(ErrorCode.THEME_ARCHIVE_UNSAFE, message, { status: 400, details });
+function failWith(code: string, message: string, details?: Record<string, unknown>): never {
+  throw new RiceNoteError(code, message, { status: 400, details });
 }
+
+/** 已绑定错误码的失败函数（显式类型标注，便于控制流分析识别其不会返回）。 */
+type FailFn = (message: string, details?: Record<string, unknown>) => never;
 
 /**
  * 安全解压 ZIP 到目标目录。
@@ -75,6 +85,9 @@ export function extractZipSafely(
   targetDir: string,
   options: ZipGuardOptions = DEFAULT_ZIP_GUARD
 ): { files: string[] } {
+  const errorCode = options.errorCode ?? ErrorCode.THEME_ARCHIVE_UNSAFE;
+  const fail: FailFn = (message, details) => failWith(errorCode, message, details);
+
   if (archive.byteLength > options.maxArchiveBytes) {
     fail(`压缩包体积超出上限（${Math.round(options.maxArchiveBytes / 1024 / 1024)}MB）`, {
       size: archive.byteLength

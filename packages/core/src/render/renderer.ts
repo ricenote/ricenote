@@ -36,6 +36,25 @@ const CORE_TEMPLATES_DIR = path.resolve(moduleDir, '..', '..', 'templates');
 
 const SLOT_PLACEHOLDER = /<!--rn-slot:([a-zA-Z0-9_-]+)-->/g;
 
+/**
+ * 提取并规范化请求查询串，用作 HTML 缓存的区分维度。
+ *
+ * 参数按键名排序，使 `?a=1&b=2` 与 `?b=2&a=1` 命中同一缓存条目。
+ */
+export function queryKeyOf(url: string | undefined): string {
+  if (!url) return '';
+  const start = url.indexOf('?');
+  if (start < 0) return '';
+
+  const raw = url.slice(start + 1).split('#')[0] ?? '';
+  if (raw.length === 0) return '';
+
+  const pairs = [...new URLSearchParams(raw).entries()].sort(([left], [right]) =>
+    left.localeCompare(right)
+  );
+  return pairs.map(([key, value]) => `${key}=${value}`).join('&');
+}
+
 export interface RenderInput {
   kind: string;
   title: string;
@@ -72,6 +91,8 @@ export interface ThemeRendererDeps {
 
 export class ThemeRenderer {
   private readonly environments = new Map<string, nunjucks.Environment>();
+  /** 已告警过的缺失路由名，避免每页渲染都刷日志。 */
+  private readonly missingRoutes = new Set<string>();
 
   constructor(private readonly deps: ThemeRendererDeps) {}
 
@@ -85,11 +106,18 @@ export class ThemeRenderer {
 
     const template = this.resolveTemplate(theme, input.kind, input.template);
     const cacheable = input.cacheable !== false && !input.draftSettings;
+    /**
+     * 缓存键 = canonicalUrl + **请求查询串** + 模板。
+     *
+     * 必须纳入查询串：页面内容可能随查询变化（评论分页 `?commentPage=2`、
+     * 表单提交后的 `?comment=pending` 提示），若只按路径缓存，
+     * 这些状态会错误地命中同一个缓存条目。
+     */
     const cacheKey = HtmlCache.buildKey({
       themeId: theme.manifest.id,
       revision,
       pluginsKey: [...this.deps.enabledCapabilities()].sort().join(','),
-      path: `${input.canonicalUrl}|${template}`
+      path: `${input.canonicalUrl}|${queryKeyOf(input.request?.url)}|${template}`
     });
 
     if (cacheable) {
@@ -238,8 +266,27 @@ export class ThemeRenderer {
         const clean = String(relativePath).replace(/^\/+/, '');
         return `/theme-assets/${theme.manifest.id}/${clean}?v=${encodeURIComponent(theme.manifest.version)}`;
       },
-      url: (routeName: string, params: Record<string, string | number> = {}): string =>
-        this.deps.router.resolveUrl(routeName, params),
+      /**
+       * 按路由名生成 URL。
+       *
+       * 未注册时**不抛错**：模板可能引用可选插件提供的路由（例如 search 插件被禁用时的
+       * `url('search')`），此时整页渲染不应失败（说明书：禁用插件必须优雅降级）。
+       * 降级为 `#` 并在日志中告警一次，便于主题作者发现拼写错误。
+       */
+      url: (routeName: string, params: Record<string, string | number> = {}): string => {
+        try {
+          return this.deps.router.resolveUrl(routeName, params);
+        } catch (error) {
+          if (!this.missingRoutes.has(routeName)) {
+            this.missingRoutes.add(routeName);
+            this.deps.logger.warn('模板引用了未注册的路由名，已降级为 #', {
+              route: routeName,
+              reason: error instanceof Error ? error.message : String(error)
+            });
+          }
+          return '#';
+        }
+      },
       // 支持短名（`posts`）、全名（`content.posts`）与完整契约（`content.posts@1`）
       has_feature: (capability: string): boolean =>
         capabilityMatches(this.deps.enabledCapabilities(), capability),

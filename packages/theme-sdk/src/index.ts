@@ -35,6 +35,7 @@ export {
   flattenFields,
   buildDefaults,
   fallbackForType,
+  resolveLocalizedText,
   validateSettings,
   composeSettings,
   toExportableSettings,

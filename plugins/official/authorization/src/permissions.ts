@@ -19,12 +19,14 @@ export const PERMISSIONS: PermissionDefinition[] = [
   { key: 'post.delete', label: '删除文章', group: '内容' },
   { key: 'taxonomy.manage', label: '管理分类与标签', group: '内容' },
   { key: 'media.manage', label: '管理媒体库', group: '内容' },
+  { key: 'comment.moderate', label: '审核与管理评论', group: '互动' },
   { key: 'theme.view', label: '查看主题', group: '外观' },
   { key: 'theme.manage', label: '管理主题与设置', group: '外观' },
   { key: 'plugin.view', label: '查看插件', group: '扩展' },
   { key: 'plugin.manage', label: '启用与配置插件', group: '扩展' },
   { key: 'user.manage', label: '管理用户与角色', group: '用户' },
-  { key: 'system.audit', label: '查看审计日志', group: '系统' }
+  { key: 'system.audit', label: '查看审计日志', group: '系统' },
+  { key: 'system.maintain', label: '系统维护（运行日志与备份恢复）', group: '系统' }
 ];
 
 export interface BuiltinRoleDefinition {
@@ -50,6 +52,7 @@ export const BUILTIN_ROLES: BuiltinRoleDefinition[] = [
       'post.delete',
       'taxonomy.manage',
       'media.manage',
+      'comment.moderate',
       'theme.view',
       'plugin.view'
     ]

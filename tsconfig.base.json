@@ -12,6 +12,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "noEmitOnError": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,

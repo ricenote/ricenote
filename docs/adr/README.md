@@ -10,6 +10,9 @@
 | [ADR-004](ADR-004-controlled-restart.md) | 插件启停采用受控重启，不支持路由热卸载 | 已接受 |
 | [ADR-005](ADR-005-security-control-plane-in-core.md) | 管理安全控制面保留在 Core，用户/权限业务仍为插件 | 已接受 |
 | [ADR-006](ADR-006-admin-ui-shadcn-vue.md) | 管理后台 UI 采用 shadcn-vue | 已接受 |
+| [ADR-007](ADR-007-plugin-package-install.md) | 插件包采用 ZIP 上传 + 两阶段安全校验安装 | 已接受 |
+| [ADR-008](ADR-008-backup-restore-scope.md) | 备份覆盖数据库/文件/清单，恢复前自动快照 | 已接受 |
+| [ADR-009](ADR-009-search-fulltext-ngram.md) | 搜索独立成插件并采用 ngram FULLTEXT 布尔短语 | 已接受 |
 
 ## 说明书「待定项」的默认取值（M0–M2 实现依据）
 
@@ -31,8 +34,18 @@
    - 但 `rn_site_state`、`rn_theme_settings`、`rn_posts` 等表均保留 `site_id` 字段作为扩展点，
      且所有 Core 服务以 `siteId` 作为显式参数，为后续多站点留出升级路径。
 
-3. **主题设置字段的 i18n 与 SDK 文档自动生成**
-   - v1 采用"字段 `label` 即字面量"的最小方案；`theme.json` 允许 `label` 直接写中文。
-   - 多语言留待 v2，预留形式为 `label` 可扩展为 `{ "zh-CN": "...", "en": "..." }` 对象。
-   - SDK 文档当前手工维护于 `docs/plugin-api`、`docs/theme-api`；
-     后续可基于 `packages/shared/manifests/*.schema.json` 自动生成字段说明。
+3. **主题设置字段的 i18n 与 SDK 文档自动生成**（M4 已落地）
+   - 字段 `label` / `description` / `placeholder` / `options[].label` 支持两种写法：
+     字符串（等价于单语言）或 `{ "zh-CN": "...", "en": "..." }` 对象。
+   - 运行时按站点语言解析：精确匹配 → 基础语言（`zh-CN` → `zh`）→ `en` → 首个非空值；
+     实体是 `resolveLocalizedText()`（`@ricenote/theme-sdk`），后台拿到的 DTO 已是解析后的字符串。
+   - `packages/shared/manifests/*.schema.json` 是字段说明的唯一事实来源；
+     SDK 文档（`docs/plugin-api`、`docs/theme-api`）随实现同步维护。
+
+## M4 新增决策
+
+M4「生态稳定」在既有分层上做**插件式能力扩展 + Core 系统能力补全**，未改变架构范式：
+
+- ADR-007：插件包安装（ZIP 上传 + 两阶段校验，与主题安装同构）
+- ADR-008：备份与恢复范围（数据库 + 文件 + 清单，恢复前自动快照）
+- ADR-009：搜索独立成插件并采用 ngram FULLTEXT（布尔短语 + LIKE 降级）

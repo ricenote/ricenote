@@ -191,6 +191,10 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
       return { items: result.items.map((row) => toSummary(row, authorNames)), total: result.total };
     },
 
+    async titlesOf(postIds) {
+      return repo.titlesOf(runtime.db, runtime.siteId, postIds);
+    },
+
     async listForAdmin(query: PostListQuery) {
       const result = await repo.listForAdmin(runtime.db, runtime.siteId, {
         page: query.page,

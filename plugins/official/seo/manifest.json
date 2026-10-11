@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.seo",
+  "name": "SEO",
+  "description": "搜索引擎优化：在 head.end 注入 Open Graph / Twitter Card / JSON-LD 结构化数据，并提供 sitemap.xml 与 robots.txt。",
+  "version": "1.0.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "capabilities": ["routes:public", "services:consume", "slots:register"],
+  "settings": {
+    "enableOpenGraph": true,
+    "enableTwitterCard": true,
+    "enableJsonLd": true,
+    "enableSitemap": true,
+    "enableRobots": true,
+    "twitterSite": "",
+    "defaultOgImage": "",
+    "sitemapMaxUrls": 1000,
+    "sitemapPageSize": 50,
+    "robotsDisallow": ["/admin", "/api"]
+  }
+}

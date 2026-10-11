@@ -1,0 +1,16 @@
+{
+  "name": "@ricenote/plugin-search",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 搜索插件：可搜索数据源注册表与 /search 页面",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*"
+  }
+}

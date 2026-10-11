@@ -1,0 +1,15 @@
+{
+  "name": "@ricenote-example/reading-time",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RiceNote 第三方示例插件：阅读时长（仅使用公共 SDK）",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*"
+  }
+}

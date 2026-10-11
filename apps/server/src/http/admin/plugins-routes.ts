@@ -9,8 +9,11 @@
 
 import type { FastifyInstance } from 'fastify';
 import { ErrorCode, RiceNoteError } from '@ricenote/shared';
-import type { RiceNoteKernel } from '@ricenote/core';
+import { PLUGIN_ZIP_GUARD, installPluginFromZip, type RiceNoteKernel } from '@ricenote/core';
 import { guard } from './guard.js';
+
+/** 上传包在传输层就按插件包上限截断，避免把超大文件读进内存。 */
+const MAX_PLUGIN_ARCHIVE_BYTES = PLUGIN_ZIP_GUARD.maxArchiveBytes;
 
 export function registerPluginRoutes(app: FastifyInstance, kernel: RiceNoteKernel): void {
   /** 插件列表 + 诊断信息。 */
@@ -77,6 +80,48 @@ export function registerPluginRoutes(app: FastifyInstance, kernel: RiceNoteKerne
       });
 
       return reply.send({ data: { pluginId, enabled: false, restartRequired: result.restartRequired } });
+    })
+  );
+
+  /**
+   * 上传安装或升级插件包（ADR-007）。
+   *
+   * 安全提示（说明书第 10 章）：v1 插件运行在**同一进程内、没有真实沙箱**，
+   * 因此本端点只允许受信任管理员使用，前端必须显示高风险提示。
+   * 包体校验复用主题安装的两阶段安全校验实现（`extractZipSafely`）。
+   */
+  app.post(
+    '/plugins/install',
+    guard(kernel, { permission: 'plugin.manage' }, async ({ kernel: k, request, reply, auth, ip, requestId }) => {
+      const uploaded = await request.file({ limits: { fileSize: MAX_PLUGIN_ARCHIVE_BYTES } });
+      if (!uploaded) {
+        throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '未接收到插件包文件', { status: 400 });
+      }
+      if (!/\.zip$/i.test(uploaded.filename)) {
+        throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '插件包必须是 .zip 文件', { status: 400 });
+      }
+
+      const archive = await uploaded.toBuffer();
+      const result = await installPluginFromZip({
+        archive,
+        installDir: k.config.paths.pluginsInstallDir,
+        cacheDir: k.config.paths.cacheDir,
+        logger: k.logger
+      });
+
+      await k.audit.record({
+        action: 'plugin.install',
+        actorId: auth.user.id,
+        actorName: auth.user.username,
+        targetType: 'plugin',
+        targetId: result.pluginId,
+        ip,
+        requestId,
+        detail: { version: result.version, upgraded: result.upgraded, dir: result.dir }
+      });
+
+      reply.statusCode = 201;
+      return reply.send({ data: result });
     })
   );
 

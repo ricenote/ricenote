@@ -115,13 +115,26 @@ export interface ThemeSummary {
 
 export interface ThemeSettingsGroupDto {
   key: string;
+  /** 已按站点语言解析的展示文案。 */
   label: string;
   description?: string;
   fields: ThemeSettingFieldDto[];
 }
 
-export interface ThemeSettingFieldDto extends ThemeSettingField {
+/**
+ * 后台可渲染的设置字段。
+ *
+ * 与 Manifest 的差异：所有可本地化文案（label / description / placeholder / options[].label）
+ * 已按站点语言解析为字符串，后台无需再处理多语言。
+ */
+export interface ThemeSettingFieldDto
+  extends Omit<ThemeSettingField, 'label' | 'description' | 'placeholder' | 'options'> {
   key: string;
+  label: string;
+  description?: string;
+  placeholder?: string;
+  /** select 选项，`label` 已按站点语言解析。 */
+  options?: Array<{ label: string; value: string }>;
   value: unknown;
   default: unknown;
 }
@@ -254,6 +267,68 @@ export interface MediaSummary {
   createdAt: string;
 }
 
+/* ----------------------------- 评论 ----------------------------- */
+
+/** 评论审核状态机（四态）。 */
+export type CommentStatus = 'pending' | 'approved' | 'spam' | 'trash';
+
+/** 后台审核列表项。 */
+export interface CommentSummary {
+  id: number;
+  postId: number;
+  /** 关联文章标题（跨插件通过公开契约解析，可能为空）。 */
+  postTitle?: string;
+  parentId: number | null;
+  authorName: string;
+  /** 后台可见的完整邮箱；前台输出前必须脱敏。 */
+  authorEmail: string;
+  authorUrl?: string;
+  userId?: number;
+  /** 消毒前的正文（明文，后台详情使用）。 */
+  content: string;
+  status: CommentStatus;
+  ipHash?: string;
+  userAgent?: string;
+  /** 直接子回复数。 */
+  replyCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 前台评论线程节点（仅含展示所需字段）。 */
+export interface CommentThreadItem {
+  id: number;
+  authorName: string;
+  authorUrl?: string;
+  /** 已消毒的正文 HTML（受信句柄序列化后的字符串）。 */
+  html: string;
+  createdAt: string;
+  children: CommentThreadItem[];
+}
+
+/** 前台提交评论。 */
+export interface CommentSubmitRequest {
+  postId: number;
+  parentId?: number | null;
+  authorName: string;
+  authorEmail: string;
+  authorUrl?: string;
+  content: string;
+}
+
+export interface CommentListQuery extends PageQuery {
+  status?: CommentStatus | 'all';
+  postId?: number;
+  keyword?: string;
+}
+
+export type CommentModerationAction = 'approve' | 'pending' | 'spam' | 'trash' | 'delete';
+
+export interface CommentModerateRequest {
+  ids: number[];
+  action: CommentModerationAction;
+}
+
 /* ----------------------------- 仪表盘 ----------------------------- */
 
 export interface DashboardStats {
@@ -278,6 +353,12 @@ export interface DashboardStats {
   media: {
     total: number;
     totalSize: number;
+  };
+  /** 评论统计：仅当评论插件启用时存在。 */
+  comments?: {
+    pending: number;
+    approved: number;
+    total: number;
   };
   recentPosts: PostSummary[];
   plugins: PluginSummary[];
@@ -307,4 +388,76 @@ export interface AuditLogEntry {
   requestId?: string;
   detail?: Record<string, unknown>;
   createdAt: string;
+}
+
+/* ----------------------------- 运行日志 ----------------------------- */
+
+export type LogLevelName = 'debug' | 'info' | 'warn' | 'error';
+
+/** 结构化运行日志的一行（来自 logsDir 下的 JSON Lines 文件）。 */
+export interface RuntimeLogEntry {
+  /** 所在日志文件名（相对于 logsDir）。 */
+  file: string;
+  /** 该文件内的从 1 开始的行号。 */
+  line: number;
+  timestamp: string;
+  level: LogLevelName;
+  message: string;
+  /** 其余结构化字段（已剔除非序列化值）。 */
+  fields: Record<string, unknown>;
+}
+
+export interface RuntimeLogQuery extends PageQuery {
+  level?: LogLevelName | 'all';
+  /** 精确匹配的日志文件名；缺省时读取全部日志文件。 */
+  file?: string;
+  /** 关键字（在 message 与字段值中做不区分大小写的包含匹配）。 */
+  keyword?: string;
+  /** 起始时间（含），ISO 8601 字符串。 */
+  from?: string;
+  /** 结束时间（含），ISO 8601 字符串。 */
+  to?: string;
+}
+
+/** 可读取的日志文件清单项。 */
+export interface RuntimeLogFileInfo {
+  name: string;
+  size: number;
+  updatedAt: string;
+}
+
+/* ----------------------------- 备份与恢复 ----------------------------- */
+
+/** 备份包内的清单元数据（写入 `manifest.json`）。 */
+export interface BackupManifest {
+  formatVersion: 1;
+  createdAt: string;
+  appVersion: string;
+  siteId: string;
+  database: { name: string; host: string; port: number };
+  plugins: Array<{ id: string; version: string; enabled: boolean }>;
+  themes: Array<{ id: string; version: string; active: boolean }>;
+  uploads: { fileCount: number; totalBytes: number };
+}
+
+/** 已生成的历史快照。 */
+export interface BackupSnapshot {
+  /** 文件名，例如 backup-20261011-143000.zip。 */
+  name: string;
+  size: number;
+  createdAt: string;
+}
+
+/* ----------------------------- 插件包安装 ----------------------------- */
+
+export interface PluginInstallResult {
+  pluginId: string;
+  name: string;
+  version: string;
+  /** 安装后的目录名（pluginsDir 下的相对目录）。 */
+  dir: string;
+  /** 是否覆盖了同 ID 的既有插件（升级）。 */
+  upgraded: boolean;
+  /** v1 受控重启：安装/升级后必须重启进程才会生效（ADR-004）。 */
+  restartRequired: true;
 }

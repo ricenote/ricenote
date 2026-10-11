@@ -13,7 +13,7 @@
 import {
   createDatabaseAdapter,
   createLogger,
-  discoverPlugins,
+  discoverPluginsFrom,
   findDependents,
   loadConfig,
   MigrationCoordinator,
@@ -28,6 +28,11 @@ import { runValidate } from './validate.js';
 
 const DIM = '\u001b[2m';
 const RESET = '\u001b[0m';
+
+/** 插件根目录列表：官方插件目录 + 第三方插件安装目录。 */
+function pluginRoots(config: RiceNoteConfig): string[] {
+  return [config.paths.pluginsDir, config.paths.pluginsInstallDir];
+}
 
 function printHelp(): void {
   process.stdout.write(`
@@ -65,7 +70,7 @@ async function main(): Promise<number> {
       const config = loadConfig({ rootDir, loadDotEnv: true });
       return runValidate({
         rootDir,
-        pluginsDir: config.paths.pluginsDir,
+        pluginsDirs: pluginRoots(config),
         themesDir: config.paths.themesDir
       });
     }
@@ -110,7 +115,7 @@ async function runMigrate(rootDir: string): Promise<number> {
       `Core 迁移：新增 ${core.applied.length} 项，跳过 ${core.skipped.length} 项\n`
     );
 
-    const discovery = discoverPlugins(config.paths.pluginsDir);
+    const discovery = discoverPluginsFrom(pluginRoots(config));
     for (const plugin of discovery.plugins) {
       const pluginMigrations = readPluginMigrations(plugin);
       if (pluginMigrations.length === 0) continue;
@@ -143,7 +148,7 @@ async function runPlugin(rootDir: string, subCommand: string | undefined, plugin
   }
 
   const store = new PluginStore(db);
-  const discovery = discoverPlugins(config.paths.pluginsDir);
+  const discovery = discoverPluginsFrom(pluginRoots(config));
 
   try {
     if (!subCommand || subCommand === 'list') {

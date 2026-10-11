@@ -16,12 +16,7 @@ import {
   toPostViewModels,
   type PostsRuntime
 } from './runtime.js';
-import {
-  findPublishedBySlug,
-  listPublished,
-  listPublishedByIds,
-  searchPublished
-} from './repository.js';
+import { findPublishedBySlug, listPublished, listPublishedByIds } from './repository.js';
 
 interface Pagination {
   page: number;
@@ -185,62 +180,20 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
     }
   });
 
-  /* ----------------------------- 搜索 ----------------------------- */
-  const search: PageRouteSpec = {
-    name: 'search',
-    path: '/search',
-    kind: 'search',
-    cacheable: false,
-    handler: async (request) => {
-      const raw = request.query.q ?? request.query.keyword;
-      const keyword = String(Array.isArray(raw) ? raw[0] : (raw ?? '')).trim().slice(0, 100);
-      const page = parsePage(request.query.page);
-
-      if (keyword.length === 0) {
-        return {
-          kind: 'search',
-          title: `搜索 · ${siteTitle}`,
-          data: {
-            keyword: '',
-            posts: buildCollection([], 0, page, pageSize),
-            pagination: buildPagination(page, pageSize, 0, '/search?q='),
-            empty: true
-          }
-        };
-      }
-
-      const { items, total } = await searchPublished(runtime.db, runtime.siteId, keyword, {
-        page,
-        pageSize
-      });
-      const authorNames = await loadAuthorNames(runtime, items);
-      const viewModels = await toPostViewModels(runtime, items, { withHtml: false, authorNames });
-
-      return {
-        kind: 'search',
-        title: `搜索「${keyword}」 · ${siteTitle}`,
-        canonicalUrl: `/search?q=${encodeURIComponent(keyword)}`,
-        data: {
-          keyword,
-          posts: buildCollection(viewModels, total, page, pageSize),
-          pagination: buildPagination(
-            page,
-            pageSize,
-            total,
-            `/search?q=${encodeURIComponent(keyword)}`
-          )
-        }
-      };
-    }
-  };
+  /*
+   * 搜索页面不在本插件注册。
+   *
+   * `/search` 路由名与路径由 `rice.search` 插件提供（它负责跨内容类型聚合），
+   * posts 只通过 `content.search@1` 注册自身的可搜索数据源。
+   * 这样 search 插件可以被独立启停，posts 无需感知。
+   */
 
   ctx.routes.page(home);
   ctx.routes.page(postDetail);
   ctx.routes.page(archiveFor('term.category', '/category/:slug', 'category'));
   ctx.routes.page(archiveFor('term.tag', '/tag/:slug', 'tag'));
-  ctx.routes.page(search);
 
   runtime.logger.info('前台页面路由已注册', {
-    routes: ['/', '/post/:slug', '/category/:slug', '/tag/:slug', '/search']
+    routes: ['/', '/post/:slug', '/category/:slug', '/tag/:slug']
   });
 }

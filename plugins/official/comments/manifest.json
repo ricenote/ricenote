@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.comments",
+  "name": "评论",
+  "description": "提供访客评论、嵌套回复、四态审核（待审/通过/垃圾/回收）、关键词与频率反垃圾，以及后台评论审核台。",
+  "version": "1.0.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "provides": ["content.comments@1"],
+  "capabilities": [
+    "database:own",
+    "services:provide",
+    "services:consume",
+    "routes:public",
+    "routes:admin",
+    "events:publish",
+    "slots:register",
+    "admin:menu"
+  ],
+  "migrations": "./migrations",
+  "settings": {
+    "enabled": true,
+    "requireApproval": true,
+    "pageSize": 20,
+    "maxLength": 2000,
+    "rateLimitWindowSeconds": 60,
+    "rateLimitMaxSubmissions": 3,
+    "maxLinksPerComment": 2,
+    "maxDepth": 5,
+    "blockedKeywords": []
+  }
+}

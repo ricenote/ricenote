@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "acme.reading-time",
+  "name": "阅读时长",
+  "description": "第三方示例插件：在文章正文前显示预计阅读时长与字数。只使用 @ricenote/plugin-sdk 的公共接口，不依赖任何其他插件、不持有任何数据表。",
+  "version": "1.0.0",
+  "apiVersion": "^1.0.0",
+  "author": "Acme Studio",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "capabilities": ["slots:register"],
+  "settings": {
+    "wordsPerMinute": 300,
+    "showWordCount": true,
+    "label": "阅读时长"
+  }
+}

@@ -5,7 +5,15 @@
  * 参数会做 URL 编码，缺失参数会明确报错而不是生成坏链接。
  */
 
-import { ErrorCode, RiceNoteError } from '@ricenote/shared';
+import { ErrorCode, RiceNoteError, absoluteUrl } from '@ricenote/shared';
+
+/**
+ * 站点绝对地址拼接。
+ *
+ * 实现位于 `@ricenote/shared`：插件不能 import Core，因此跨包共用的实现
+ * 必须落在契约包中，这里只做再导出以保持 Core 的既有导入路径不变。
+ */
+export { absoluteUrl };
 
 const PARAM_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)/g;
 
@@ -39,14 +47,6 @@ export function buildPath(
   }
   const suffix = query.toString();
   return suffix.length > 0 ? `${filled}?${suffix}` : filled;
-}
-
-/** 拼接站点绝对地址。 */
-export function absoluteUrl(siteUrl: string, pathOrUrl: string): string {
-  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
-  const base = siteUrl.replace(/\/+$/, '');
-  const suffix = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
-  return `${base}${suffix}`;
 }
 
 /** 归一化路径：确保以 `/` 开头、去掉重复斜杠与末尾斜杠（根路径除外）。 */

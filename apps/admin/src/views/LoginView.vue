@@ -42,8 +42,26 @@ async function submit(): Promise<void> {
   }
 }
 
+/**
+ * 版本号取自公开的健康端点，避免在视图里硬编码造成版本漂移。
+ * 获取失败时只显示占位符，不影响登录流程。
+ */
+const version = ref('');
+
+async function loadVersion(): Promise<void> {
+  try {
+    const response = await fetch('/api/health', { headers: { Accept: 'application/json' } });
+    if (!response.ok) return;
+    const payload = (await response.json()) as { version?: string };
+    version.value = payload.version ?? '';
+  } catch {
+    // 服务端尚未就绪时静默忽略
+  }
+}
+
 onMounted(() => {
   if (!username.value) username.value = '';
+  void loadVersion();
 });
 </script>
 
@@ -116,7 +134,7 @@ onMounted(() => {
       </Card>
 
       <p class="mt-5 text-center text-[11px] leading-relaxed text-muted-foreground">
-        RiceNote v0.1.0 · 会话使用 HttpOnly Cookie，写操作校验 CSRF Token<br />
+        RiceNote {{ version ? `v${version}` : '' }} · 会话使用 HttpOnly Cookie，写操作校验 CSRF Token<br />
         连续失败会触发限流，请勿在公共环境使用弱口令
       </p>
     </div>

@@ -40,8 +40,9 @@ import { SessionManager } from './security/session.js';
 import { CsrfManager, LoginThrottle } from './security/csrf.js';
 import { AuditLogger } from './security/audit.js';
 import { SecurityGateway } from './security/gateway.js';
+import { APP_VERSION } from './version.js';
 
-export const APP_VERSION = '0.1.0';
+export { APP_VERSION };
 
 export interface BootstrapOptions extends LoadConfigOptions {
   /** 是否信任反向代理头（Nginx 场景为 true）。 */

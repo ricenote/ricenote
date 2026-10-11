@@ -6,20 +6,42 @@
  * 而不是让整个仪表盘请求失败。
  */
 
+import { createReadStream } from 'node:fs';
+import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import {
+  ErrorCode,
+  RiceNoteError,
   SERVICE_CONTRACTS,
+  type ContentCommentsService,
   type ContentPostsService,
   type DashboardStats,
   type IdentityAuthService,
   type MediaService,
   type PluginSummary,
+  type RuntimeLogQuery,
   type SiteSettings
 } from '@ricenote/shared';
-import type { RiceNoteKernel } from '@ricenote/core';
+import {
+  BackupService,
+  LogsReader,
+  RESTORE_ZIP_GUARD,
+  type RiceNoteKernel
+} from '@ricenote/core';
+import { MAX_UPLOAD_BYTES } from '../server.js';
 import { guard } from './guard.js';
 
+/** 系统维护权限点（日志查看与备份恢复；仅管理员角色通过 `*` 天然具备）。 */
+const PERMISSION_MAINTAIN = 'system.maintain';
+
 export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKernel): void {
+  const logs = new LogsReader({ logsDir: kernel.config.paths.logsDir });
+  const backups = new BackupService({
+    config: kernel.config,
+    logger: kernel.logger,
+    db: kernel.db
+  });
+
   /** 仪表盘统计。 */
   app.get(
     '/dashboard',
@@ -46,6 +68,11 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
       const mediaCount = media ? await media.countAll() : { total: 0, totalSize: 0 };
       const recentPosts = posts ? await posts.recent(5) : [];
 
+      // 评论统计：评论插件未启用时整块省略（而非填 0），便于前端区分"没有"与"不可用"
+      const comments = k.services.tryUse<ContentCommentsService>(SERVICE_CONTRACTS.CONTENT_COMMENTS);
+      const commentCounts = comments ? await comments.countByStatus() : undefined;
+      if (!comments) missingServices.push(SERVICE_CONTRACTS.CONTENT_COMMENTS);
+
       const stats: DashboardStats = {
         site: {
           version: health.version,
@@ -69,6 +96,15 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
           total: mediaCount.total ?? 0,
           totalSize: mediaCount.totalSize ?? 0
         },
+        ...(commentCounts
+          ? {
+              comments: {
+                pending: commentCounts.pending,
+                approved: commentCounts.approved,
+                total: commentCounts.total
+              }
+            }
+          : {}),
         recentPosts,
         plugins
       };
@@ -153,4 +189,244 @@ export function registerSystemRoutes(app: FastifyInstance, kernel: RiceNoteKerne
       });
     })
   );
+
+  /* ------------------------------ 运行日志 ------------------------------ */
+
+  /**
+   * 只读运行日志。
+   *
+   * 读取策略见 `LogsReader`：只读文件尾部有限窗口，内存占用与文件大小无关；
+   * 文件名经过归一化校验，无法越出 logsDir。
+   */
+  app.get(
+    '/logs',
+    guard(kernel, { permission: PERMISSION_MAINTAIN }, async ({ request, reply }) => {
+      const query = request.query as Record<string, string | undefined>;
+      const page = query.page ? Number(query.page) : 1;
+      const pageSize = query.pageSize ? Number(query.pageSize) : 20;
+      const level =
+        !query.level || query.level === 'all'
+          ? undefined
+          : (query.level as NonNullable<RuntimeLogQuery['level']>);
+
+      const result = logs.query({
+        ...(level ? { level } : {}),
+        ...(query.file ? { file: query.file } : {}),
+        ...(query.keyword ? { keyword: query.keyword } : {}),
+        ...(query.from ? { from: query.from } : {}),
+        ...(query.to ? { to: query.to } : {}),
+        page,
+        pageSize
+      });
+
+      return reply.send({
+        data: result.items,
+        total: result.total,
+        page,
+        pageSize,
+        files: logs.listFiles(),
+        scannedLines: result.scannedLines,
+        truncated: result.truncated,
+        readFiles: result.files
+      });
+    })
+  );
+
+  /* ------------------------------ 备份与恢复 ------------------------------ */
+
+  /** 历史快照列表。 */
+  app.get(
+    '/backup/snapshots',
+    guard(kernel, { permission: PERMISSION_MAINTAIN }, async ({ reply }) => {
+      return reply.send({ data: backups.listSnapshots() });
+    })
+  );
+
+  /**
+   * 导出备份（数据库 + 上传文件 + 插件/主题清单）。
+   *
+   * 先做工具可用性检查：`mysqldump` 缺失时返回结构化 503，
+   * 而不是开始下载后再中断——那只会让用户得到一个损坏的 ZIP。
+   */
+  app.post(
+    '/backup/export',
+    guard(kernel, { permission: PERMISSION_MAINTAIN }, async ({ kernel: k, reply, auth, ip, requestId }) => {
+      await backups.assertToolsAvailable();
+
+      const filename = `ricenote-backup-${stamp()}.zip`;
+      const stream = await backups.exportToStream();
+
+      await k.audit.record({
+        action: 'backup.export',
+        actorId: auth.user.id,
+        actorName: auth.user.username,
+        targetType: 'backup',
+        targetId: filename,
+        ip,
+        requestId
+      });
+
+      reply
+        .header('content-type', 'application/zip')
+        .header('content-disposition', `attachment; filename="${filename}"`)
+        .header('cache-control', 'no-store');
+
+      return reply.send(stream);
+    })
+  );
+
+  /**
+   * 预览备份包内容（只读，不修改任何数据）。
+   *
+   * 让管理员在真正恢复前确认"这个包是什么时候、从哪个站点导出的、包含多少插件"。
+   */
+  app.post(
+    '/backup/inspect',
+    guard(kernel, { permission: PERMISSION_MAINTAIN }, async ({ request, reply }) => {
+      const uploaded = await request.file({ limits: { fileSize: MAX_UPLOAD_BYTES } });
+      if (!uploaded) {
+        throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '未接收到备份文件', { status: 400 });
+      }
+      if (!/\.zip$/i.test(uploaded.filename)) {
+        throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '备份包必须是 .zip 文件', { status: 400 });
+      }
+
+      const archive = await uploaded.toBuffer();
+      const result = await backups.inspect(archive);
+      return reply.send({ data: result });
+    })
+  );
+
+  /** 从历史快照回滚（恢复前同样会自动生成一份"当前状态快照"）。 */
+  app.post(
+    '/backup/snapshots/:name/restore',
+    guard(
+      kernel,
+      { permission: PERMISSION_MAINTAIN },
+      async ({ kernel: k, request, reply, auth, ip, requestId }) => {
+        const { name } = request.params as { name: string };
+        const result = await backups.restoreFromSnapshot(name);
+
+        k.cache.clear();
+
+        await k.audit.record({
+          action: 'backup.snapshot.restore',
+          actorId: auth.user.id,
+          actorName: auth.user.username,
+          targetType: 'backup',
+          targetId: name,
+          ip,
+          requestId,
+          detail: { autoSnapshot: result.snapshot.name }
+        });
+
+        return reply.send({ data: { snapshot: result.snapshot, manifest: result.manifest, restartRequired: true } });
+      }
+    )
+  );
+
+  /** 下载指定快照。 */
+  app.get(
+    '/backup/snapshots/:name',
+    guard(kernel, { permission: PERMISSION_MAINTAIN }, async ({ request, reply }) => {
+      const { name } = request.params as { name: string };
+      const filePath = backups.resolveSnapshotPath(name);
+
+      reply
+        .header('content-type', 'application/zip')
+        .header('content-disposition', `attachment; filename="${path.basename(filePath)}"`)
+        .header('cache-control', 'no-store');
+
+      return reply.send(createReadStream(filePath));
+    })
+  );
+
+  /** 删除指定快照。 */
+  app.delete(
+    '/backup/snapshots/:name',
+    guard(
+      kernel,
+      { permission: PERMISSION_MAINTAIN },
+      async ({ kernel: k, request, reply, auth, ip, requestId }) => {
+        const { name } = request.params as { name: string };
+        backups.deleteSnapshot(name);
+
+        await k.audit.record({
+          action: 'backup.snapshot.delete',
+          actorId: auth.user.id,
+          actorName: auth.user.username,
+          targetType: 'backup',
+          targetId: name,
+          ip,
+          requestId
+        });
+
+        return reply.send({ data: { name, deleted: true } });
+      }
+    )
+  );
+
+  /**
+   * 上传备份包并恢复。
+   *
+   * 恢复会先自动生成"当前状态快照"，因此失败也可回滚（ADR-008）。
+   * 恢复后内存中的插件状态与主题设置已过期，响应中标记 `restartRequired`。
+   */
+  app.post(
+    '/backup/restore',
+    guard(kernel, { permission: PERMISSION_MAINTAIN }, async ({ kernel: k, request, reply, auth, ip, requestId }) => {
+      const uploaded = await request.file({ limits: { fileSize: MAX_UPLOAD_BYTES } });
+      if (!uploaded) {
+        throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '未接收到备份文件', { status: 400 });
+      }
+      if (!/\.zip$/i.test(uploaded.filename)) {
+        throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '备份包必须是 .zip 文件', { status: 400 });
+      }
+
+      const archive = await uploaded.toBuffer();
+      const result = await backups.restore(archive);
+
+      // 数据库已被覆盖，HTML 缓存必须整体失效
+      k.cache.clear();
+
+      await k.audit.record({
+        action: 'backup.restore',
+        actorId: auth.user.id,
+        actorName: auth.user.username,
+        targetType: 'backup',
+        targetId: uploaded.filename,
+        ip,
+        requestId,
+        detail: {
+          snapshot: result.snapshot.name,
+          backupCreatedAt: result.manifest.createdAt,
+          plugins: result.manifest.plugins.length,
+          themes: result.manifest.themes.length
+        }
+      });
+
+      return reply.send({
+        data: {
+          snapshot: result.snapshot,
+          manifest: result.manifest,
+          restartRequired: true
+        }
+      });
+    })
+  );
+}
+
+/** 生成文件名用的 `YYYYMMDD-HHmmss` 时间戳。 */
+function stamp(): string {
+  const now = new Date();
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  return [
+    now.getFullYear(),
+    pad(now.getMonth() + 1),
+    pad(now.getDate()),
+    '-',
+    pad(now.getHours()),
+    pad(now.getMinutes()),
+    pad(now.getSeconds())
+  ].join('');
 }

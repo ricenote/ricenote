@@ -137,11 +137,43 @@ describe('内核启动', () => {
   it('注册了前台页面路由与标准能力', () => {
     assert.ok(kernel);
     const routes = kernel.router.pages().map((route) => route.name).sort();
-    assert.deepEqual(routes, ['home', 'post.show', 'search', 'term.category', 'term.tag']);
+    // 注意：本用例未启用 rice.search，因此 posts 不再注册 /search
+    // （路由名与路径归 rice.search 所有，posts 只注册可搜索数据源）
+    assert.deepEqual(routes, ['home', 'post.show', 'term.category', 'term.tag']);
 
     assert.equal(kernel.hasFeature('posts'), true);
     assert.equal(kernel.hasFeature('content.posts@1'), true);
     assert.equal(kernel.hasFeature('comments'), false);
+    assert.equal(kernel.hasFeature('search'), false);
+  });
+
+  it('search 插件未启用时 /search 不注册，模板引用该可选路由也不会中断渲染', async () => {
+    assert.ok(kernel);
+    assert.equal(kernel.router.findPageByName('search'), undefined);
+    assert.equal(kernel.hasFeature('search'), false);
+
+    // 主题布局用 has_feature('search') 把关，因此搜索入口整体不渲染
+    const home = await renderPageRoute('home', { url: '/' });
+    assert.equal(home.status, 200);
+    assert.equal(home.html.includes('href="#"'), false, '搜索入口应被能力判断隐藏');
+
+    // 关键回归：模板若直接引用未注册的可选路由（如搜索模板自身的表单 action），
+    // url() 必须降级为 '#' 而不是抛错——否则禁用 search 插件会让整页白屏
+    const search = await kernel.renderer.render({
+      kind: 'search',
+      title: '搜索',
+      canonicalUrl: kernel.renderer.absolute('/search'),
+      data: {
+        keyword: '',
+        posts: { items: [], total: 0, page: 1, pageSize: 10, totalPages: 1 },
+        pagination: null
+      }
+    });
+    assert.equal(search.status, 200);
+    assert.ok(search.html.includes('action="#"'), '缺失路由应降级为 #');
+
+    // 本次渲染会写入 HTML 缓存；清空以免影响后续"首次渲染未命中缓存"的断言
+    kernel.cache.clear();
   });
 
   it('启动时创建了初始管理员并被分派 administrator 角色', async () => {

@@ -20,7 +20,7 @@
       </a>
       <nav class="df-nav">
         <a href="{{ url('home') }}">全部文章</a>
-        {% if has_feature('posts') %}<a href="{{ url('search') }}">搜索</a>{% endif %}
+        {% if has_feature('search') %}<a href="{{ url('search') }}">搜索</a>{% endif %}
         {{ slot('header.navigation') }}
       </nav>
     </div>
@@ -41,5 +41,6 @@
   </footer>
 
   {{ slot('body.end') }}
+  <script src="{{ theme_asset('js/main.js') }}" defer></script>
 </body>
 </html>

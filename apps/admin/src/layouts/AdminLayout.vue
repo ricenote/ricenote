@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import {
+  Archive,
   ChevronDown,
   ExternalLink,
   FileText,
@@ -9,8 +10,10 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageSquare,
   Palette,
   Puzzle,
+  ScrollText,
   Settings,
   Shield,
   Tags,
@@ -47,6 +50,8 @@ const coreNav: NavItem[] = [
   { name: 'dashboard', path: '/', label: '仪表盘', icon: LayoutDashboard },
   { name: 'themes', path: '/themes', label: '外观中心', icon: Palette, permission: 'theme.view' },
   { name: 'plugins', path: '/plugins', label: '扩展中心', icon: Puzzle, permission: 'plugin.view' },
+  { name: 'logs', path: '/logs', label: '运行日志', icon: ScrollText, permission: 'system.maintain' },
+  { name: 'backup', path: '/backup', label: '备份与恢复', icon: Archive, permission: 'system.maintain' },
   { name: 'settings', path: '/settings', label: '系统设置', icon: Settings }
 ];
 
@@ -55,6 +60,7 @@ const pluginIcon: Record<string, unknown> = {
   Tags,
   Image,
   Users,
+  MessageSquare,
   ShieldCheck: Shield
 };
 

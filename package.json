@@ -1,6 +1,6 @@
 {
   "name": "ricenote",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "RiceNote - 插件优先的模块化博客与内容管理系统",
   "type": "module",
@@ -9,7 +9,7 @@
     "node": ">=20.11.0"
   },
   "scripts": {
-    "build": "pnpm -r --filter \"./packages/**\" --filter \"./plugins/official/**\" --filter \"./apps/server\" --filter \"./apps/admin\" build",
+    "build": "pnpm -r --filter \"./packages/**\" --filter \"./plugins/official/**\" --filter \"./plugins/third-party/**\" --filter \"./apps/server\" --filter \"./apps/admin\" build",
     "build:all": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm --filter @ricenote/tests test",
@@ -20,6 +20,11 @@
     "validate": "pnpm --filter @ricenote/server validate",
     "plugin": "pnpm --filter @ricenote/server plugin",
     "theme": "pnpm --filter @ricenote/server theme"
+  },
+  "dependencies": {
+    "@ricenote/plugin-sdk": "workspace:*",
+    "@ricenote/shared": "workspace:*",
+    "@ricenote/theme-sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

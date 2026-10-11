@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.search",
+  "name": "搜索",
+  "description": "全站搜索：提供可搜索数据源注册契约（content.search@1）与 /search 页面，跨内容类型聚合结果。",
+  "version": "1.0.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "provides": ["content.search@1"],
+  "capabilities": ["services:provide", "routes:public", "events:subscribe"],
+  "settings": {
+    "resultPageSize": 10,
+    "maxKeywordLength": 100,
+    "maxItemsPerSource": 50
+  }
+}

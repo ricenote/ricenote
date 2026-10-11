@@ -20,7 +20,7 @@ import {
   type ThemeSettingsGroupDto,
   type ValidationIssue
 } from '@ricenote/shared';
-import { composeSettings, buildDefaults } from '@ricenote/theme-sdk';
+import { composeSettings, buildDefaults, resolveLocalizedText } from '@ricenote/theme-sdk';
 import type { RiceNoteConfig } from '../config/loader.js';
 import type { Logger } from '../logger.js';
 import type { DatabaseAdapter } from '../database/adapter.js';
@@ -251,7 +251,7 @@ export class ThemeManager {
         templates: theme.manifest.templates,
         requires,
         missingRequirements,
-        settingsGroups: buildSettingGroups(theme.manifest, values)
+        settingsGroups: buildSettingGroups(theme.manifest, values, this.deps.config.site.language)
       });
     }
 
@@ -456,21 +456,45 @@ function copyDirectory(source: string, target: string): void {
   }
 }
 
-/** 把 Manifest 的 settings 声明与该主题当前值合并为后台可渲染的 DTO。 */
+/**
+ * 把 Manifest 的 settings 声明与该主题当前值合并为后台可渲染的 DTO。
+ *
+ * 所有可本地化文案在此按站点语言解析为字符串，后台无需感知多语言。
+ */
 function buildSettingGroups(
   manifest: ThemeManifest,
-  values: ThemeSettingValues
+  values: ThemeSettingValues,
+  locale: string
 ): ThemeSettingsGroupDto[] {
   const groups = manifest.settings ?? {};
-  return Object.entries(groups).map(([key, group]) => ({
-    key,
-    label: group.label,
-    ...(group.description ? { description: group.description } : {}),
-    fields: Object.entries(group.fields ?? {}).map(([fieldKey, field]) => ({
-      ...field,
-      key: fieldKey,
-      value: values[fieldKey] ?? field.default ?? null,
-      default: field.default ?? null
-    }))
-  }));
+  return Object.entries(groups).map(([key, group]) => {
+    const groupDescription = resolveLocalizedText(group.description, locale);
+    return {
+      key,
+      label: resolveLocalizedText(group.label, locale),
+      ...(groupDescription ? { description: groupDescription } : {}),
+      fields: Object.entries(group.fields ?? {}).map(([fieldKey, field]) => {
+        const { label, description, placeholder, options, ...rest } = field;
+        const fieldDescription = resolveLocalizedText(description, locale);
+        const fieldPlaceholder = resolveLocalizedText(placeholder, locale);
+        return {
+          ...rest,
+          key: fieldKey,
+          label: resolveLocalizedText(label, locale),
+          ...(fieldDescription ? { description: fieldDescription } : {}),
+          ...(fieldPlaceholder ? { placeholder: fieldPlaceholder } : {}),
+          ...(options
+            ? {
+                options: options.map((option) => ({
+                  label: resolveLocalizedText(option.label, locale),
+                  value: option.value
+                }))
+              }
+            : {}),
+          value: values[fieldKey] ?? field.default ?? null,
+          default: field.default ?? null
+        };
+      })
+    };
+  });
 }

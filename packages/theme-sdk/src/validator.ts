@@ -7,6 +7,7 @@
  */
 
 import type {
+  LocalizedText,
   ThemeManifest,
   ThemeSettingField,
   ThemeSettingValues,
@@ -16,6 +17,43 @@ import type {
 import { isValidCssColor } from './filters.js';
 
 const SELECT_LIMIT = 64;
+
+/**
+ * 解析可本地化的展示文案。
+ *
+ * 匹配顺序：精确语言标签（`zh-CN`）→ 基础语言（`zh`）→ `en` → 首个非空值 → `fallback`。
+ * 传入字符串时原样返回，因此未声明多语言的 Manifest 行为完全不变。
+ */
+export function resolveLocalizedText(
+  value: LocalizedText | undefined,
+  locale: string,
+  fallback = ''
+): string {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === 'string') return value.length > 0 ? value : fallback;
+
+  const entries = Object.entries(value).filter(
+    ([, text]) => typeof text === 'string' && text.length > 0
+  );
+  if (entries.length === 0) return fallback;
+
+  const lookup = new Map(entries.map(([key, text]) => [key.trim().toLowerCase(), text]));
+  const normalized = locale.trim().toLowerCase();
+
+  const exact = lookup.get(normalized);
+  if (exact !== undefined) return exact;
+
+  const base = normalized.split('-')[0];
+  if (base) {
+    const baseHit = lookup.get(base);
+    if (baseHit !== undefined) return baseHit;
+  }
+
+  const english = lookup.get('en');
+  if (english !== undefined) return english;
+
+  return entries[0]?.[1] ?? fallback;
+}
 
 /** 扁平化主题设置字段表：字段名在主题范围内必须唯一。 */
 export function flattenFields(

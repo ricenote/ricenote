@@ -13,6 +13,7 @@ build/
 storage/logs/*
 storage/cache/*
 storage/uploads/*
+storage/backups/*
 !storage/**/.gitkeep
 storage/.preview/
 

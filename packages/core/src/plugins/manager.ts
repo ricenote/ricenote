@@ -32,6 +32,7 @@ import type { SlotRegistry } from '../render/slots.js';
 import type { AdminMenuRegistry } from './admin-menu.js';
 import {
   discoverPlugins,
+  discoverPluginsFrom,
   loadPluginModule,
   readPluginMigrations,
   type InvalidPlugin,
@@ -96,7 +97,7 @@ export class PluginManager {
   async bootstrap(): Promise<PluginBootstrapReport> {
     const { config, logger, migrations, events } = this.deps;
 
-    const discovery = discoverPlugins(config.paths.pluginsDir);
+    const discovery = discoverPluginsFrom([config.paths.pluginsDir, config.paths.pluginsInstallDir]);
     this.invalidPlugins = discovery.invalid;
     this.loaded = new Map(discovery.plugins.map((plugin) => [plugin.manifest.id, plugin]));
 

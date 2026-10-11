@@ -23,6 +23,14 @@ export interface RiceNoteConfig {
     url?: string;
     connectionLimit: number;
     readonly: boolean;
+    /**
+     * 备份工具可执行文件路径。
+     *
+     * 允许写绝对路径，以支持"MySQL 客户端未加入 PATH"的安装方式
+     * （Windows 上 MySQL 官方安装包默认就不在 PATH 中）。
+     */
+    dumpBinary: string;
+    clientBinary: string;
   };
   security: { sessionSecret: string; sessionTtlSeconds: number; csrfEnabled: boolean };
   bootstrap: { adminUsername: string; adminPassword: string; adminEmail: string };
@@ -33,7 +41,11 @@ export interface RiceNoteConfig {
     uploadsDir: string;
     cacheDir: string;
     logsDir: string;
+    /** 备份与恢复前快照的存放目录。 */
+    backupsDir: string;
     pluginsDir: string;
+    /** 第三方插件的安装目录（后台 ZIP 上传安装的落盘位置）。 */
+    pluginsInstallDir: string;
     themesDir: string;
   };
   site: {
@@ -94,7 +106,10 @@ export function parseDatabaseUrl(url: string): RiceNoteConfig['database'] | unde
       name: parsed.pathname.replace(/^\//, '') || 'ricenote',
       url,
       connectionLimit: 10,
-      readonly: false
+      readonly: false,
+      // 备份工具路径不属于连接串信息，仍由环境变量决定
+      dumpBinary: env('MYSQLDUMP_BIN', 'mysqldump'),
+      clientBinary: env('MYSQL_BIN', 'mysql')
     };
   } catch {
     return undefined;
@@ -167,7 +182,9 @@ export function loadConfig(options: LoadConfigOptions = {}): RiceNoteConfig {
       name: env('DB_NAME', urlParts?.name ?? 'ricenote'),
       ...(process.env.DATABASE_URL ? { url: process.env.DATABASE_URL.trim() } : {}),
       connectionLimit: intEnv('DB_CONNECTION_LIMIT', 10),
-      readonly: boolEnv('DB_READONLY', false)
+      readonly: boolEnv('DB_READONLY', false),
+      dumpBinary: env('MYSQLDUMP_BIN', 'mysqldump'),
+      clientBinary: env('MYSQL_BIN', 'mysql')
     },
     security: {
       sessionSecret: env('SESSION_SECRET', 'change-me-in-production'),
@@ -185,7 +202,9 @@ export function loadConfig(options: LoadConfigOptions = {}): RiceNoteConfig {
       uploadsDir: path.join(storageDir, 'uploads'),
       cacheDir: path.join(storageDir, 'cache'),
       logsDir: path.join(storageDir, 'logs'),
+      backupsDir: path.join(storageDir, 'backups'),
       pluginsDir: path.resolve(rootDir, env('PLUGINS_DIR', './plugins/official')),
+      pluginsInstallDir: path.resolve(rootDir, env('PLUGINS_INSTALL_DIR', './plugins/third-party')),
       themesDir: path.resolve(rootDir, env('THEMES_DIR', './themes'))
     },
     site: {
