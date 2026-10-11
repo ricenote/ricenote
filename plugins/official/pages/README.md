@@ -11,7 +11,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.pages` |
-| version | `1.0.0` |
+| version | `1.1.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.pages@1` |
@@ -50,7 +50,7 @@
 ```ts
 listPublished({ page, pageSize })      // 前台：已发布页面
 findPublishedBySlug(slug)              // 前台：按别名取详情（含消毒后的 HTML）
-navItems()                             // 导航项（id / title / slug / url）
+navItems()                             // 已发布页面清单（id / title / slug / url），供导航等引用方解析目标
 listForAdmin(query) / findForAdmin(id) // 后台列表与详情
 save({ id?, authorId?, payload })      // 新建或更新
 remove(id)                             // 删除
@@ -67,12 +67,14 @@ countByStatus()                        // 统计（仪表盘）
 
 ### 插槽
 
-| 插槽 | 组件名 | 优先级 | 说明 |
-| --- | --- | --- | --- |
-| `header.navigation` | `pages.navigation` | 20 | 输出已发布页面链接；当前页会带 `aria-current="page"` |
+**无。** 本插件不注册任何插槽。
 
-两套官方主题的 `layout.njk` 已经写了 `{{ slot('header.navigation') }}`，
-所以**页面链接无需改主题代码就会出现**；禁用本插件后链接自动消失。
+顶部导航栏由 `rice.navigation` 独占（它才是 `header.navigation` 的注册者）。
+页面只是"可作为导航项的一种来源"：在后台「导航栏」里引用某个页面，
+它才会出现在前台导航里。这样做的原因：
+
+- 两个插件同时往同一个插槽写链接会出现重复内容，而且顺序无从协调；
+- "哪些内容进导航、第几位、显示什么文案"属于站点结构，需要一个统一的编排入口。
 
 ### 事件
 
@@ -91,7 +93,6 @@ countByStatus()                        // 统计（仪表盘）
 
 | 分组 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `general` | `navLimit` | number (1–100) | `20` | 前台导航插槽最多输出多少个已发布页面 |
 | `general` | `listPageSize` | number (1–100) | `20` | 后台列表每页条数 |
 | `general` | `cacheEnabled` | boolean | `true` | 是否为页面渲染启用 HTML 缓存（关闭便于调试主题） |
 
@@ -120,5 +121,7 @@ countByStatus()                        // 统计（仪表盘）
 ## 依赖与启停
 
 - 无插件级依赖，可独立启用/禁用；
-- 禁用后：页面路由、管理 API、`content.pages@1` 契约、导航插槽、后台菜单**全部注销**
-  （由 Core 的句柄回收机制保证，测试中以 `assertNoLeaks()` 断言）。
+- 禁用后：页面路由、管理 API、`content.pages@1` 契约、后台菜单**全部注销**
+  （由 Core 的句柄回收机制保证，测试中以 `assertNoLeaks()` 断言）；
+- 禁用时若 `rice.navigation` 里有引用页面的导航项，那些项会变成"目标不存在"
+  （前台跳过、后台提示），重新启用后自动恢复，无需重建导航。

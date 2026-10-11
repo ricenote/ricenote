@@ -661,3 +661,92 @@ export interface PluginInstallResult {
   /** v1 受控重启：安装/升级后必须重启进程才会生效（ADR-004）。 */
   restartRequired: true;
 }
+
+/* ----------------------------- 导航 ----------------------------- */
+
+/**
+ * 导航项来源类型。
+ *
+ * 三种来源覆盖了顶部导航栏的全部常见需求：
+ * - `custom`：站内相对路径或外部链接（标签 + 地址）；
+ * - `page`：引用一个有独立地址的页面；
+ * - `post`：引用一篇文章。
+ */
+export type NavItemType = 'custom' | 'page' | 'post';
+
+/**
+ * 导航项引用目标的解析状态。
+ *
+ * 后台需要区分三种情况才能给出准确提示：
+ * - 目标存在且已发布 → 前台正常渲染；
+ * - 目标存在但未发布 → 前台**不渲染**（避免把访客带到 404），后台给出警告；
+ * - 目标已被删除 → 同上，并提示重新选择目标。
+ */
+export interface NavTargetState {
+  type: 'page' | 'post';
+  id: number;
+  exists: boolean;
+  published: boolean;
+  title?: string;
+  url?: string;
+}
+
+/** 后台列表与详情共用的导航项视图。 */
+export interface NavItemSummary {
+  id: number;
+  type: NavItemType;
+  /** 编辑者填写的文案（`custom` 必填；`page`/`post` 可留空以跟随目标标题）。 */
+  label: string;
+  /** 实际展示文案：`label` 优先，目标失效时为空字符串。 */
+  displayLabel: string;
+  /** 实际链接地址；目标失效时为 `null`。 */
+  href: string | null;
+  /**
+   * `page` / `post` 引用的内容 ID。
+   *
+   * 后台编辑时必须回填到表单里；即使目标已失效也会原样返回，
+   * 这样界面才能提示"原目标已删除"而不是悄悄丢失选择。
+   */
+  refId?: number;
+  newTab: boolean;
+  enabled: boolean;
+  sortOrder: number;
+  /** `page` / `post` 类型的目标解析状态；`custom` 无此字段。 */
+  target?: NavTargetState;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 保存导航项（新建或更新）。 */
+export interface NavItemSaveRequest {
+  type: NavItemType;
+  /** `custom` 必填；`page` / `post` 可选（留空则跟随目标标题）。 */
+  label?: string;
+  /** `custom` 类型的地址，如 `/about` 或 `https://example.com`。 */
+  href?: string;
+  /** `page` / `post` 类型引用的内容 ID。 */
+  refId?: number;
+  newTab?: boolean;
+  enabled?: boolean;
+}
+
+/**
+ * 后台目标选择器中的候选项。
+ *
+ * 刻意**不带地址**：前台地址由提供内容的插件解析（页面是 `/page/:slug`、
+ * 文章是 `/post/:slug`），导航插件不复制这类 URL 约定，避免两边各写一份而漂移。
+ * `subtitle` 放别名（slug），用于同名内容之间的区分。
+ */
+export interface NavTargetOption {
+  id: number;
+  title: string;
+  subtitle?: string;
+}
+
+/** 前台渲染用的最小导航项（已解析、可直接输出链接）。 */
+export interface NavRenderItem {
+  id: number;
+  label: string;
+  href: string;
+  newTab: boolean;
+}

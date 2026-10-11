@@ -55,25 +55,26 @@
 
 `{ id: 'users.roles', label: '角色与权限', path: '/roles', icon: 'ShieldCheck', order: 20, permission: 'user.manage' }`
 
-## 权限点目录（1.1.0）
+## 权限点目录（1.2.0）
 
 | 组 | 权限点 |
 | --- | --- |
-| 内容 | `post.view`、`post.write`、`post.publish`、`post.delete`、**`page.view`**、**`page.manage`**、`taxonomy.manage`、`media.manage` |
+| 内容 | `post.view`、`post.write`、`post.publish`、`post.delete`、`page.view`、`page.manage`、`taxonomy.manage`、`media.manage` |
 | 互动 | `comment.moderate` |
-| 外观 | `theme.view`、`theme.manage`（站点信息写入也用 `theme.manage`） |
+| 外观 | **`nav.view`**、**`nav.manage`**、`theme.view`、`theme.manage`（站点信息写入也用 `theme.manage`） |
 | 扩展 | `plugin.view`、`plugin.manage` |
 | 用户 | `user.manage` |
-| 系统 | `system.audit`、`system.maintain`、**`system.restart`** |
+| 系统 | `system.audit`、`system.maintain`、`system.restart` |
 
 内置角色：
 
 | 角色 | 权限 |
 | --- | --- |
 | `administrator` | `*`（全部权限） |
-| `editor` | 内容全量（含 `page.*`）+ 评论审核 + `theme.view` + `plugin.view` |
-| `author` | `post.view/write/publish`、`page.view`、`media.manage` |
-| `contributor` | `post.view/write`、`page.view` |
+| `editor` | 内容全量（含 `page.*`）+ 评论审核 + 导航管理（`nav.*`）+ `theme.view` + `plugin.view` |
+| `author` | `post.view/write/publish`、`page.view`、`nav.view`、`media.manage` |
+| `contributor` | `post.view/write`、`page.view`、`nav.view` |
+| `nav.manage`（谁会用到） | 改导航栏的人：管理员与编辑；作者/投稿者只能看 |
 
 > 内置角色的权限以**代码为准**（`src/permissions.ts`），每次启动同步，
 > 因此升级插件即可获得新增权限点；自定义角色不受影响。

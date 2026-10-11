@@ -32,7 +32,7 @@ flowchart TD
   PM --> RR
   PM --> DA
   F --> CORE
-  CORE --> P[官方插件<br/>identity / authorization / posts / taxonomy / media]
+  CORE --> P[官方插件<br/>identity / authorization / posts / pages<br/>navigation / taxonomy / media<br/>comments / search / seo]
   CORE --> T[主题<br/>minimal / default]
   DA --> DB[(MySQL)]
   RD --> T
@@ -138,6 +138,7 @@ Core 进一步分为四层：
 | authorization 插件 | `rn_authz_roles` / `rn_authz_role_permissions` / `rn_authz_user_roles` | 角色与权限 |
 | posts 插件 | `rn_posts` | 文章及状态（含自选模板键） |
 | **pages 插件** | **`rn_pages`** | **独立页面（标题 / 别名 / 正文 / 状态 / 排序 / 模板键）** |
+| **navigation 插件** | **`rn_nav_items`** | **导航项（来源类型 / 引用 ID / 文案 / 排序 / 启用）** |
 | taxonomy 插件 | `rn_terms` / `rn_term_relations` | 分类标签与关联 |
 | media 插件 | `rn_media` | 上传媒体元数据 |
 | comments 插件 | `rn_comments` | 评论、嵌套关系与四态审核状态 |

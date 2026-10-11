@@ -39,6 +39,8 @@ import { resolveTemplateKey, type PagesRuntime } from './runtime.js';
 const VALID_STATUS: PageStatus[] = ['draft', 'published'];
 const MAX_TITLE = 255;
 const MAX_CONTENT = 500_000;
+/** `navItems()` 单次返回的页面数上限（内存保护，非用户可见配置）。 */
+const MAX_NAV_ITEMS = 500;
 
 export interface PagesServiceDeps {
   runtime: PagesRuntime;
@@ -74,7 +76,8 @@ export function createPagesService(deps: PagesServiceDeps): ContentPagesService 
     },
 
     async navItems() {
-      const rows = await listNav(db, siteId, runtime.navLimit);
+      // 上限由消费方（导航插件）按自己的设置收敛，这里只做内存保护
+      const rows = await listNav(db, siteId, MAX_NAV_ITEMS);
       return rows.map((row) => ({
         id: row.id,
         title: row.title,

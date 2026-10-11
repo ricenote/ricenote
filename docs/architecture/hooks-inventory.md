@@ -39,7 +39,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `head.end` | `</head>` 之前 | `rice.seo` → `seo.meta` | 0 |
 | `body.start` | `<body>` 起始 | 无 | — |
 | `body.end` | `</body>` 之前 | 无 | — |
-| `header.navigation` | 主导航区域 | `rice.pages` → `pages.navigation` | 20 |
+| `header.navigation` | 主导航区域 | `rice.navigation` → `navigation.header` | 20 |
 | `sidebar.widgets` | 侧边栏 | 无 | — |
 | `post.beforeContent` | 正文之前 | `acme.reading-time` → `acme.reading-time` | 0 |
 | `post.afterContent` | 正文之后 | `rice.posts` → `posts.meta` | 10 |
@@ -103,6 +103,12 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `rice.pages` | POST | `/pages` | `page.manage` |
 | `rice.pages` | PUT | `/pages/:pageId` | `page.manage` |
 | `rice.pages` | DELETE | `/pages/:pageId` | `page.manage` |
+| `rice.navigation` | GET | `/navigation/items` | `nav.view` |
+| `rice.navigation` | GET | `/navigation/targets` | `nav.view` |
+| `rice.navigation` | POST | `/navigation/items` | `nav.manage` |
+| `rice.navigation` | PUT | `/navigation/items/:itemId` | `nav.manage` |
+| `rice.navigation` | POST | `/navigation/items/:itemId/move` | `nav.manage` |
+| `rice.navigation` | DELETE | `/navigation/items/:itemId` | `nav.manage` |
 | `rice.taxonomy` | GET | `/terms` | `post.view` |
 | `rice.taxonomy` | POST | `/terms` | `taxonomy.manage` |
 | `rice.taxonomy` | DELETE | `/terms/:termId` | `taxonomy.manage` |
@@ -128,7 +134,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 
 | 事件 | 发布者 | 订阅者 | 用途 |
 | --- | --- | --- | --- |
-| `core.runtime.started.v1` | **Core** | `rice.identity`、`rice.posts`、`rice.pages`、`rice.search` | 全部插件启动完成后的初始化时机 |
+| `core.runtime.started.v1` | **Core** | `rice.identity`、`rice.posts`、`rice.pages`、`rice.navigation`、`rice.search` | 全部插件启动完成后的初始化时机 |
 | `core.hello.ping.v1` | 外部触发（示例） | `rice.hello` | 演示事件通道 |
 | `identity.user.created.v1` | `rice.identity` | `rice.authorization`（priority 10） | 新用户自动分派角色 |
 | `identity.session.created.v1` | `rice.identity` | 无 | 登录审计扩展点 |
@@ -137,11 +143,16 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `identity.authorization.role.assigned.v1` | `rice.authorization` | 无 | 角色分派 |
 | `identity.authorization.role.revoked.v1` | `rice.authorization` | 无 | 角色回收 |
 | `identity.authorization.bootstrap.completed.v1` | `rice.authorization` | 无 | 内置角色同步完成 |
-| `content.post.published.v1` | `rice.posts` | 无 | 由非发布态转发布 |
-| `content.post.unpublished.v1` | `rice.posts` | 无 | 由发布态转非发布 |
-| `content.post.deleted.v1` | `rice.posts` | 无 | 文章删除 |
-| `content.pages.changed.v1` | `rice.pages` | 无 | 页面新建/更新 |
-| `content.pages.deleted.v1` | `rice.pages` | 无 | 页面删除 |
+| `content.post.published.v1` | `rice.posts` | `rice.navigation`（仅当该文章被导航引用） | 由非发布态转发布 |
+| `content.post.updated.v1` | `rice.posts` | `rice.navigation`（仅当该文章被导航引用） | 更新既有文章（标题 / 别名变更也在此广播） |
+| `content.post.unpublished.v1` | `rice.posts` | `rice.navigation`（仅当该文章被导航引用） | 由发布态转非发布 |
+| `content.post.deleted.v1` | `rice.posts` | `rice.navigation`（仅当该文章被导航引用） | 文章删除 |
+| `content.pages.changed.v1` | `rice.pages` | `rice.navigation`（仅当该页面被导航引用） | 页面新建/更新 |
+| `content.pages.deleted.v1` | `rice.pages` | `rice.navigation`（仅当该页面被导航引用） | 页面删除 |
+
+> `rice.navigation` 订阅内容事件的目的只有一个：判断"变了的内容是否被导航引用"，
+> 是则清空 HTML 缓存（导航栏出现在每个页面上，按标签失效覆盖不到）。
+> 未被引用的内容变化不会触发任何缓存操作。
 
 > `rice.pages` 同时订阅 `core.runtime.started.v1`，因此它的能力声明里必须同时有
 > `events:publish` 与 `events:subscribe` —— 少声明一个不会静默降级，
@@ -159,9 +170,9 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | 契约 | 方法 | 消费方 |
 | --- | --- | --- |
 | `core.security@1` | `registerSessionResolver` / `registerAuthorizationResolver` | `rice.identity`、`rice.authorization` |
-| `core.theme@1` | `activeThemeId` / `settings` / `pageTemplates` / `invalidate` | `rice.posts`、`rice.pages`、`rice.comments`、`rice.seo` |
-| `core.html@1` | `sanitize` / `markTrusted` / `escape` | `rice.posts`、`rice.pages`、`rice.comments`、`rice.seo` |
-| `core.setup@1` | `siteId` / `bootstrapAdmin` / `paths` | `rice.identity`、`rice.media`、`rice.taxonomy`、`rice.posts`、`rice.pages` |
+| `core.theme@1` | `activeThemeId` / `settings` / `pageTemplates` / `invalidate` / `clearCache` | `rice.posts`、`rice.pages`、`rice.comments`、`rice.seo`、`rice.navigation` |
+| `core.html@1` | `sanitize` / `markTrusted` / `escape` | `rice.posts`、`rice.pages`、`rice.comments`、`rice.seo`、`rice.navigation` |
+| `core.setup@1` | `siteId` / `bootstrapAdmin` / `paths` | `rice.identity`、`rice.media`、`rice.taxonomy`、`rice.posts`、`rice.pages`、`rice.navigation` |
 | `core.site@1` | `info()`（生效站点信息，同步） | 保留给第三方插件（官方插件经 `ctx.site` 使用） |
 | `core.runtime@1` | `markRestartRequired` / `requestRestart` / `state` / `clearRestartRequired` / `registerRestartHandler` | 保留给需要"重启生效"语义的插件 |
 
@@ -172,8 +183,9 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `identity.auth@1` | `rice.identity` | `core.security` 的解析器注册（必需） |
 | `identity.users@1` | `rice.identity` | `rice.posts`（**requires 硬依赖**）、`rice.authorization`（**requires 硬依赖**）、`rice.comments`（可选） |
 | `identity.authorization@1` | `rice.authorization` | `rice.identity`（可选）、`rice.posts`（可选） |
-| `content.posts@1` | `rice.posts` | `rice.comments`（可选）、`rice.seo`（可选） |
-| `content.pages@1` | `rice.pages` | 暂无（供第三方与后台仪表盘使用） |
+| `content.posts@1` | `rice.posts` | `rice.comments`（可选）、`rice.seo`（可选）、`rice.navigation`（可选） |
+| `content.pages@1` | `rice.pages` | `rice.navigation`（可选）、供第三方与后台仪表盘使用 |
+| `content.navigation@1` | `rice.navigation` | 暂无（`header.navigation` 插槽是主要消费方，契约供主题/第三方自行渲染） |
 | `content.taxonomy@1` | `rice.taxonomy` | `rice.posts`（可选） |
 | `taxonomy.internal@1` | `rice.taxonomy` | `rice.posts`（可选，官方插件间约定） |
 | `media.library@1` | `rice.media` | `rice.posts`（可选）、后台站点设置（Logo 上传） |
@@ -193,6 +205,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `demo.hello` | Hello 示例 | `/hello` | `Sparkles` | -10 | `plugin.view` | `rice.hello` |
 | `media.library` | 媒体库 | `/media` | `Image` | 10 | `media.manage` | `rice.media` |
 | `pages.list` | 页面 | `/pages` | `FileStack` | 15 | `page.view` | `rice.pages` |
+| `navigation.items` | 导航栏 | `/navigation` | `Navigation` | 18 | `nav.view` | `rice.navigation` |
 | `taxonomy.terms` | 分类与标签 | `/taxonomy` | `Tags` | 15 | `post.view` | `rice.taxonomy` |
 | `users.roles` | 角色与权限 | `/roles` | `ShieldCheck` | 20 | `user.manage` | `rice.authorization` |
 | `comments.moderate` | 评论审核 | `/comments` | `MessageSquare` | 20 | `comment.moderate` | `rice.comments` |
@@ -235,7 +248,8 @@ Core 固定入口（不来自插件）：仪表盘 `/`、外观中心 `/themes`�
 | `rice.seo` | `social`、`crawler` | `enableOpenGraph`、`enableTwitterCard`、`twitterSite`、`defaultOgImage`、`enableJsonLd`、`enableSitemap`、`enableRobots`、`sitemapMaxUrls`、`sitemapPageSize`、`robotsDisallow`(**stringList**) |
 | `rice.comments` | `general`、`antispam` | `enabled`、`requireApproval`、`pageSize`、`maxLength`、`maxDepth`、`rateLimitWindowSeconds`、`rateLimitMaxSubmissions`、`maxLinksPerComment`、`blockedKeywords`(**stringList**) |
 | `rice.posts` | `general` | `pageSize`、`excerptLength` |
-| `rice.pages` | `general` | `navLimit`、`listPageSize`、`cacheEnabled` |
+| `rice.pages` | `general` | `listPageSize`、`cacheEnabled` |
+| `rice.navigation` | `general` | `maxItems` |
 | `rice.search` | `general` | `resultPageSize`、`maxKeywordLength`、`maxItemsPerSource` |
 | `rice.identity` | `session` | `sessionTtlSeconds`、`maxSessionsPerUser` |
 | `rice.media` | `upload` | `maxFileBytes` |
@@ -267,6 +281,8 @@ Core 固定入口（不来自插件）：仪表盘 `/`、外观中心 `/themes`�
 | `post.delete` | 删除文章 | posts 删除 |
 | `page.view` | 查看页面 | pages 列表与详情、后台菜单 |
 | `page.manage` | 管理独立页面 | pages 增删改 |
+| `nav.view` | 查看导航栏 | 导航项列表、目标候选、后台菜单 |
+| `nav.manage` | 管理导航栏 | 导航项增删改与排序 |
 | `taxonomy.manage` | 管理分类与标签 | taxonomy 增删 |
 | `media.manage` | 管理媒体库 | media 上传/删除 |
 | `comment.moderate` | 审核与管理评论 | comments 后台 |

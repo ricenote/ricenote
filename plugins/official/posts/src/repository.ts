@@ -126,6 +126,26 @@ export async function listPublishedByIds(
 }
 
 /**
+ * 批量读取**已发布**文章的最小引用（id / 标题 / slug）。
+ *
+ * 供导航这类"出现在每个页面上的全局插槽"使用：只需要链接文案与地址，
+ * 因此刻意不查作者与词条（`findPublishedById` 会连带查询，逐个调用即 N+1）。
+ */
+export async function publishedRefs(
+  db: PluginDatabase,
+  siteId: string,
+  postIds: number[]
+): Promise<Array<{ id: number; title: string; slug: string }>> {
+  if (postIds.length === 0) return [];
+  const placeholders = postIds.map(() => '?').join(', ');
+  return db.query<{ id: number; title: string; slug: string }>(
+    `SELECT id, title, slug FROM rn_posts
+      WHERE site_id = ? AND status = 'published' AND id IN (${placeholders})`,
+    [siteId, ...postIds]
+  );
+}
+
+/**
  * 批量读取文章标题（**含草稿与归档**）。
  *
  * 供其他插件的后台列表展示使用（如评论审核台显示所属文章），

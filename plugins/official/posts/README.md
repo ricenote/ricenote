@@ -8,7 +8,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.posts` |
-| version | `1.2.0` |
+| version | `1.4.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.posts@1` |
@@ -51,8 +51,12 @@
 ### 服务契约
 
 提供 `content.posts@1`（`listPublished` / `findPublishedBySlug` / `findPublishedById` /
-`listPublishedByTerm` / `searchPublished` / `titlesOf` / `listForAdmin` / `findForAdmin` /
-`save` / `remove` / `countByStatus` / `recent`）。
+`listPublishedByTerm` / `searchPublished` / `titlesOf` / `publishedRefs` /
+`listForAdmin` / `findForAdmin` / `save` / `remove` / `countByStatus` / `recent`）。
+
+其中 `titlesOf(ids)`（含草稿的标题）与 `publishedRefs(ids)`（仅已发布，带前台地址）
+是为**其他插件的后台列表与全局插槽**准备的两个批量接口，
+避免"为每个 ID 单独查询"的 N+1 模式，也让引用方不必自己拼 `/post/:slug`。
 
 消费：
 
@@ -76,8 +80,13 @@
 | 事件 | 时机 | 载荷 |
 | --- | --- | --- |
 | `content.post.published.v1` | 由非发布态转为发布态 | `{ postId, slug, title, authorId }` |
+| `content.post.updated.v1` | 更新既有文章（**含只改标题/别名的编辑**） | `{ postId, slug, title, status }` |
 | `content.post.unpublished.v1` | 由发布态转为非发布态 | `{ postId, slug }` |
 | `content.post.deleted.v1` | 删除 | `{ postId, slug }` |
+
+> `content.post.updated.v1` 的存在意义：前三个事件只表达"发布状态翻转"，
+> 改标题或改别名不会产生任何信号，而引用了文章的全局插槽（如导航栏）必须能感知
+> 这类变化才能准确失效缓存。订阅方 `rice.navigation` 只在"该文章确实被导航引用"时才清缓存。
 
 订阅：`core.runtime.started.v1`（在全部插件就绪后注册搜索数据源并上报可选依赖可用性）。
 

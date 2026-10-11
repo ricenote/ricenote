@@ -232,7 +232,7 @@ export async function listPublished(
   return { items, total: Number(totalRows[0]?.total ?? 0) };
 }
 
-/** 导航用的轻量列表（只取必要列）。 */
+/** 导航/引用用的轻量列表（只取必要列，已发布页面）。 */
 export async function listNav(
   db: PluginDatabase,
   siteId: string,
@@ -243,7 +243,7 @@ export async function listNav(
       WHERE site_id = ? AND status = 'published'
       ORDER BY sort_order ASC, title ASC
       LIMIT ?`,
-    [siteId, Math.max(1, Math.min(limit, 100))]
+    [siteId, Math.max(1, Math.min(limit, 500))]
   );
 }
 

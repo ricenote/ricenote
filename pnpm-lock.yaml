@@ -236,6 +236,15 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/shared
 
+  plugins/official/navigation:
+    dependencies:
+      '@ricenote/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-sdk
+      '@ricenote/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
+
   plugins/official/pages:
     dependencies:
       '@ricenote/plugin-sdk':
@@ -298,6 +307,9 @@ importers:
       '@ricenote/core':
         specifier: workspace:*
         version: link:../packages/core
+      '@ricenote/plugin-navigation':
+        specifier: workspace:*
+        version: link:../plugins/official/navigation
       '@ricenote/plugin-sdk':
         specifier: workspace:*
         version: link:../packages/plugin-sdk

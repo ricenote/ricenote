@@ -16,13 +16,24 @@ import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 import mysql from 'mysql2/promise';
+import type { NavItemSummary } from '@ricenote/shared';
 import { bootstrap, loadConfig, type RiceNoteKernel } from '@ricenote/core';
 import { startHttpServer, type RunningServer } from '@ricenote/server/dist/server.js';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TEST_DB = 'ricenote_test_http';
 
-const SEED = ['identity', 'authorization', 'posts', 'taxonomy', 'media', 'pages', 'search', 'seo'];
+const SEED = [
+  'identity',
+  'authorization',
+  'posts',
+  'taxonomy',
+  'media',
+  'pages',
+  'navigation',
+  'search',
+  'seo'
+];
 
 let kernel: RiceNoteKernel | undefined;
 let server: RunningServer | undefined;
@@ -214,7 +225,7 @@ describe('站点信息与插件设置（HTTP 面）', () => {
     assert.equal(data<{ declarative: boolean }>(dto).declarative, true);
 
     const saved = await request('PUT', '/api/admin/plugins/rice.pages/settings', {
-      body: { values: { navLimit: 9 } }
+      body: { values: { listPageSize: 9 } }
     });
     assert.equal(saved.status, 200);
 
@@ -272,8 +283,8 @@ describe('站点信息与插件设置（HTTP 面）', () => {
 });
 
 describe('页面 HTTP 闭环', () => {
-  it('创建 → 渲染 → 导航 → 删除', async () => {
-    // 先访问首页把 HTML 缓存"预热"，用于验证"新增页面后缓存被失效"
+  it('页面创建后不再自动进入导航；加入导航项才出现，删除后消失', async () => {
+    // 先访问首页把 HTML 缓存"预热"，用于验证"导航项写入后缓存被失效"
     const primed = await request('GET', '/');
     assert.equal(primed.status, 200);
     assert.doesNotMatch(primed.text, /\/page\/http-page/);
@@ -296,23 +307,50 @@ describe('页面 HTTP 闭环', () => {
     assert.match(rendered.text, /page--plain/);
     assert.match(rendered.text, /正文/);
 
-    /*
-     * 导航插槽注入 + 缓存失效回归：
-     * 页面出现在 header.navigation（每个页面都会渲染），因此写入后必须整体清缓存，
-     * 否则这里会继续拿到预热时那份"没有该链接"的旧 HTML。
-     */
+    // 页面本身不再自动出现在导航栏：是否进导航由 rice.navigation 决定
+    const afterCreate = await request('GET', '/');
+    assert.doesNotMatch(afterCreate.text, /\/page\/http-page/, '页面不应自行进入导航');
+
+    /* 加入导航项：导航出现在每个页面上，因此写入后必须整体清缓存 */
+    const navCreated = await request('POST', '/api/admin/navigation/items', {
+      body: { type: 'page', refId: pageId }
+    });
+    assert.equal(navCreated.status, 201);
+    const navItemId = data<{ id: number }>(navCreated).id;
+
     const home = await request('GET', '/');
-    assert.match(home.text, /\/page\/http-page/);
+    assert.match(home.text, /href="\/page\/http-page"/);
+    assert.match(home.text, /HTTP 页面/, '未填文案时跟随目标标题');
 
-    const removed = await request('DELETE', `/api/admin/pages/${pageId}`);
-    assert.equal(removed.status, 200);
+    // 后台列表给出解析后的标题、地址与目标状态
+    const item = data<NavItemSummary[]>(await request('GET', '/api/admin/navigation/items')).find(
+      (row) => row.id === navItemId
+    );
+    assert.equal(item?.displayLabel, 'HTTP 页面');
+    assert.equal(item?.href, '/page/http-page');
+    assert.equal(item?.target?.published, true);
 
-    const afterRemove = await request('GET', '/page/http-page');
-    assert.equal(afterRemove.status, 404);
+    // 顺序接口可用（单项时上移是幂等的）
+    const moved = await request('POST', `/api/admin/navigation/items/${navItemId}/move`, {
+      body: { direction: 'up' }
+    });
+    assert.equal(moved.status, 200);
+    assert.equal(data<NavItemSummary[]>(moved)[0]?.id, navItemId);
 
-    // 删除后导航里也不应再有该链接（同样依赖缓存失效）
-    const homeAfterRemove = await request('GET', '/');
-    assert.doesNotMatch(homeAfterRemove.text, /\/page\/http-page/);
+    /* 删除页面：导航项保留但标记失效，前台不再渲染死链 */
+    assert.equal((await request('DELETE', `/api/admin/pages/${pageId}`)).status, 200);
+    assert.equal((await request('GET', '/page/http-page')).status, 404);
+    assert.doesNotMatch((await request('GET', '/')).text, /\/page\/http-page/);
+
+    const broken = data<NavItemSummary[]>(
+      await request('GET', '/api/admin/navigation/items')
+    ).find((row) => row.id === navItemId);
+    assert.equal(broken?.target?.exists, false, '目标已删除');
+    assert.equal(broken?.href, null);
+
+    // 删除导航项后列表清空（同样依赖缓存失效）
+    assert.equal((await request('DELETE', `/api/admin/navigation/items/${navItemId}`)).status, 200);
+    assert.equal(data<NavItemSummary[]>(await request('GET', '/api/admin/navigation/items')).length, 0);
   });
 
   it('清单外的模板键被拒绝', async () => {
@@ -321,5 +359,13 @@ describe('页面 HTTP 闭环', () => {
     });
     assert.equal(response.status, 400);
     assert.match(response.text, /RN_CONTENT_TEMPLATE_INVALID/);
+  });
+
+  it('导航项地址白名单：javascript: 等协议被拒绝', async () => {
+    const response = await request('POST', '/api/admin/navigation/items', {
+      body: { type: 'custom', label: 'xss', href: 'javascript:alert(1)' }
+    });
+    assert.equal(response.status, 400);
+    assert.match(response.text, /RN_VALIDATION_FAILED/);
   });
 });

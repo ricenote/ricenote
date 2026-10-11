@@ -9,6 +9,37 @@
 
 ### Added
 
+**导航栏插件（rice.navigation）与 `content.navigation@1`**
+
+- 新增官方插件 `rice.navigation`：顶部导航栏成为**独立可管理的实体**，
+  不再由页面插件"顺带"输出。导航项有三种来源：
+  **自定义链接**（站内路径或外部地址）、**页面**、**文章**；
+  可排序、可停用、可设新窗口打开、可自定义文案。
+- 引用类项只保存内容 ID（`ref_id`），标题与地址在读取时解析：
+  页面/文章改名后导航自动跟随；目标被删除或未发布时**前台跳过**（绝不输出死链），
+  后台则标记 `exists` / `published` 并给出提示。
+- 新增后台「导航栏」管理页（侧栏入口，`nav.view` / `nav.manage`）：
+  前台预览、上下移排序、启用开关、类型化编辑表单（页面/文章走目标选择器，
+  只列已发布内容）、目标失效原因提示。
+- 新增服务契约 `content.navigation@1`（`listRenderable` / `listForAdmin` /
+  `save` / `remove` / `move` / `targets`），表 `rn_nav_items`。
+- 新增 `rice.navigation` 的声明式设置：`maxItems`（前台最多渲染项数，默认 10）。
+- 新增地址白名单校验：只接受 `/` 开头的站内路径与 `http(s)://` 绝对地址，
+  拒绝 `javascript:` / `data:` / `vbscript:` / `mailto:` / 相对路径 / 协议相对地址（`//evil.com`）；
+  外链固定输出 `rel="noopener noreferrer"`。
+- 新增 `content.posts@1.publishedRefs(ids)`：一次查询返回已发布文章的
+  `{ id, title, url }`，供导航等全局插槽使用（避免逐条 `findPublishedById` 的 N+1）。
+- 新增事件 `content.post.updated.v1`（`{ postId, slug, title, status }`）：
+  此前只有发布状态翻转才发事件，改标题/别名没有任何信号。
+- `rice.navigation` 订阅内容事件，但**仅在该内容确实被导航引用时**清空 HTML 缓存
+  （导航出现在每个页面上，按标签失效覆盖不到；不做判定则每次保存文章都会清全站缓存）。
+- 新增权限点 `nav.view` / `nav.manage`（组「外观」），并写入内置角色：
+  `editor` 兼备、`author` / `contributor` 仅有查看权限。
+- 新增 **ADR-013**（导航栏所有权与引用式导航项）：记录"单一写入者""引用而非快照"
+  "v1 只做一级导航"三项决策与取舍；扩展点清单、插件 README 与主题侧说明同步更新。
+- 文档补充一项**关键约束**：进程内软重启不会重载模块代码（Node ESM 缓存按 URL 生效），
+  因此"改了插件/内核代码"必须重启进程，后台按钮只解决配置与启停生效（ADR-012）。
+
 - **共享设置 Schema 新增 `stringList` 字段类型**：值为 `string[]`，后台表现为
   「每行一项」的多行输入，支持 `maxItems`（默认 200）与 `maxLength`（单项长度）。
   主题设置与插件设置同时获得该类型（二者共用同一份
@@ -41,9 +72,27 @@
 - 插件侧补充越界值收敛：`rice.posts`（`pageSize` / `excerptLength`）、
   `rice.media`（`maxFileBytes`）与 `rice.identity`（会话两项）在读取设置时
   按声明范围再收敛一次，避免历史脏值（如 `NaN`）让分页查询或体积限制失效。
+- **`rice.pages` 不再注册 `header.navigation` 插槽**（版本 → `1.1.0`）：
+  顶部导航栏整体交给 `rice.navigation`。页面插件保留 `navItems()` 作为
+  "有哪些已发布页面"的查询入口，供导航插件解析引用目标；
+  同一插槽不再有第二个写入者，避免重复链接与顺序无从协调。
+- `rice.posts` → `1.4.0`（新增 `publishedRefs()` 与 `content.post.updated.v1`）、
+  `rice.authorization` → `1.2.0`（新增并同步 `nav.*` 权限点）。
+- 后台侧栏新增「导航栏」入口（`order: 18`，紧邻「页面」），
+  图标映射补充 `Navigation` 与 `FileStack`；页面列表页文案改为引导去「导航栏」引用。
+
+### Removed
+
+- `rice.pages` 的 `navLimit` 设置项：其语义（前台导航最多展示多少项）
+  已由 `rice.navigation` 的 `maxItems` 接管 —— 导航总数应由"谁拥有导航"决定，
+  而不是由某个内容插件决定。库中残留的旧值不再被读取（不影响其他设置）。
 
 ### Fixed
 
+- **导航当前项高亮对中文地址失效**：请求行里的 URL 是百分号编码的
+  （`/page/%E5%85%B3%E4%BA%8E`），而导航地址来自数据库、是原始字符（`/page/关于`），
+  直接字符串比较导致任何非 ASCII 地址都匹配不上、页面永远不高亮自己的导航项。
+  现在路径归一化会统一解码（非法序列原样保留，不让坏 URL 影响渲染），并有单元测试钉住。
 - **`ctx.config` 之前没有合并 `settingsSchema` 的默认值**：文档与后台设置表单都
   按「`settings` 默认值 → `settingsSchema` 默认值 → 数据库覆盖」描述与实现，
   但插件上下文只合并了 `manifest.settings` 与数据库覆盖，导致"后台表单显示 20、

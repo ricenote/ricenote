@@ -4,9 +4,12 @@
  * 职责边界：
  * - 拥有 `rn_pages` 表，提供 `content.pages@1` 契约；
  * - 注册公开页面路由 `/page/:slug`（页面类型 `page`）；
- * - 注册 `header.navigation` 插槽输出已发布页面链接 ——
- *   主题只需写 `{{ slot('header.navigation') }}`，禁用本插件后链接自动消失；
  * - 管理 API `/api/admin/pages*`（权限点 `page.view` / `page.manage`）。
+ *
+ * **不负责顶部导航栏**：页面只是"可作为导航项的一种来源"，
+ * 是否出现在导航栏、排在第几位、显示什么文案由 `rice.navigation` 决定
+ * （后者注册 `header.navigation` 插槽）。本插件只通过 `navItems()` 暴露
+ * "有哪些已发布页面"，避免出现两个插件同时往同一个插槽写链接。
  *
  * 依赖方向：Core 提供的 `core.html@1`（消毒）与 `core.theme@1`（模板清单与缓存失效）
  * 在插件启动时一定可用（Core 先于所有插件注册服务）。
@@ -34,7 +37,6 @@ export default definePlugin({
     const runtime: PagesRuntime = {
       db: ctx.db,
       siteId: setup.siteId(),
-      navLimit: clampInt(ctx.config.get('navLimit', 20), 1, 100, 20),
       listPageSize: clampInt(ctx.config.get('listPageSize', 20), 1, 100, 20),
       cacheEnabled: resolveBool(ctx.config.get<unknown>('cacheEnabled', true)),
       html,
@@ -46,7 +48,13 @@ export default definePlugin({
     const service = createPagesService({
       runtime,
       invalidate: (tags) => theme.invalidate(tags),
-      // 页面出现在全局导航插槽中，因此写入后必须整体清缓存（见 service.ts 的说明）
+      /*
+       * 页面写入后整体清缓存。
+       *
+       * 页面标题/别名会被导航栏引用（`rice.navigation` 的导航项解析目标标题），
+       * 而导航插槽出现在**每个页面**上，按标签精确失效覆盖不到，
+       * 因此这里保守地整体清空（写操作本就低频）。
+       */
       clearCache: () => theme.clearCache(),
       emit: async (event, payload) => {
         await ctx.events.emit(event, payload);
@@ -61,7 +69,6 @@ export default definePlugin({
 
     registerPublicPages(ctx, runtime);
     registerAdminRoutes(ctx, { service, defaultPageSize: runtime.listPageSize });
-    registerNavigationSlot(ctx, runtime, service);
 
     ctx.adminMenu.add({
       id: 'pages.list',
@@ -77,7 +84,6 @@ export default definePlugin({
       void (async () => {
         const templates = await theme.pageTemplates().catch(() => []);
         ctx.logger.info('pages 插件已就绪', {
-          navLimit: runtime.navLimit,
           cacheEnabled: runtime.cacheEnabled,
           pageTemplates: templates.map((item) => item.key)
         });
@@ -94,46 +100,6 @@ export default definePlugin({
     ctx.logger.info('pages 插件已停止（注册的路由/服务/插槽/菜单已由 Core 注销）');
   }
 });
-
-/**
- * 导航插槽：输出已发布页面链接。
- *
- * 这是"插件向主题注入展示"的第二个示例（第一个是 posts 的 `post.afterContent`）：
- * 主题无需知道 pages 插件的存在，也不需要改主题代码就能拿到页面导航。
- */
-function registerNavigationSlot(
-  ctx: PluginContext,
-  runtime: PagesRuntime,
-  service: ContentPagesService
-): void {
-  ctx.slots.register(
-    'header.navigation',
-    {
-      name: 'pages.navigation',
-      render: async (context) => {
-        const items = await service.navItems();
-        if (items.length === 0) return '';
-
-        const currentPath = currentPathOf(context.request?.url);
-        return items
-          .map((item) => {
-            const active = currentPath === item.url;
-            const attrs = active ? ' class="rn-nav-link rn-nav-link--active" aria-current="page"' : ' class="rn-nav-link"';
-            return `<a href="${runtime.html.escape(item.url)}"${attrs}>${runtime.html.escape(item.title)}</a>`;
-          })
-          .join('');
-      }
-    },
-    { priority: 20 }
-  );
-}
-
-/** 从请求 URL 中取出不含查询串的路径，用于判断当前导航项。 */
-function currentPathOf(url: string | undefined): string {
-  if (!url) return '';
-  const path = url.split('#')[0]?.split('?')[0] ?? '';
-  return path.length > 1 ? path.replace(/\/+$/, '') : path;
-}
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
   const parsed = Math.trunc(Number(value));

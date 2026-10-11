@@ -22,6 +22,8 @@ export const PERMISSIONS: PermissionDefinition[] = [
   { key: 'taxonomy.manage', label: '管理分类与标签', group: '内容' },
   { key: 'media.manage', label: '管理媒体库', group: '内容' },
   { key: 'comment.moderate', label: '审核与管理评论', group: '互动' },
+  { key: 'nav.view', label: '查看导航栏', group: '外观' },
+  { key: 'nav.manage', label: '管理导航栏', group: '外观' },
   { key: 'theme.view', label: '查看主题', group: '外观' },
   { key: 'theme.manage', label: '管理主题与设置', group: '外观' },
   { key: 'plugin.view', label: '查看插件', group: '扩展' },
@@ -62,6 +64,8 @@ export const BUILTIN_ROLES: BuiltinRoleDefinition[] = [
       'taxonomy.manage',
       'media.manage',
       'comment.moderate',
+      'nav.view',
+      'nav.manage',
       'theme.view',
       'plugin.view'
     ]
@@ -69,12 +73,12 @@ export const BUILTIN_ROLES: BuiltinRoleDefinition[] = [
   {
     name: 'author',
     description: '作者：可撰写并发布自己的文章',
-    permissions: ['post.view', 'post.write', 'post.publish', 'page.view', 'media.manage']
+    permissions: ['post.view', 'post.write', 'post.publish', 'page.view', 'nav.view', 'media.manage']
   },
   {
     name: 'contributor',
     description: '投稿者：可撰写草稿，等待他人发布',
-    permissions: ['post.view', 'post.write', 'page.view']
+    permissions: ['post.view', 'post.write', 'page.view', 'nav.view']
   }
 ];
 

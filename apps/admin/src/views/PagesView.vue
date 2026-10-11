@@ -180,7 +180,7 @@ onMounted(async () => {
       <div>
         <h1 class="text-xl font-semibold text-foreground">页面</h1>
         <p class="mt-1 text-xs text-muted-foreground">
-          独立页面拥有自己的地址（/page/别名），可选择主题声明的页面模板；发布后自动出现在前台导航插槽中
+          独立页面拥有自己的地址（/page/别名），可选择主题声明的页面模板；如需出现在前台导航栏，请在「导航栏」中引用它
         </p>
       </div>
       <div class="flex items-center gap-2">

@@ -21,8 +21,6 @@ export interface RuntimeServiceResolver {
 export interface PagesRuntime {
   db: PluginDatabase;
   siteId: string;
-  /** 前台导航最多输出的页面数。 */
-  navLimit: number;
   /** 列表默认每页条数。 */
   listPageSize: number;
   /** 是否为页面渲染启用 HTML 缓存。 */

@@ -3,7 +3,7 @@
 插件优先的轻量级博客与内容管理系统（CMS）。
 
 - **小内核**：Core 只提供引导、安全边界、插件/主题注册、路由、服务、事件、数据库访问与渲染基础设施。
-- **业务皆插件**：文章、分类标签、媒体、用户与权限、评论、搜索、SEO 全部以独立插件实现，可独立开发、启停与升级。
+- **业务皆插件**：文章、独立页面、导航栏、分类标签、媒体、用户与权限、评论、搜索、SEO 全部以独立插件实现，可独立开发、启停与升级。
 - **零构建主题**：主题 = `theme.json` + `templates/*.njk` + `assets/*`，只需 HTML/CSS 与可选 JavaScript。
 - **易部署**：面向个人 VPS，提供 Docker Compose（MySQL 8.4 + server + Nginx）。
 
@@ -112,7 +112,7 @@ docker compose --profile with-nginx up -d
 | `pnpm validate` | 校验插件/主题 Manifest |
 | `pnpm plugin <list\|enable\|disable>` | 插件启停管理 |
 | `pnpm theme <list\|activate\|settings>` | 主题管理 |
-| `pnpm test` | 运行单元与集成测试（60 项） |
+| `pnpm test` | 运行单元与集成测试 |
 | `pnpm build:all` | 全量构建（含管理后台） |
 
 ## 核心概念

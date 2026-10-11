@@ -1,11 +1,12 @@
 /**
  * v0.3.0 架构改造的集成测试。
  *
- * 覆盖四条新的端到端链路：
- * 1. `rice.pages` 的完整闭环（新建 → 渲染 `/page/:slug` → 导航插槽 → 删除）与页面模板选择；
- * 2. 站点信息运行时覆盖：改完**立即**反映到渲染结果与 `core.site@1`（无需重启）；
- * 3. 插件设置：声明式表单 DTO、字段级校验、以及"保存后需重启"的状态标记；
- * 4. 待生效标记跨启动的持久化与清除（模拟一次软重启）。
+ * 覆盖新的端到端链路：
+ * 1. `rice.pages` 的完整闭环（新建 → 渲染 `/page/:slug` → 删除）与页面模板选择；
+ * 2. `rice.navigation` 的导航栏（引用页面 / 文章 / 自定义链接，顺序与失效处理）；
+ * 3. 站点信息运行时覆盖：改完**立即**反映到渲染结果与 `core.site@1`（无需重启）；
+ * 4. 插件设置：声明式表单 DTO、字段级校验、以及"保存后需重启"的状态标记；
+ * 5. 待生效标记跨启动的持久化与清除（模拟一次软重启）。
  */
 
 import assert from 'node:assert/strict';
@@ -15,6 +16,7 @@ import { after, before, describe, it } from 'node:test';
 import mysql from 'mysql2/promise';
 import { isRiceNoteError } from '@ricenote/shared';
 import type {
+  ContentNavigationService,
   ContentPagesService,
   ContentPostsService,
   CoreSiteService,
@@ -34,6 +36,7 @@ const SEED = [
   'taxonomy',
   'media',
   'pages',
+  'navigation',
   'search',
   'seo',
   'reading-time'
@@ -73,6 +76,8 @@ after(async () => {
 
 const pages = (): ContentPagesService => kernel!.services.use<ContentPagesService>('content.pages@1');
 const posts = (): ContentPostsService => kernel!.services.use<ContentPostsService>('content.posts@1');
+const navigation = (): ContentNavigationService =>
+  kernel!.services.use<ContentNavigationService>('content.navigation@1');
 const siteService = (): CoreSiteService => kernel!.services.use<CoreSiteService>('core.site@1');
 const themeService = (): CoreThemeService => kernel!.services.use<CoreThemeService>('core.theme@1');
 
@@ -114,18 +119,26 @@ async function renderPageRoute(
 }
 
 /** 渲染导航插槽（模拟主题中的 `{{ slot('header.navigation') }}`）。 */
-async function renderNavigationSlot(): Promise<string> {
+async function renderNavigationSlot(url = '/'): Promise<string> {
   assert.ok(kernel);
-  return kernel.slots.render('header.navigation', { kind: 'home', data: {} });
+  return kernel.slots.render('header.navigation', {
+    kind: 'home',
+    data: {},
+    request: { ...REQUEST, url }
+  });
 }
 
 describe('rice.pages：独立页面闭环', () => {
-  it('插件注册了页面路由、导航插槽、服务契约与后台菜单', () => {
+  it('插件注册了页面路由、服务契约与后台菜单', () => {
     assert.ok(kernel);
     assert.ok(kernel.router.pages().some((route) => route.name === 'page.show'));
     assert.ok(kernel.services.has('content.pages@1'));
-    assert.ok(kernel.slots.list().some((entry) => entry.slot === 'header.navigation'));
     assert.ok(kernel.adminMenu.list().some((item) => item.id === 'pages.list'));
+    // 导航插槽已交还 navigation 插件：页面插件不再自行往导航里塞链接
+    assert.ok(
+      !kernel.slots.ownedBy('rice.pages').includes('header.navigation'),
+      'pages 不应再注册 header.navigation'
+    );
   });
 
   it('新建页面后可按别名渲染，正文经消毒输出', async () => {
@@ -150,15 +163,13 @@ describe('rice.pages：独立页面闭环', () => {
     assert.doesNotMatch(output.html, /<script>alert\(1\)<\/script>/);
   });
 
-  it('已发布页面出现在导航插槽中，草稿不出现在导航', async () => {
+  it('页面不再自动出现在导航插槽（导航交由 navigation 插件决定）', async () => {
     await pages().save({
       payload: { title: '草稿页', slug: 'draft-page', content: '未公开内容', status: 'draft' }
     });
 
     const html = await renderNavigationSlot();
-    assert.match(html, /href="\/page\/about"/);
-    assert.match(html, /关于我们/);
-    assert.doesNotMatch(html, /draft-page/);
+    assert.equal(html, '', '未添加导航项时导航插槽应为空');
   });
 
   it('未发布或不存在时返回 404 视图模型（走主题的 404 模板）', async () => {
@@ -185,6 +196,235 @@ describe('rice.pages：独立页面闭环', () => {
 
     const found = await pages().findPublishedBySlug('temp');
     assert.equal(found, undefined);
+  });
+});
+
+describe('rice.navigation：导航栏', () => {
+  /** 按别名查任意状态的页面 ID（草稿不在 navItems() 里）。 */
+  async function anyPageId(slug: string): Promise<number> {
+    const result = await pages().listForAdmin({ page: 1, pageSize: 100, status: 'all' });
+    const found = result.items.find((item) => item.slug === slug);
+    assert.ok(found, `未找到页面：${slug}`);
+    return found.id;
+  }
+
+  /** 在描述体内共享的已发布文章（后续用例引用它）。 */
+  let postId = 0;
+
+  it('插件注册了服务契约、导航插槽、管理路由与后台菜单', () => {
+    assert.ok(kernel);
+    assert.ok(kernel.services.has('content.navigation@1'));
+    assert.ok(kernel.slots.ownedBy('rice.navigation').includes('header.navigation'));
+    assert.ok(kernel.adminMenu.list().some((item) => item.id === 'navigation.items'));
+    assert.ok(
+      kernel.router.adminRoutesList().some((route) => route.path.startsWith('/navigation')),
+      '管理 API 应注册在 /navigation 前缀下'
+    );
+  });
+
+  it('自定义链接、页面与文章都能加入导航，并按后台顺序渲染', async () => {
+    const created = await posts().save({
+      authorId: 0,
+      payload: { title: '导航测试文章', slug: 'nav-post', content: '正文', status: 'published' }
+    });
+    postId = created.id;
+
+    await navigation().save({ payload: { type: 'page', refId: await anyPageId('about') } });
+    // 引用文章时可以覆盖文案；页面则不填文案以跟随标题
+    await navigation().save({ payload: { type: 'post', refId: postId, label: '精选文章' } });
+    await navigation().save({
+      payload: { type: 'custom', label: 'GitHub', href: 'https://github.com/ricenote', newTab: true }
+    });
+
+    const items = await navigation().listForAdmin();
+    assert.deepEqual(
+      items.map((item) => item.type),
+      ['page', 'post', 'custom']
+    );
+    assert.deepEqual(
+      items.map((item) => item.displayLabel),
+      ['关于我们', '精选文章', 'GitHub'],
+      '页面项跟随目标标题，文章项使用覆盖文案'
+    );
+
+    const html = await renderNavigationSlot('/');
+    assert.match(html, /<a href="\/page\/about" class="rn-nav-link">关于我们<\/a>/);
+    assert.match(html, /href="\/post\/nav-post"/);
+    assert.match(html, /href="https:\/\/github.com\/ricenote"/);
+    assert.match(html, /target="_blank" rel="noopener noreferrer"/, '新窗口链接必须带 rel 防护');
+  });
+
+  it('当前页面高亮：只有匹配项带 aria-current', async () => {
+    const active = await renderNavigationSlot('/page/about');
+    assert.match(active, /class="rn-nav-link rn-nav-link--active" aria-current="page"/);
+
+    const elsewhere = await renderNavigationSlot('/');
+    assert.doesNotMatch(elsewhere, /aria-current/);
+    // 外部链接永远不算"当前页"
+    assert.doesNotMatch(await renderNavigationSlot('/github.com/ricenote'), /aria-current/);
+  });
+
+  it('高亮对中文地址同样生效（请求行是编码过的，导航地址是原始字符）', async () => {
+    const page = await pages().save({
+      payload: { title: '中文地址页', slug: '关于', content: 'x', status: 'published' }
+    });
+    await navigation().save({ payload: { type: 'page', refId: page.id } });
+
+    // 编码后的请求路径（与真实 HTTP 请求行一致）
+    const encoded = await renderNavigationSlot('/page/%E5%85%B3%E4%BA%8E');
+    assert.match(encoded, /href="\/page\/关于"[^>]*aria-current="page"/);
+  });
+
+  it('停用项不渲染，但配置保留', async () => {
+    const custom = (await navigation().listForAdmin()).find((item) => item.type === 'custom');
+    assert.ok(custom);
+
+    await navigation().save({
+      id: custom.id,
+      payload: {
+        type: 'custom',
+        label: 'GitHub',
+        href: 'https://github.com/ricenote',
+        newTab: true,
+        enabled: false
+      }
+    });
+
+    assert.doesNotMatch(await renderNavigationSlot('/'), /github\.com/);
+    const after = (await navigation().listForAdmin()).find((item) => item.id === custom.id);
+    assert.equal(after?.enabled, false);
+    assert.equal(after?.href, 'https://github.com/ricenote', '停用不影响配置本身');
+  });
+
+  it('目标未发布：可以保存引用，但前台跳过且后台给出状态', async () => {
+    const draftId = await anyPageId('draft-page');
+    const created = await navigation().save({
+      payload: { type: 'page', refId: draftId, label: '草稿页入口' }
+    });
+
+    const item = (await navigation().listForAdmin()).find((row) => row.id === created.id);
+    assert.equal(item?.target?.exists, true, '目标存在（只是没发布）');
+    assert.equal(item?.target?.published, false);
+    assert.equal(item?.href, null, '未发布时不给地址');
+
+    const html = await renderNavigationSlot('/');
+    assert.doesNotMatch(html, /draft-page/, '未发布目标不出现在前台');
+    assert.doesNotMatch(html, /草稿页入口/);
+  });
+
+  it('目标被删除：后台标记不存在，前台自动跳过', async () => {
+    const temp = await pages().save({
+      payload: { title: '待删除页面', slug: 'nav-temp', content: 'x', status: 'published' }
+    });
+    const item = await navigation().save({ payload: { type: 'page', refId: temp.id } });
+    assert.match(await renderNavigationSlot('/'), /nav-temp/);
+
+    await pages().remove(temp.id);
+
+    const after = (await navigation().listForAdmin()).find((row) => row.id === item.id);
+    assert.equal(after?.target?.exists, false);
+    assert.equal(after?.href, null);
+    assert.equal(after?.displayLabel, '', '没有文案且目标已删除时无从展示');
+    assert.doesNotMatch(await renderNavigationSlot('/'), /nav-temp/);
+  });
+
+  it('目标选择器只给出已发布内容，并附别名用于区分同名项', async () => {
+    const pageOptions = await navigation().targets({ type: 'page' });
+    assert.ok(pageOptions.some((item) => item.title === '关于我们' && item.subtitle === 'about'));
+    assert.ok(
+      !pageOptions.some((item) => item.subtitle === 'draft-page'),
+      '草稿不应出现在候选中（选了也不会显示）'
+    );
+
+    const postOptions = await navigation().targets({ type: 'post' });
+    assert.ok(postOptions.some((item) => item.id === postId));
+
+    // 关键词过滤交给内容插件（页面走后台查询、文章走全文检索）
+    const filtered = await navigation().targets({ type: 'post', keyword: '导航' });
+    assert.ok(filtered.some((item) => item.id === postId));
+  });
+
+  it('顺序调整：上移/下移改变顺序，边界处幂等', async () => {
+    const before = (await navigation().listForAdmin()).map((item) => item.id);
+    const second = before[1];
+    assert.ok(second);
+
+    const moved = await navigation().move({ id: second, direction: 'up' });
+    assert.equal(moved[0]?.id, second);
+
+    // 已在首位再上移：顺序不变，且不产生副作用
+    const idempotent = await navigation().move({ id: second, direction: 'up' });
+    assert.deepEqual(idempotent.map((item) => item.id), moved.map((item) => item.id));
+
+    // 下移回原位，方便后续用例的顺序断言
+    const restored = await navigation().move({ id: second, direction: 'down' });
+    assert.deepEqual(restored.map((item) => item.id), before);
+  });
+
+  it('安全：非法地址一律拒绝', async () => {
+    for (const href of ['javascript:alert(1)', 'data:text/html,x', '//evil.com', 'about', '']) {
+      await assert.rejects(
+        () => navigation().save({ payload: { type: 'custom', label: 'x', href } }),
+        (error: unknown) => isRiceNoteError(error) && error.code === 'RN_VALIDATION_FAILED',
+        `应拒绝地址：${href}`
+      );
+    }
+
+    // 自定义链接必须同时有文案与地址
+    await assert.rejects(
+      () => navigation().save({ payload: { type: 'custom', href: '/about' } }),
+      (error: unknown) => isRiceNoteError(error) && error.code === 'RN_VALIDATION_FAILED'
+    );
+  });
+
+  it('引用不存在的内容或非法类型被拒绝', async () => {
+    await assert.rejects(
+      () => navigation().save({ payload: { type: 'page', refId: 999999 } }),
+      (error: unknown) => isRiceNoteError(error) && error.code === 'RN_VALIDATION_FAILED'
+    );
+    await assert.rejects(
+      () => navigation().save({ payload: { type: 'post', refId: 999999 } }),
+      (error: unknown) => isRiceNoteError(error) && error.code === 'RN_VALIDATION_FAILED'
+    );
+    await assert.rejects(
+      () => navigation().save({ payload: { type: 'nope' } as never }),
+      (error: unknown) => isRiceNoteError(error) && error.code === 'RN_VALIDATION_FAILED'
+    );
+  });
+
+  it('删除与更新不存在的导航项返回 404', async () => {
+    await assert.rejects(
+      () => navigation().remove(999999),
+      (error: unknown) => isRiceNoteError(error) && error.code === 'RN_NOT_FOUND'
+    );
+    await assert.rejects(
+      () => navigation().move({ id: 999999, direction: 'up' }),
+      (error: unknown) => isRiceNoteError(error) && error.code === 'RN_NOT_FOUND'
+    );
+  });
+
+  /**
+   * 放在本 describe 的最后：禁用后本插件不再工作，后续用例不能再依赖导航。
+   * 这是"可独立启停"的可验证承诺，也让新插件的句柄回收进入 assertNoLeaks 的校验范围。
+   */
+  it('禁用后插槽/服务/路由/菜单零残留', async () => {
+    assert.ok(kernel);
+    await kernel.plugins.disable('rice.navigation');
+
+    assert.ok(
+      !kernel.slots.ownedBy('rice.navigation').includes('header.navigation'),
+      '导航插槽应随插件一起注销'
+    );
+    assert.equal(kernel.services.has('content.navigation@1'), false);
+    assert.ok(!kernel.adminMenu.list().some((item) => item.id === 'navigation.items'));
+    assert.equal(
+      kernel.router.adminRoutesList().some((route) => route.pluginId === 'rice.navigation'),
+      false
+    );
+    assert.equal(await renderNavigationSlot('/'), '', '禁用后导航插槽为空');
+
+    // 覆盖 rice.navigation 的句柄回收（assertNoLeaks 只校验已停止的插件）
+    kernel.plugins.assertNoLeaks();
   });
 });
 
@@ -341,8 +581,8 @@ describe('插件设置（ADR-011）', () => {
     assert.equal(dto.pluginId, 'rice.pages');
     assert.ok(dto.groups.length > 0);
     const keys = dto.groups.flatMap((group) => group.fields.map((field) => field.key)).sort();
-    assert.deepEqual(keys, ['cacheEnabled', 'listPageSize', 'navLimit']);
-    assert.equal(dto.values.navLimit, 20);
+    assert.deepEqual(keys, ['cacheEnabled', 'listPageSize']);
+    assert.equal(dto.values.listPageSize, 20);
     assert.equal(dto.values.cacheEnabled, true);
   });
 
@@ -378,21 +618,21 @@ describe('插件设置（ADR-011）', () => {
   it('越界值被拒绝保存', async () => {
     assert.ok(kernel);
     await assert.rejects(
-      () => kernel!.plugins.writeSettings('rice.pages', 'default', { navLimit: 999 }),
+      () => kernel!.plugins.writeSettings('rice.pages', 'default', { listPageSize: 999 }),
       (error: unknown) => isRiceNoteError(error) && error.code === 'RN_PLUGIN_SETTING_INVALID'
     );
   });
 
   it('合法值被合并保存，revision 递增', async () => {
     assert.ok(kernel);
-    const first = await kernel.plugins.writeSettings('rice.pages', 'default', { navLimit: 5 });
+    const first = await kernel.plugins.writeSettings('rice.pages', 'default', { listPageSize: 5 });
     assert.equal(first.revision, 1);
 
     const second = await kernel.plugins.writeSettings('rice.pages', 'default', { cacheEnabled: false });
     assert.equal(second.revision, 2);
 
     const dto = await kernel.plugins.settingsDto('rice.pages');
-    assert.equal(dto.values.navLimit, 5, '合并写入：先前的字段不被清空');
+    assert.equal(dto.values.listPageSize, 5, '合并写入：先前的字段不被清空');
     assert.equal(dto.values.cacheEnabled, false);
     assert.equal(dto.revision, 2);
   });
@@ -400,10 +640,10 @@ describe('插件设置（ADR-011）', () => {
   it('失败的保存不会污染已保存的值', async () => {
     assert.ok(kernel);
     await kernel.plugins
-      .writeSettings('rice.pages', 'default', { navLimit: -1 })
+      .writeSettings('rice.pages', 'default', { listPageSize: -1 })
       .catch(() => undefined);
     const dto = await kernel.plugins.settingsDto('rice.pages');
-    assert.equal(dto.values.navLimit, 5);
+    assert.equal(dto.values.listPageSize, 5);
   });
 });
 
@@ -468,7 +708,7 @@ describe('待生效标记与软重启（ADR-012）', () => {
 
     // 设置值来自数据库，重启后新进程应读到同一份配置
     const dto = await kernel.plugins.settingsDto('rice.pages');
-    assert.equal(dto.values.navLimit, 5);
+    assert.equal(dto.values.listPageSize, 5);
     assert.equal(dto.values.cacheEnabled, false);
 
     // 站点信息覆盖同样跨重启保持

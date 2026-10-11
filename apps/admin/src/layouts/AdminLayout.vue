@@ -5,12 +5,14 @@ import {
   Archive,
   ChevronDown,
   ExternalLink,
+  FileStack,
   FileText,
   Image,
   LayoutDashboard,
   LogOut,
   Menu,
   MessageSquare,
+  Navigation,
   Palette,
   Puzzle,
   RotateCw,
@@ -87,10 +89,12 @@ const coreNav: NavItem[] = [
 
 const pluginIcon: Record<string, unknown> = {
   FileText,
+  FileStack,
   Tags,
   Image,
   Users,
   MessageSquare,
+  Navigation,
   ShieldCheck: Shield
 };
 

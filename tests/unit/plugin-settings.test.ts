@@ -29,7 +29,12 @@ function readManifest(relativePath: string): PluginManifest {
   return JSON.parse(readFileSync(file, 'utf8')) as PluginManifest;
 }
 
-/** 声明式写法的示例清单（与 rice.pages 的 shape 一致）。 */
+/**
+ * 声明式写法的示例清单。
+ *
+ * 刻意与任何真实插件解耦：这里是"校验与合并逻辑"的测试，
+ * 真实清单的字段与默认值由下面「官方插件清单的设置声明」用显式期望值钉住。
+ */
 const DECLARATIVE: Pick<PluginManifest, 'settings' | 'settingsSchema'> = {
   settingsSchema: {
     general: {
@@ -317,7 +322,12 @@ describe('官方插件清单的设置声明', () => {
     {
       path: 'plugins/official/pages',
       groups: ['general'],
-      fields: { navLimit: 20, listPageSize: 20, cacheEnabled: true }
+      fields: { listPageSize: 20, cacheEnabled: true }
+    },
+    {
+      path: 'plugins/official/navigation',
+      groups: ['general'],
+      fields: { maxItems: 10 }
     },
     {
       path: 'plugins/third-party/reading-time',

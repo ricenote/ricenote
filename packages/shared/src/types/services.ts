@@ -17,6 +17,11 @@ import type {
   CommentThreadItem,
   EffectiveSiteInfo,
   MediaSummary,
+  NavItemSaveRequest,
+  NavItemSummary,
+  NavItemType,
+  NavRenderItem,
+  NavTargetOption,
   PageDetail,
   PageTemplateDescriptor,
   PageListQuery,
@@ -63,6 +68,8 @@ export const SERVICE_CONTRACTS = {
   CONTENT_POSTS: 'content.posts@1',
   /** pages 插件提供的自定义页面服务。 */
   CONTENT_PAGES: 'content.pages@1',
+  /** navigation 插件提供的导航项服务。 */
+  CONTENT_NAVIGATION: 'content.navigation@1',
   /** taxonomy 插件提供的分类标签服务。 */
   CONTENT_TAXONOMY: 'content.taxonomy@1',
   /** media 插件提供的媒体库服务。 */
@@ -214,6 +221,15 @@ export interface ContentPostsService {
    * 存在的意义是避免"为每个 ID 单独查询"的 N+1 模式；缺失的键不出现在结果中。
    */
   titlesOf(postIds: number[]): Promise<Record<number, string>>;
+  /**
+   * 批量读取**已发布**文章的最小引用（id / 标题 / 前台地址）。
+   *
+   * 与 `titlesOf` 的分工：本方法只返回已发布文章，且带上前台地址，
+   * 专供导航这类"全局插槽"使用——它们只需要链接文案，不希望为了几个链接
+   * 触发 `findPublishedById`（会连带查询作者与词条），也不希望自己拼 `/post/:slug`
+   * 这种属于 posts 的 URL 约定。一次查询完成，返回项不保证顺序。
+   */
+  publishedRefs(postIds: number[]): Promise<Array<{ id: number; title: string; url: string }>>;
   /** 后台：分页查询（含草稿）。 */
   listForAdmin(query: PostListQuery): Promise<PostQueryResult>;
   /** 后台：详情。 */
@@ -267,6 +283,36 @@ export interface ContentPagesService {
   remove(id: number): Promise<void>;
   /** 统计（仪表盘）。 */
   countByStatus(): Promise<Record<PageStatus | 'total', number>>;
+}
+
+/* ----------------------------- 导航 ----------------------------- */
+
+/**
+ * navigation 插件提供的导航项服务。
+ *
+ * 顶部导航栏的**唯一权威来源**：页面插件只负责"有哪些页面"，
+ * 是否出现在导航栏、排在第几位、显示什么文案，都由导航项决定。
+ *
+ * 其他插件与主题的常规用法是让 navigation 插件自己把链接渲染进
+ * `header.navigation` 插槽；确需自行渲染（例如换一种标记结构）时才直接读本服务。
+ */
+export interface ContentNavigationService {
+  /**
+   * 前台：按顺序返回**可直接渲染**的导航项。
+   *
+   * 只包含已启用、且目标可解析的项目；数量上限由插件设置 `maxItems` 决定。
+   */
+  listRenderable(): Promise<NavRenderItem[]>;
+  /** 后台：全部导航项（含停用项），并附目标解析状态。 */
+  listForAdmin(): Promise<NavItemSummary[]>;
+  /** 后台：保存（新建或更新）。 */
+  save(input: { id?: number; payload: NavItemSaveRequest }): Promise<{ id: number }>;
+  /** 后台：删除。 */
+  remove(id: number): Promise<void>;
+  /** 后台：上移/下移一位，返回调整后的完整列表。 */
+  move(input: { id: number; direction: 'up' | 'down' }): Promise<NavItemSummary[]>;
+  /** 后台：目标选择器的候选项（按标题排序，含未发布以便编辑既有引用）。 */
+  targets(input: { type: Exclude<NavItemType, 'custom'>; keyword?: string }): Promise<NavTargetOption[]>;
 }
 
 /* ----------------------------- 分类与标签 ----------------------------- */

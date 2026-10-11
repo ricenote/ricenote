@@ -15,6 +15,7 @@ const routes: RouteRecordRaw[] = [
       { path: '', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: '仪表盘' } },
       { path: 'posts', name: 'posts', component: () => import('@/views/PostsView.vue'), meta: { title: '文章', permission: 'post.view' } },
       { path: 'pages', name: 'pages', component: () => import('@/views/PagesView.vue'), meta: { title: '页面', permission: 'page.view' } },
+      { path: 'navigation', name: 'navigation', component: () => import('@/views/NavigationView.vue'), meta: { title: '导航栏', permission: 'nav.view' } },
       { path: 'taxonomy', name: 'taxonomy', component: () => import('@/views/TaxonomyView.vue'), meta: { title: '分类与标签', permission: 'post.view' } },
       { path: 'media', name: 'media', component: () => import('@/views/MediaView.vue'), meta: { title: '媒体库', permission: 'media.manage' } },
       { path: 'comments', name: 'comments', component: () => import('@/views/CommentsView.vue'), meta: { title: '评论审核', permission: 'comment.moderate' } },

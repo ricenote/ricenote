@@ -208,6 +208,12 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
       return repo.titlesOf(runtime.db, runtime.siteId, postIds);
     },
 
+    async publishedRefs(postIds) {
+      // 上限防御：调用方（导航等）通常只有个位数，这里兜住异常输入
+      const rows = await repo.publishedRefs(runtime.db, runtime.siteId, postIds.slice(0, 200));
+      return rows.map((row) => ({ id: row.id, title: row.title, url: `/post/${row.slug}` }));
+    },
+
     async listForAdmin(query: PostListQuery) {
       const result = await repo.listForAdmin(runtime.db, runtime.siteId, {
         page: query.page,
@@ -272,6 +278,21 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
       }
       if (previous && !nowPublished && wasPublished) {
         await emit('content.post.unpublished.v1', { postId, slug: built.slug });
+      }
+      /*
+       * 更新既有文章时再广播一次。
+       *
+       * published / unpublished 只表达"发布状态翻转"，改标题或改别名不会产生任何事件，
+       * 而引用了文章的全局插槽（如导航栏，出现在每个页面上且被 HTML 缓存）必须能
+       * 感知到这类变化才能准确失效缓存。新建文章不需要：它此前不可能被引用。
+       */
+      if (previous) {
+        await emit('content.post.updated.v1', {
+          postId,
+          slug: built.slug,
+          title: built.title,
+          status: built.status
+        });
       }
 
       log(input.id ? '文章已更新' : '文章已创建', {
