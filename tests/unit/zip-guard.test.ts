@@ -110,11 +110,29 @@ describe('主题 ZIP 安装安全校验', () => {
   });
 });
 
-describe('清单完整性（真实插件与主题目录）', () => {
-  it('两套内置主题的 theme.json 均通过 Schema 校验', () => {
-    const validator = createManifestValidator();
+/**
+ * 扫描 `parent` 的直接子目录，只保留含 `file` 的那些。
+ *
+ * 刻意**不硬编码**主题/插件清单：写死的列表会在增删目录后悄悄失准
+ * （0.5.1 移除示例插件 `rice.hello` 后，这里仍去找它的 manifest，用例直接 ENOENT 失败）。
+ */
+function subdirsContaining(parent: string, file: string): string[] {
+  return readdirSync(path.join(rootDir, parent), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+    .map((entry) => entry.name)
+    .filter((name) => existsSync(path.join(rootDir, parent, name, file)))
+    .sort();
+}
 
-    for (const theme of ['minimal', 'default']) {
+describe('清单完整性（真实插件与主题目录）', () => {
+  it('内置主题的 theme.json 均通过 Schema 校验', () => {
+    const validator = createManifestValidator();
+    const themes = subdirsContaining('themes', 'theme.json');
+
+    // 空循环会让用例静默通过：目录被清空或路径写错时必须显式失败
+    assert.ok(themes.length > 0, 'themes/ 下没有扫描到任何主题清单');
+
+    for (const theme of themes) {
       const manifestPath = path.resolve(rootDir, `themes/${theme}/theme.json`);
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as unknown;
       const result = validator.validateTheme(manifest);
@@ -124,8 +142,11 @@ describe('清单完整性（真实插件与主题目录）', () => {
 
   it('全部官方插件的 manifest.json 均通过 Schema 校验', () => {
     const validator = createManifestValidator();
+    const plugins = subdirsContaining('plugins/official', 'manifest.json');
 
-    for (const plugin of ['identity', 'authorization', 'posts', 'taxonomy', 'media', 'hello']) {
+    assert.ok(plugins.length > 0, 'plugins/official/ 下没有扫描到任何插件清单');
+
+    for (const plugin of plugins) {
       const manifestPath = path.resolve(rootDir, `plugins/official/${plugin}/manifest.json`);
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as unknown;
       const result = validator.validatePlugin(manifest);

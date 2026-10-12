@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "appVersion": "0.5.1",
+  "appVersion": "0.5.2",
   "plugins": [
     {
       "id": "rice.identity",

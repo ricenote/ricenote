@@ -7,6 +7,11 @@
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-12
+
+> 补丁版本：后台管理界面文案全面面向普通用户（删除技术性说明、术语通俗化，含插件卡片描述），
+> 并新增 `wiki/` 文档站与一条可重复执行的发布通路。无功能与接口变化，插件宿主区间 `^0.5.0` 不变。
+
 ### Added（GitHub Wiki 文档站）
 
 - **新增 `wiki/` 内容源（37 个页面）与一条可重复执行的发布通路**：内容源纳入版本库、可 review，
@@ -82,6 +87,14 @@
 - `wiki/Contributing.md` 的「页面命名与结构」「链接约定」两节据实重写：讲清目录为何必须平铺、
   连字符在标题栏会被显示为空格、以及正确的链接语法顺序（`[[显示文本|页面名]]`，**显示文本在前**）——
   后者是本次批量改写中自查出来的一处说明性错误。
+
+### Fixed（测试：官方清单发现改为动态）
+
+- **`tests/unit/zip-guard.test.ts` 不再硬编码清单目录**：原先写死
+  `['identity', 'authorization', 'posts', 'taxonomy', 'media', 'hello']`，0.5.1 移除示例插件
+  `rice.hello` 后该用例直接以 ENOENT 失败；列表同时漏了 navigation / pages / comments /
+  search / seo / editor-enhance 六个插件。现改为扫描 `plugins/official/` 与 `themes/` 下
+  含清单文件的直接子目录，并补上"扫不到任何清单就显式失败"的断言，避免空循环静默通过。
 
 ### Docs（同上）
 
@@ -834,7 +847,8 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/ricenote/ricenote/releases/tag/v0.5.2
 [0.5.1]: https://github.com/ricenote/ricenote/releases/tag/v0.5.1
 [0.4.0]: https://github.com/ricenote/ricenote/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ricenote/ricenote/releases/tag/v0.3.0
