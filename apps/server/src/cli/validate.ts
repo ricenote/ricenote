@@ -193,6 +193,148 @@ export function validateProject(options: ValidateOptions): ValidationReport {
   };
 }
 
+/** 内置内容字段名：主题的 contentFields 不得占用（它们由内容本身与持久化列占用）。 */
+const RESERVED_CONTENT_FIELDS = new Set([
+  'title',
+  'slug',
+  'content',
+  'excerpt',
+  'status',
+  'template',
+  'fields',
+  'sortOrder'
+]);
+
+/** admin 作用域的贡献入口限 `./admin/`，render 与 server 限 `./dist/`（Node 侧 import）。 */
+function entryMatchesScope(entry: string, scope: string): boolean {
+  return scope === 'admin' ? entry.startsWith('./admin/') : entry.startsWith('./dist/');
+}
+
+/**
+ * 命名扩展点的静态校验（跨插件）。
+ *
+ * 覆盖：能力声明、扩展点全局唯一（Core 预置标准渲染插槽视为已存在）、
+ * 贡献入口的作用域白名单与文件存在、style/permission 仅 admin、
+ * 以及"同一扩展点上多个 replace 且 order 相同"这种无法裁决的冲突。
+ */
+function validateExtensions(
+  plugins: ReadonlyArray<{ dir: string; manifest: PluginManifest }>
+): { dir: string; issues: ValidationIssue[] }[] {
+  const byDir = new Map<string, ValidationIssue[]>();
+  const report = (dir: string, path_: string, message: string, keyword: string): void => {
+    const bucket = byDir.get(dir) ?? [];
+    bucket.push({ path: path_, message, keyword });
+    byDir.set(dir, bucket);
+  };
+
+  const declaredBy = new Map<string, string>();
+  for (const slot of STANDARD_SLOTS) declaredBy.set(slot, 'core');
+
+  for (const plugin of plugins) {
+    const id = plugin.manifest.id;
+    const capabilities = new Set(plugin.manifest.capabilities ?? []);
+    const points = plugin.manifest.extensionPoints ?? [];
+
+    if (points.length > 0 && !capabilities.has('extensions:declare')) {
+      report(
+        plugin.dir,
+        '/capabilities',
+        '声明了 extensionPoints 但未声明能力 extensions:declare（运行时会被拒绝）',
+        'capabilities'
+      );
+    }
+    for (const point of points) {
+      const owner = declaredBy.get(point.name);
+      if (owner !== undefined && owner !== id) {
+        report(
+          plugin.dir,
+          '/extensionPoints',
+          `扩展点 ${point.name} 已被 ${owner} 声明（全局唯一）`,
+          'extensionPoints'
+        );
+        continue;
+      }
+      declaredBy.set(point.name, id);
+    }
+  }
+
+  /** `${point}#${order}` → 已占用该组合的插件，用于发现无法裁决的 replace 冲突。 */
+  const replaceSlots = new Map<string, string>();
+
+  for (const plugin of plugins) {
+    const id = plugin.manifest.id;
+    const capabilities = new Set(plugin.manifest.capabilities ?? []);
+    const contributions = plugin.manifest.contributions ?? [];
+
+    if (contributions.length > 0 && !capabilities.has('extensions:contribute')) {
+      report(
+        plugin.dir,
+        '/capabilities',
+        '声明了 contributions 但未声明能力 extensions:contribute（运行时会被拒绝）',
+        'capabilities'
+      );
+    }
+
+    for (const [index, item] of contributions.entries()) {
+      const where = `/contributions/${index}`;
+
+      if (!entryMatchesScope(item.entry, item.scope)) {
+        report(
+          plugin.dir,
+          `${where}/entry`,
+          `${item.scope} 作用域的入口必须位于 ${item.scope === 'admin' ? './admin/' : './dist/'}：${item.entry}`,
+          'entry'
+        );
+      } else if (!existsSync(path.resolve(plugin.dir, item.entry))) {
+        report(
+          plugin.dir,
+          `${where}/entry`,
+          `贡献入口不存在：${item.entry}（请先执行 pnpm build）`,
+          'entry'
+        );
+      }
+
+      if (item.style !== undefined) {
+        if (item.scope !== 'admin') {
+          report(plugin.dir, `${where}/style`, 'style 仅 admin 作用域可用', 'style');
+        } else if (!existsSync(path.resolve(plugin.dir, item.style))) {
+          report(plugin.dir, `${where}/style`, `贡献样式不存在：${item.style}`, 'style');
+        }
+      }
+
+      if (item.permission !== undefined && item.scope !== 'admin') {
+        report(plugin.dir, `${where}/permission`, 'permission 仅 admin 作用域可用', 'permission');
+      }
+
+      if (!declaredBy.has(item.point)) {
+        report(
+          plugin.dir,
+          `${where}/point`,
+          `扩展点未声明：${item.point}（标准渲染插槽或某个插件的 extensionPoints 之一）`,
+          'point'
+        );
+      }
+
+      if (item.mode === 'replace') {
+        const key = `${item.point}#${item.order ?? 0}`;
+        const owner = replaceSlots.get(key);
+        if (owner !== undefined && owner !== id) {
+          report(
+            plugin.dir,
+            `${where}/order`,
+            `${item.point} 上 ${owner} 与本插件同在 order=${item.order ?? 0} 使用 replace，无法确定胜出者`,
+            'order'
+          );
+        } else {
+          replaceSlots.set(key, id);
+        }
+      }
+    }
+  }
+
+  return [...byDir.entries()].map(([dir, issues]) => ({ dir, issues }));
+}
+
 function validateThemes(themesDir: string): {
   total: number;
   invalid: { dir: string; issues: ValidationIssue[] }[];
@@ -244,6 +386,21 @@ function validateThemes(themesDir: string): {
           message: `预览图不存在：${manifest.screenshot}`,
           keyword: 'file'
         });
+      }
+
+      /*
+       * 内容自定义字段（文章与页面共用）：字段名不能占用内置字段，
+       * 否则后台会同时出现两个"标题"输入框，而模板里 `post.fields.title`
+       * 与 `post.title` 指向不同东西 —— 这种歧义一旦发出去就改不回来。
+       */
+      for (const key of Object.keys(manifest.contentFields ?? {})) {
+        if (RESERVED_CONTENT_FIELDS.has(key)) {
+          issues.push({
+            path: `/contentFields/${key}`,
+            message: `${key} 是内置内容字段名，不能作为自定义字段（可选：featuredImage、summary、subtitle 等）`,
+            keyword: 'contentFields'
+          });
+        }
       }
     }
 

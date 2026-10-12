@@ -77,7 +77,8 @@ export interface ExtensionPointSummary {
 
 /** `ctx.extensions` 门面：命令式声明与贡献（声明式之外的动态路径）。 */
 export interface ExtensionRegistryFacade {
-  declare(point: ExtensionPointDeclaration): Dispose;
+  /** 声明一个对外扩展点（需要能力 `extensions:declare`）。 */
+  declare(point: PluginExtensionPointDeclaration): Dispose;
   contribute(point: string, payload: unknown, options?: ExtensionContributeOptions): Dispose;
   /**
    * 触发服务端钩子：按 `order` **升序**串行传递 payload（filter 语义）。
