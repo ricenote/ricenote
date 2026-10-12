@@ -503,7 +503,7 @@ export class PluginManager {
    * 核对 `RICENOTE_PLUGINS` 声明与磁盘实际安装情况。
    *
    * 三类问题各给一条可执行提示：
-   * - 声明了但没装 → `pnpm plugin install <spec>`（或 `pnpm setup --from-manifest`）；
+   * - 声明了但没装 → `pnpm plugin install <spec>`（或 `pnpm run setup -- --from-manifest`）；
    * - 已装版本不满足声明的区间 → `pnpm plugin update <id>`；
    * - 声明了未经官方目录收录的包 → 无法把包名映射到插件 ID，只能提示一句。
    *

@@ -336,7 +336,7 @@ Core 在插件启动时读取声明并注册菜单，同时：
 | 概念 | 位置 | 说明 |
 | --- | --- | --- |
 | 推荐插件清单 | `packages/shared/manifests/plugin-catalog.json` | 官方插件的包名、推荐版本、分类（必需/推荐/可选/示例）、依赖 —— 唯一事实来源 |
-| 安装向导 | `pnpm setup`（`apps/server/src/cli/setup.ts`） | 自动建库 → 写 `.env` → 迁移 → 勾选并安装官方插件 → 首次初始化 |
+| 安装向导 | `pnpm run setup`（`apps/server/src/cli/setup.ts`） | 自动建库 → 写 `.env` → 迁移 → 勾选并安装官方插件 → 首次初始化。 |
 | 安装任务 | `rn_plugin_jobs` + `PluginInstallRunner` | 串行执行、进度与日志落库，后台与 CLI 共用 |
 | 声明式清单 | `.env` 的 `RICENOTE_PLUGINS` | `包名@区间` 列表；启动期**只核对不安装**，缺件给命令 |
 | `builtin` vs `official` | `PluginSummary` | 前者=随仓库分发（不可卸载），后者=属于官方目录（可更新可卸载） |

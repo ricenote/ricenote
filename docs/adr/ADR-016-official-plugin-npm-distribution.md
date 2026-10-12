@@ -123,12 +123,12 @@ label / description / capabilities / requires / repository / license`。
 ### 7. 未初始化引导
 
 启动时若 `.env` 不存在，或错误信息指向"表不存在/库不存在"，直接输出
-`pnpm setup` 的指引。判据用**可观察事实**而不是新加状态标记 ——
+`pnpm run setup` 的指引。判据用**可观察事实**而不是新加状态标记 ——
 状态标记在"装到一半"时会撒谎。
 
 ## 后果
 
-- 全新部署：`pnpm install && pnpm build && pnpm setup`（自动建库、随机密钥、
+- 全新部署：`pnpm install && pnpm build && pnpm run setup`（自动建库、随机密钥、
   勾选插件、从 npm 装、建管理员）→ `pnpm start`；
 - 官方插件终于吃上自己修的高速路：可选安装、按推荐版本、可检查更新、
   后台一键更新/卸载；`plugins/official` 保留为开发期形态（仍不可卸载）；

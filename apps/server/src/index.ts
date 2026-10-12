@@ -5,7 +5,7 @@
  * - 正常启动内核并挂载 HTTP 服务；
  * - 数据库不可用时不崩溃，而是启动"诊断服务"，让管理员能看到原因与修复步骤；
  * - **未初始化时给引导**：「还没有 .env」与「库结构还没建」不是故障而是"还没装"，
- *   因此直接输出下一步命令（`pnpm setup`），不让用户从数据库错误栈里反推；
+ *   因此直接输出下一步命令（`pnpm run setup`），不让用户从数据库错误栈里反推；
  * - 把重启执行器注入内核，从而支持后台"一键重启"（进程内软重启，ADR-004 / ADR-012）；
  * - 收到 SIGINT/SIGTERM 时优雅关停（停止插件、释放连接池）。
  */
@@ -132,12 +132,12 @@ function initializationHints(rootDir: string, error: unknown): string[] {
   const hints: string[] = [];
 
   if (!existsSync(path.join(rootDir, '.env'))) {
-    hints.push('未找到 .env —— 请先执行：pnpm setup');
+    hints.push('未找到 .env —— 请先执行：pnpm run setup（不要写裸 pnpm setup，那是 pnpm 自己的命令）');
   }
 
   const message = error instanceof Error ? error.message : String(error);
   if (/doesn't exist|ER_NO_SUCH_TABLE|Unknown table|Unknown database/i.test(message)) {
-    hints.push('数据库结构尚未初始化 —— 请执行：pnpm setup（或只补结构：pnpm migrate）');
+    hints.push('数据库结构尚未初始化 —— 请执行：pnpm run setup（或只补结构：pnpm migrate）');
   }
 
   return hints;

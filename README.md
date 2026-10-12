@@ -59,7 +59,7 @@ pnpm build            # 编译 Core / SDK / 官方插件 / 服务端
 ### 3. 运行安装向导（推荐）
 
 ```bash
-pnpm setup
+pnpm run setup
 ```
 
 一条命令走完：检查环境 → 收集数据库与站点信息 → **自动建库** → 生成 `.env`
@@ -68,8 +68,9 @@ pnpm setup
 
 - **必须安装**两项：`身份与认证`（缺它没有登录端点）与 `角色与权限`（缺它权限校验全拒），
   向导中不可取消；其余官方插件默认勾选、可取消。
-- 非交互（容器与 CI）：`pnpm setup --yes`（推荐档一键装完）、
-  `--plugins=posts,pages`（指定清单）、`--from-manifest`（按 `.env` 已有清单补齐）。
+- 非交互（容器与 CI）：参数需用 `--` 分隔后原样传给向导 ——
+  `pnpm run setup -- --yes`（推荐档一键装完）、`-- --plugins=posts,pages`（指定清单）、
+  `-- --from-manifest`（按 `.env` 已有清单补齐）。用 `pnpm ricenote setup --yes` 这种形式则不需要 `--`。
 - 可重入：任何一步失败都可以修好后重跑，已完成的步骤会被跳过。
 
 ```bash

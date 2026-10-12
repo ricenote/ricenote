@@ -52,7 +52,8 @@ import {
 } from './setup-env.js';
 
 const USAGE = `
-用法：pnpm ricenote setup [选项]
+用法：pnpm run setup [选项]        # 脚本形式（等价：pnpm ricenote setup，需先 pnpm build）
+       pnpm run setup -- --yes    # 传参数时用 -- 分隔，之后的值原样交给向导
 
   --yes                 采用默认值/推荐档，全程不提问（容器与 CI 用）
   --plugins=<列表>      指定要安装的插件（ID / npm 包名 / 短名，逗号分隔）
