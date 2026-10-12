@@ -61,6 +61,7 @@
 | [[PluginContext 逐方法参考\|Plugin-API-Context-Reference]] | 每个门面方法的签名、返回值与抛错 |
 | [[跨插件服务契约\|Plugin-API-Service-Contracts]] | 每个契约的逐方法语义与降级行为 |
 | [[插件自带后台界面\|Plugin-API-Admin-UI]] | 零构建入口、四态宿主、SDK 契约 |
+| [[权限点声明与角色分配\|Plugin-API-Permissions]] | 何时需要权限点、怎么声明、声明之后谁来授权 |
 | [[声明式设置表单\|Plugin-API-Settings]] | 字段类型、校验、合并写入与生效时机 |
 | [[完整教程：从零写插件\|Plugin-API-Tutorial]] | 端到端手把手（含可复制代码） |
 | [[主题包结构与契约\|Theme-API-Overview]] | `theme.json` 字段与模板回退链 |
@@ -68,7 +69,7 @@
 | [[主题设置与多语言\|Theme-API-Settings]] | 三层配置、乐观锁、多语言解析 |
 | [[挂载点清单\|Theme-API-Slots]] | 9 个标准插槽与渲染约定 |
 | [[扩展点全量清单\|Hooks-Inventory]] | 一张表查完所有扩展点 |
-| [[架构决策记录索引\|ADR]] | ADR-001 ~ ADR-017 |
+| [[架构决策记录索引\|ADR]] | ADR-001 ~ ADR-018 |
 | [[维护与发布指南\|Contributing]] | 如何加 wiki 页面、如何发布、常用命令 |
 
 ---

@@ -35,7 +35,7 @@ const ROOT = path.resolve(process.cwd(), '..');
  * 最难排查，所以从命名上根除，而不是靠"别并发跑"的约定。
  */
 const TEST_DB = `ricenote_setup_flow_${process.pid}`;
-const DB = { host: '127.0.0.1', port: 3306, user: 'root', password: 'cc80212562' };
+const DB = { host: '127.0.0.1', port: 3306, user: 'root', password: 'password' };
 const BASE_ENV = { ...process.env };
 
 interface CatalogEntry {

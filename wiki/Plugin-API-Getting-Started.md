@@ -93,9 +93,41 @@ export default definePlugin({
 
 ---
 
-## 4. 两条必须遵守的启动期约定
+## 4. 权限点：声明在你自己的清单里
 
-### 4.1 不要在 `start()` 里做"需要其它插件已就绪"的初始化
+只要插件有**需要登录才能用**的入口（后台页面、管理 API、后台菜单），就该有一个权限点守着。
+权限点的**展示文案与归属由拥有它的那一方声明** —— 插件写在自己的 `manifest.json` 里：
+
+```json
+{
+  "permissions": [
+    {
+      "key": "notice.manage",
+      "label": { "zh-CN": "管理公告条", "en": "Manage the notice bar" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    }
+  ]
+}
+```
+
+三件事必须记住：
+
+1. **声明 ≠ 授权**：声明只让权限点出现在后台权限目录里。自 `0.5.4` 起内置角色只剩 `administrator`
+   （权限 `*`），你新声明的权限点**默认没有任何角色持有**，要由站点管理员自建角色后分配 ——
+   插件不再替站点决定"谁该有什么权限"。
+2. **漏声明不会让站点起不来**（鉴权按标识字符串比对，与声明无关），但权限目录里会出现「未登记」分组
+   与一条启动告警；**与他人重复声明则是错误**：启动失败、`pnpm validate` 也失败。
+3. **它是个较新的字段**：`permissions` 自 `0.5.4` 引入，而 manifest schema 设了 `additionalProperties: false`，
+   旧宿主读到未知字段会直接判定清单非法。因此声明了它，就要把宿主区间写到 `^0.5.4` 及以上
+   （官方插件的做法是跟随宿主次版本，当前为 `^0.6.0`）。
+
+逐条规则、命名约定与自查手段见 [[权限点声明与角色分配|Plugin-API-Permissions]]。
+
+---
+
+## 5. 两条必须遵守的启动期约定
+
+### 5.1 不要在 `start()` 里做"需要其它插件已就绪"的初始化
 
 拓扑排序只保证**依赖在前**，**不保证**没有相互依赖关系的插件之间的先后顺序。
 因此"我要在 posts 插件启动后做点什么"这类逻辑**不能靠 `start()` 的顺序**。
@@ -111,7 +143,7 @@ ctx.events.on('core.runtime.started.v1', async ({ started, failed, excluded }) =
 > 真实案例：`rice.identity` 曾直接在 `start()` 里创建初始管理员并发事件，
 > 而此时 `rice.authorization` 还没订阅 → 管理员拿不到角色。现在改为订阅该事件后再执行。
 
-### 4.2 可选依赖必须在**请求期**惰性解析
+### 5.2 可选依赖必须在**请求期**惰性解析
 
 `tryUse()` 在 `start()` 阶段可能返回 `undefined`（即使那个插件最终会启动）——
 这是"假阴性"，不能据此做永久判断。
@@ -129,7 +161,7 @@ function taxonomyOf(ctx: PluginContext) {
 `rice.posts` 对 `content.taxonomy@1`、`media.library@1`、`identity.users@1` 三个可选依赖
 全部采用请求期解析；依赖可用性在 `core.runtime.started.v1` 回调里上报（供诊断展示）。
 
-### 4.3 第三条硬承诺：停用后"零残留"
+### 5.3 第三条硬承诺：停用后"零残留"
 
 `stop()` 里**应当**调用你在 `start()` 中拿到的所有 `Dispose` / `Unsubscribe` 句柄；
 即使你忘了，Core 也会**兜底释放**你注册的一切（路由 / 服务 / 插槽 / 事件 / 菜单 / 扩展点），
@@ -139,7 +171,7 @@ function taxonomyOf(ctx: PluginContext) {
 
 ---
 
-## 5. 一个真实的 20 行级插件
+## 6. 一个真实的 20 行级插件
 
 这是仓库里 `plugins/third-party/reading-time` 的核心逻辑（真实代码）：
 
@@ -199,11 +231,12 @@ export default definePlugin({
 
 ---
 
-## 6. 接下来
+## 7. 接下来
 
 - 字段细节 → [[manifest 逐字段参考|Plugin-API-Manifest-Reference]]
 - 每个 API 的签名与边界 → [[PluginContext 逐方法参考|Plugin-API-Context-Reference]]
 - 与其它插件协作 → [[跨插件服务契约|Plugin-API-Service-Contracts]]
 - 做后台界面 → [[插件自带后台界面|Plugin-API-Admin-UI]]
+- 权限点与角色分配 → [[权限点声明与角色分配|Plugin-API-Permissions]]
 - 暴露可配置项 → [[声明式设置表单|Plugin-API-Settings]]
 - **端到端走一遍** → [[完整教程：从零写插件|Plugin-API-Tutorial]]

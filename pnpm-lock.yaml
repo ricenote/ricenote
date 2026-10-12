@@ -291,6 +291,36 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  plugins/official/feed:
+    devDependencies:
+      '@ricenote/plugin-sdk':
+        specifier: workspace:^
+        version: link:../../../packages/plugin-sdk
+      '@ricenote/shared':
+        specifier: workspace:^
+        version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  plugins/official/friend-links:
+    devDependencies:
+      '@ricenote/plugin-sdk':
+        specifier: workspace:^
+        version: link:../../../packages/plugin-sdk
+      '@ricenote/shared':
+        specifier: workspace:^
+        version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   plugins/official/identity:
     devDependencies:
       '@ricenote/plugin-sdk':

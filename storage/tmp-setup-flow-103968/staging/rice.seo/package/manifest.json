@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.seo",
+  "name": "SEO",
+  "description": "提升站点在搜索引擎与社交平台上的展示效果，并生成供搜索引擎抓取的站点地图。",
+  "version": "1.1.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "capabilities": ["routes:public", "services:consume", "slots:register"],
+  "settingsSchema": {
+    "social": {
+      "label": { "zh-CN": "分享与结构化数据", "en": "Social & structured data" },
+      "description": {
+        "zh-CN": "影响 head.end 中注入的 meta 标签。修改后需重启服务生效。",
+        "en": "Controls the meta tags injected into head.end. A restart is required after changes."
+      },
+      "fields": {
+        "enableOpenGraph": {
+          "type": "boolean",
+          "label": { "zh-CN": "输出 Open Graph", "en": "Open Graph" },
+          "description": {
+            "zh-CN": "微信、飞书等以 og:* 决定分享卡片的标题与图片",
+            "en": "og:* tags drive link previews in most social apps"
+          },
+          "default": true
+        },
+        "enableTwitterCard": {
+          "type": "boolean",
+          "label": { "zh-CN": "输出 Twitter Card", "en": "Twitter Card" },
+          "default": true
+        },
+        "twitterSite": {
+          "type": "text",
+          "label": { "zh-CN": "站点 Twitter 账号", "en": "Twitter site handle" },
+          "description": {
+            "zh-CN": "形如 @ricenote；留空则不输出 twitter:site",
+            "en": "For example @ricenote; leave empty to omit twitter:site"
+          },
+          "default": "",
+          "maxLength": 64,
+          "placeholder": "@ricenote"
+        },
+        "defaultOgImage": {
+          "type": "text",
+          "label": { "zh-CN": "默认分享图", "en": "Default share image" },
+          "description": {
+            "zh-CN": "文章没有封面时使用；可填媒体库相对路径（/uploads/...）或完整 URL",
+            "en": "Used when a post has no cover image; a site-relative path or an absolute URL"
+          },
+          "default": "",
+          "maxLength": 300,
+          "placeholder": "/uploads/2026/10/cover.png"
+        },
+        "enableJsonLd": {
+          "type": "boolean",
+          "label": { "zh-CN": "输出 JSON-LD", "en": "JSON-LD" },
+          "description": {
+            "zh-CN": "结构化数据，帮助搜索引擎识别文章与站点信息",
+            "en": "Structured data that helps search engines understand posts and the site"
+          },
+          "default": true
+        }
+      }
+    },
+    "crawler": {
+      "label": { "zh-CN": "站点地图与 robots.txt", "en": "Sitemap & robots.txt" },
+      "description": {
+        "zh-CN": "关闭某一项会同时移除其公开路由（/sitemap.xml 或 /robots.txt）。",
+        "en": "Disabling an item also removes its public route (/sitemap.xml or /robots.txt)."
+      },
+      "fields": {
+        "enableSitemap": {
+          "type": "boolean",
+          "label": { "zh-CN": "提供 /sitemap.xml", "en": "Serve /sitemap.xml" },
+          "default": true
+        },
+        "enableRobots": {
+          "type": "boolean",
+          "label": { "zh-CN": "提供 /robots.txt", "en": "Serve /robots.txt" },
+          "default": true
+        },
+        "sitemapMaxUrls": {
+          "type": "number",
+          "label": { "zh-CN": "站点地图收录上限", "en": "Sitemap URL limit" },
+          "description": {
+            "zh-CN": "达到上限后截断，并在运行日志中记录",
+            "en": "Stops collecting after this many URLs and logs a warning"
+          },
+          "default": 1000,
+          "min": 1,
+          "max": 50000
+        },
+        "sitemapPageSize": {
+          "type": "number",
+          "label": { "zh-CN": "站点地图分页大小", "en": "Sitemap page size" },
+          "description": {
+            "zh-CN": "每次向文章服务索取多少条记录",
+            "en": "How many posts are fetched from the posts service per page"
+          },
+          "default": 50,
+          "min": 1,
+          "max": 100
+        },
+        "robotsDisallow": {
+          "type": "stringList",
+          "label": { "zh-CN": "robots.txt 禁止抓取路径", "en": "Disallowed paths" },
+          "description": {
+            "zh-CN": "每行一条路径前缀，例如 /admin；留空则只输出 Allow: /",
+            "en": "One path prefix per line, e.g. /admin; empty means Allow: / only"
+          },
+          "default": ["/admin", "/api"],
+          "maxItems": 20,
+          "maxLength": 100,
+          "placeholder": "/admin\n/api"
+        }
+      }
+    }
+  }
+}

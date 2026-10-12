@@ -32,7 +32,7 @@ flowchart TD
   PM --> RR
   PM --> DA
   F --> CORE
-  CORE --> P[官方插件<br/>identity / authorization / posts / pages<br/>navigation / taxonomy / media<br/>comments / search / seo]
+  CORE --> P[官方插件<br/>identity / authorization / posts / pages<br/>navigation / taxonomy / media<br/>comments / search / seo<br/>feed / friend-links / editor-enhance]
   CORE --> T[主题<br/>minimal / default]
   DA --> DB[(MySQL)]
   RD --> T
@@ -150,8 +150,8 @@ Core 进一步分为四层：
 跨插件协作只允许通过**服务契约**与**公开 ID**，禁止对他人表建外键或非受控联表。
 表名统一 `rn_` 前缀，插件自有表使用 `rn_<插件短名>_<名称>` 由 `ctx.db.table()` 生成。
 
-`rice.search` 与 `rice.seo` **不持有任何数据表**：前者只维护内存中的数据源注册表，
-后者的检索实现与索引（`rn_posts` 的 ngram FULLTEXT）都归数据源插件所有。
+`rice.search`、`rice.seo` 与 `rice.feed` **不持有任何数据表**：search 只维护内存中的数据源注册表，
+seo 与 feed 都只消费 `content.posts@1`（前者的检索实现与索引（`rn_posts` 的 ngram FULLTEXT）归数据源插件所有）。
 
 ### 插件目录
 

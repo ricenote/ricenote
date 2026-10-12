@@ -21,6 +21,7 @@
 | [ADR-015](ADR-015-plugin-sources-and-install-orchestration.md) | 插件三路来源（npm/Git/本地）、三段式安装编排与任务队列（修订 ADR-007） | 已接受 |
 | [ADR-016](ADR-016-official-plugin-npm-distribution.md) | 官方插件 npm 分发、推荐清单与 `ricenote setup` 安装向导 | 已接受 |
 | [ADR-017](ADR-017-named-extension-points.md) | 命名扩展点（三作用域统一模型）与内容自定义字段 | 已接受 |
+| [ADR-018](ADR-018-plugin-permission-declarations.md) | 权限点由插件声明、Core 聚合；内置角色收敛为 `administrator`（修订 ADR-005） | 已接受 |
 
 ## 说明书「待定项」的默认取值（M0–M2 实现依据）
 
@@ -94,3 +95,11 @@ v0.5.0「安装与分发」把安装过程与官方插件分发一起收口：�
   主题与既有插件零改动；admin 作用域由服务端三重过滤下发、由后台界面 SDK 渲染（错误隔离、样式引用计数、加载重试）；
   server 作用域默认响亮失败（abort），与 render 作用域的"降级为空片段"刻意相反；
   主题 `contentFields` 让文章与页面共用的版式字段（如特色图片）有声明式位置，写入 fail-closed、读取按声明过滤
+
+v0.5.4 把 ADR-005 里"权限点由插件声明"从口号落实为可校验的清单字段，并收回了插件的"越位授权"：
+
+- ADR-018：权限点改为各插件在 `manifest.permissions` 声明并带多语言文案，
+  Core 声明控制面与共用权限点、聚合并通过 `core.security@1` 暴露，authorization 只做本地化展示
+  —— 新增插件不再需要改动 authorization；重复声明报错、用了没声明只告警；
+  内置角色收敛为 `administrator`（`*`）且**不再每次启动重写权限**，
+  `editor` / `author` / `contributor` 退出内置（由迁移删除），新用户默认不分配角色

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.feed",
+  "name": "RSS 订阅",
+  "description": "为站点提供订阅地址，读者用 RSS 阅读器即可自动获取最新文章。",
+  "version": "1.1.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "capabilities": ["routes:public", "services:consume", "slots:register"],
+  "settingsSchema": {
+    "feed": {
+      "label": { "zh-CN": "订阅", "en": "Feed" },
+      "description": {
+        "zh-CN": "订阅地址为 /feed.xml。修改后需重启服务生效。",
+        "en": "The feed is served at /feed.xml. A restart is required after changes."
+      },
+      "fields": {
+        "enableFeed": {
+          "type": "boolean",
+          "label": { "zh-CN": "开启订阅", "en": "Enable the feed" },
+          "description": {
+            "zh-CN": "关闭后订阅地址不再可访问",
+            "en": "When disabled the feed address stops responding"
+          },
+          "default": true
+        },
+        "itemLimit": {
+          "type": "number",
+          "label": { "zh-CN": "订阅条数上限", "en": "Items in the feed" },
+          "description": {
+            "zh-CN": "最多输出多少篇最新文章",
+            "en": "How many recent posts are published in the feed"
+          },
+          "default": 20,
+          "min": 1,
+          "max": 100
+        },
+        "fullText": {
+          "type": "boolean",
+          "label": { "zh-CN": "输出正文全文", "en": "Include full text" },
+          "description": {
+            "zh-CN": "开启后订阅里包含文章全文，关闭则只包含摘要",
+            "en": "Include the whole article; when off only the excerpt is included"
+          },
+          "default": false
+        },
+        "cacheMaxAge": {
+          "type": "number",
+          "label": { "zh-CN": "缓存时间（秒）", "en": "Cache lifetime (seconds)" },
+          "description": {
+            "zh-CN": "阅读器与浏览器缓存订阅结果的时间，设为 0 表示不缓存",
+            "en": "How long readers and browsers may cache the feed; 0 disables caching"
+          },
+          "default": 1800,
+          "min": 0,
+          "max": 86400
+        }
+      }
+    }
+  }
+}

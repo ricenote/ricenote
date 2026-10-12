@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.comments",
+  "name": "评论",
+  "description": "为文章提供访客评论与回复，支持审核与垃圾评论拦截。",
+  "version": "1.2.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "provides": ["content.comments@1"],
+  "capabilities": [
+    "database:own",
+    "services:provide",
+    "services:consume",
+    "routes:public",
+    "routes:admin",
+    "events:publish",
+    "slots:register"
+  ],
+  "permissions": [
+    {
+      "key": "comment.moderate",
+      "label": { "zh-CN": "审核与管理评论", "en": "Moderate comments" },
+      "group": { "zh-CN": "互动", "en": "Engagement" }
+    }
+  ],
+  "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "comments.moderate",
+        "label": "评论审核",
+        "path": "/comments",
+        "icon": "MessageSquare",
+        "order": 20,
+        "permission": "comment.moderate",
+        "entry": "./admin/main.js"
+      }
+    ]
+  },
+  "settingsSchema": {
+    "general": {
+      "label": { "zh-CN": "通用", "en": "General" },
+      "description": {
+        "zh-CN": "评论区开关与内容约束。修改后需重启服务生效。",
+        "en": "Thread switches and content limits. A restart is required after changes."
+      },
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "label": { "zh-CN": "启用评论区", "en": "Enable comments" },
+          "description": {
+            "zh-CN": "关闭后文章页不再输出评论区，主题无需改动",
+            "en": "When off, the comment block is not rendered at all (no theme change needed)"
+          },
+          "default": true
+        },
+        "requireApproval": {
+          "type": "boolean",
+          "label": { "zh-CN": "新评论先审后发", "en": "Require approval" },
+          "description": {
+            "zh-CN": "关闭后访客评论直接可见，适合小流量站点",
+            "en": "When off, visitor comments are published immediately"
+          },
+          "default": true
+        },
+        "pageSize": {
+          "type": "number",
+          "label": { "zh-CN": "每页评论条数", "en": "Comments per page" },
+          "default": 20,
+          "min": 1,
+          "max": 100
+        },
+        "maxLength": {
+          "type": "number",
+          "label": { "zh-CN": "单条评论字数上限", "en": "Max comment length" },
+          "default": 2000,
+          "min": 1,
+          "max": 20000
+        },
+        "maxDepth": {
+          "type": "number",
+          "label": { "zh-CN": "最大回复层级", "en": "Max reply depth" },
+          "description": {
+            "zh-CN": "超过该层级的回复会被挂到最近的合法父级下",
+            "en": "Replies beyond this depth are attached to the closest valid parent"
+          },
+          "default": 5,
+          "min": 1,
+          "max": 10
+        }
+      }
+    },
+    "antispam": {
+      "label": { "zh-CN": "反垃圾", "en": "Anti-spam" },
+      "description": {
+        "zh-CN": "频率限制，填 0 表示关闭该项限制。",
+        "en": "Rate limits; set to 0 to disable that check."
+      },
+      "fields": {
+        "rateLimitWindowSeconds": {
+          "type": "number",
+          "label": { "zh-CN": "频率统计窗口（秒）", "en": "Rate limit window (seconds)" },
+          "default": 60,
+          "min": 0,
+          "max": 86400
+        },
+        "rateLimitMaxSubmissions": {
+          "type": "number",
+          "label": { "zh-CN": "窗口内最多提交条数", "en": "Max submissions per window" },
+          "default": 3,
+          "min": 0,
+          "max": 100
+        },
+        "maxLinksPerComment": {
+          "type": "number",
+          "label": { "zh-CN": "单条评论最多链接数", "en": "Max links per comment" },
+          "description": {
+            "zh-CN": "超限的评论会被判为垃圾待审",
+            "en": "Comments beyond this limit are classified as spam"
+          },
+          "default": 2,
+          "min": 0,
+          "max": 100
+        },
+        "blockedKeywords": {
+          "type": "stringList",
+          "label": { "zh-CN": "屏蔽关键词", "en": "Blocked keywords" },
+          "description": {
+            "zh-CN": "命中任意关键词的评论会被判为垃圾待审（不区分大小写）",
+            "en": "Comments containing any keyword are classified as spam (case-insensitive)"
+          },
+          "default": [],
+          "maxItems": 200,
+          "maxLength": 60,
+          "placeholder": "casino\n加微信"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.posts",
+  "name": "文章",
+  "description": "撰写、发布与归档文章，并生成站点的文章页面与归档页面。",
+  "version": "1.6.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "requires": {
+    "identity.users@1": "^1.0.0"
+  },
+  "provides": ["content.posts@1"],
+  "capabilities": [
+    "database:own",
+    "services:provide",
+    "services:consume",
+    "routes:public",
+    "routes:admin",
+    "events:publish",
+    "events:subscribe",
+    "slots:register",
+    "extensions:declare"
+  ],
+  "permissions": [
+    {
+      "key": "post.view",
+      "label": { "zh-CN": "查看文章", "en": "View posts" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    },
+    {
+      "key": "post.write",
+      "label": { "zh-CN": "撰写与编辑文章", "en": "Write and edit posts" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    },
+    {
+      "key": "post.publish",
+      "label": { "zh-CN": "发布与撤回文章", "en": "Publish and unpublish posts" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    },
+    {
+      "key": "post.delete",
+      "label": { "zh-CN": "删除文章", "en": "Delete posts" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    }
+  ],
+  "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "posts.list",
+        "label": "文章",
+        "path": "/posts",
+        "icon": "FileText",
+        "order": 50,
+        "permission": "post.view",
+        "entry": "./admin/main.js"
+      },
+      {
+        "id": "posts.editor",
+        "label": "编辑文章",
+        "path": "/posts/editor",
+        "permission": "post.write",
+        "entry": "./admin/editor.js",
+        "hidden": true
+      }
+    ]
+  },
+  "extensionPoints": [
+    {
+      "name": "rice.posts.listActions",
+      "scope": "admin",
+      "replaceable": true,
+      "description": "文章列表页右上角的操作区（默认内容是「新建文章」按钮）。停用所有贡献时行为与此前完全一致。",
+      "props": [
+        {
+          "name": "kind",
+          "description": "内容类型标识，固定为 'post'，便于同一贡献组件复用到其它内容类型。"
+        }
+      ]
+    },
+    {
+      "name": "rice.posts.editorToolbar",
+      "scope": "admin",
+      "replaceable": true,
+      "description": "文章编辑页正文上方的工具栏（默认无内容）。",
+      "props": [
+        { "name": "kind", "description": "内容类型标识，固定为 'post'。" },
+        { "name": "value", "description": "当前正文（Markdown）字符串，随编辑实时变化。" },
+        { "name": "onChange", "description": "更新正文的回调：接收新的 Markdown 字符串。" },
+        {
+          "name": "onPreview",
+          "description": "触发服务端预览的回调：返回渲染并消毒后的 HTML（Promise<string>）。"
+        }
+      ]
+    },
+    {
+      "name": "rice.posts.editorBody",
+      "scope": "admin",
+      "replaceable": true,
+      "description": "文章编辑页的正文编辑区（默认是多行文本域）。replace 贡献可接管正文编辑体验。",
+      "props": [
+        { "name": "kind", "description": "内容类型标识，固定为 'post'。" },
+        { "name": "value", "description": "当前正文（Markdown）字符串，随编辑实时变化。" },
+        { "name": "onChange", "description": "更新正文的回调：接收新的 Markdown 字符串。" },
+        {
+          "name": "onPreview",
+          "description": "触发服务端预览的回调：返回渲染并消毒后的 HTML（Promise<string>）。"
+        }
+      ]
+    }
+  ],
+  "settingsSchema": {
+    "general": {
+      "label": { "zh-CN": "列表与摘要", "en": "Listings & excerpts" },
+      "description": {
+        "zh-CN": "影响前台归档列表与自动摘要。修改后需重启服务生效。",
+        "en": "Affects archive listings and automatic excerpts. A restart is required after changes."
+      },
+      "fields": {
+        "pageSize": {
+          "type": "number",
+          "label": { "zh-CN": "每页文章条数", "en": "Posts per page" },
+          "default": 10,
+          "min": 1,
+          "max": 50
+        },
+        "excerptLength": {
+          "type": "number",
+          "label": { "zh-CN": "自动摘要长度（字符）", "en": "Excerpt length (characters)" },
+          "description": {
+            "zh-CN": "未手写摘要时，从正文截取多少个字符",
+            "en": "How many characters are taken from the body when no excerpt is set"
+          },
+          "default": 160,
+          "min": 20,
+          "max": 1000
+        }
+      }
+    }
+  }
+}

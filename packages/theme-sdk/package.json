@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/theme-sdk",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "type": "module",
   "description": "RiceNote 主题 SDK：模板上下文类型、helper/filter 契约与 theme.json 校验器",
   "homepage": "https://github.com/ricenote/theme-sdk",

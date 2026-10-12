@@ -3,7 +3,7 @@
   "id": "rice.taxonomy",
   "name": "分类与标签",
   "description": "为文章提供分类与标签，方便组织与归档内容。",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -14,6 +14,13 @@
     "services:provide",
     "services:consume",
     "routes:admin"
+  ],
+  "permissions": [
+    {
+      "key": "taxonomy.manage",
+      "label": { "zh-CN": "管理分类与标签", "en": "Manage categories and tags" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    }
   ],
   "migrations": "./migrations",
   "admin": {

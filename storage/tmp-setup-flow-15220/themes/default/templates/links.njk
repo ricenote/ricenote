@@ -1,0 +1,33 @@
+{#
+  友情链接页（由 rice.friend-links 插件提供的 kind=links 页面）。
+  friendLinks 是页面注入的顶层变量，元素形状：
+    { name, url, avatarUrl, description }  —— 后两项可能为空串。
+  插件未启用时不会有这个页面，因此这里不需要 has_feature 判断。
+#}
+{% extends "layout.njk" %}
+
+{% block title %}友情链接 · {{ site.title }}{% endblock %}
+{% block description %}{{ site.description }}{% endblock %}
+
+{% block content %}
+<h1 class="df-heading">友情链接</h1>
+<p class="df-sub">共 {{ friendLinks.length }} 个站点</p>
+
+{% if friendLinks.length %}
+  <div class="df-links">
+    {% for link in friendLinks %}
+      <a class="df-link" href="{{ link.url }}" target="_blank" rel="noopener noreferrer">
+        {% if link.avatarUrl %}
+          <img class="df-link__avatar" src="{{ link.avatarUrl }}" alt="" loading="lazy">
+        {% endif %}
+        <span class="df-link__body">
+          <span class="df-link__name">{{ link.name }}</span>
+          {% if link.description %}<span class="df-link__desc">{{ link.description }}</span>{% endif %}
+        </span>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="df-sub">暂无友情链接。</p>
+{% endif %}
+{% endblock %}

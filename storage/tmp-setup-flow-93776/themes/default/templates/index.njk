@@ -1,0 +1,47 @@
+{% extends "layout.njk" %}
+
+{% block content %}
+  {% if posts and posts.items.length %}
+    <div class="df-grid" data-columns="{{ theme.settings.columns }}">
+      {% for post in posts.items %}
+        <article class="df-card">
+          {# 卡片图优先取主题声明的「特色图片」，否则回落到媒体库封面（受主题设置开关约束） #}
+          {% set cardImage = post.fields.featuredImage or (theme.settings.showCover and post.coverUrl) %}
+          {% if cardImage %}
+            <a class="df-card__cover" href="{{ post.url }}" tabindex="-1" aria-hidden="true">
+              <img src="{{ cardImage }}" alt="" loading="lazy" decoding="async">
+            </a>
+          {% endif %}
+          <div class="df-card__body">
+            <h2 class="df-card__title"><a href="{{ post.url }}">{{ post.title }}</a></h2>
+            {% if post.publishedAt %}
+              <time class="df-card__date" datetime="{{ post.publishedAt }}">{{ post.publishedAt | date('YYYY-MM-DD') }}</time>
+            {% endif %}
+            <p class="df-card__excerpt">{{ post.excerpt }}</p>
+            {% if post.terms and post.terms.length %}
+              <ul class="df-tags">
+                {% for term in post.terms %}
+                  <li><a href="{% if term.type == 'category' %}{{ url('term.category', { slug: term.slug }) }}{% else %}{{ url('term.tag', { slug: term.slug }) }}{% endif %}">{{ term.name }}</a></li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    {% if pagination and pagination.totalPages > 1 %}
+      <nav class="df-pager">
+        {% if pagination.hasPrev %}<a href="{{ pagination.prevUrl }}">← 上一页</a>{% else %}<span class="df-pager__off">← 上一页</span>{% endif %}
+        <span>{{ pagination.page }} / {{ pagination.totalPages }}</span>
+        {% if pagination.hasNext %}<a href="{{ pagination.nextUrl }}">下一页 →</a>{% else %}<span class="df-pager__off">下一页 →</span>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <section class="df-empty">
+      <h2>暂无内容</h2>
+      <p>登录后台撰写第一篇文章，或检查内容插件是否启用。</p>
+      <a class="df-button" href="/admin/">进入管理后台</a>
+    </section>
+  {% endif %}
+{% endblock %}

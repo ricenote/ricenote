@@ -51,8 +51,27 @@
 - 恢复模式必须自带一套最小的管理员凭据引导逻辑，增加了 Core 的复杂度（约一个模块）；
 - 插件作者必须理解 permission 命名规范，文档成本上升。
 
+## 修订（2026-10-12，见 ADR-018）
+
+本 ADR 的决策**不变**：安全控制面留在 Core、鉴权 fail-closed、插件只声明所需权限点。
+
+被落实与修订的是第 3 条"**权限点由插件声明**"到底落在哪里：
+
+- 过去"声明"只体现在 `ctx.routes.adminApi({ permission })` 这样的**使用**上，
+  而权限点的展示文案与归属都硬编码在 authorization 插件的 `permissions.ts` 里；
+- 现在权限点在**各插件自己的** `manifest.permissions` 里声明（含多语言文案与分组），
+  Core 自己声明控制面与共用权限点（`theme.*` / `plugin.*` / `user.manage` / `system.*`），
+  由 Core 聚合、校验全局唯一，并通过 `core.security@1` 暴露给 authorization 展示。
+
+同时本 ADR 的"authorization 插件（业务）：角色、权限点、角色-权限映射"**收窄**：
+authorization 不再持有权限点目录，也不再把内置角色当作"替站点决定分工"的手段 ——
+内置角色只保留 `administrator`（`*`），其余角色由站点管理员自建。
+
+详见 ADR-018。
+
 ## 相关实现
 
 - `packages/core/src/security/gateway.ts`：能力校验与 fail-closed 策略
 - `packages/core/src/security/session.ts` / `csrf.ts` / `audit.ts`
+- `packages/core/src/security/permission-registry.ts`：权限点声明/使用的聚合（ADR-018）
 - `apps/server/src/recovery/recovery-mode.ts`：无业务插件时的安装/维护界面

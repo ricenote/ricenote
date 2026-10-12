@@ -3,7 +3,7 @@
   "id": "rice.identity",
   "name": "身份与认证",
   "description": "管理用户账号与登录。",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",

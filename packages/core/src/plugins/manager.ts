@@ -59,6 +59,7 @@ import {
   type DependencyProblem
 } from './dependency-resolver.js';
 import { assertTransition, type PluginRecord } from './lifecycle.js';
+import type { PermissionRegistry } from '../security/permission-registry.js';
 import { PluginStore } from './plugin-store.js';
 import { createPluginContext, type ContextFactoryDeps, type PluginContextBundle } from './context-factory.js';
 import {
@@ -82,6 +83,12 @@ export interface PluginManagerDeps {
   extensions: ExtensionRegistry;
   adminMenu: AdminMenuRegistry;
   migrations: MigrationCoordinator;
+  /**
+   * 权限点登记表（由 bootstrap 创建并先登记 Core 自有权限点）。
+   *
+   * 管理器负责登记各插件的声明与静态使用，运行期使用由上下文工厂登记。
+   */
+  permissions: PermissionRegistry;
   /**
    * 生效中的站点信息（含后台覆盖）。
    *
@@ -146,6 +153,18 @@ export class PluginManager {
         dir: invalid.dir,
         issues: invalid.issues.slice(0, 5)
       });
+    }
+
+    /*
+     * 权限点登记：声明来自各插件 manifest.permissions，静态使用来自
+     * manifest.admin.pages / contributions。
+     *
+     * 这里登记的是**发现到的全部插件**（含未启用的）：权限目录需要在插件被启用之前
+     * 就能展示它、管理员可以先建好角色再启用插件。跨插件重复声明在此直接抛错 ——
+     * 归属不清必须在启动期暴露，而不是等权限目录里出现两个同名项。
+     */
+    for (const plugin of this.loaded.values()) {
+      this.deps.permissions.declareManifest(plugin.manifest.id, plugin.manifest);
     }
 
     await migrations.ensureLedger();
@@ -285,6 +304,19 @@ export class PluginManager {
       { source: 'core' }
     );
 
+    /*
+     * 宽松策略：用了却没声明的权限点只告警，不拦截（鉴权按标识字符串比对，与声明无关）。
+     * 这样第三方插件在补上 `manifest.permissions` 之前照旧可用，而站点管理员
+     * 能在日志里看到"还有哪些权限点没有归属与中文名"。
+     */
+    const undeclared = this.deps.permissions.undeclared();
+    if (undeclared.length > 0) {
+      logger.warn('存在被使用但未声明的权限点（鉴权不受影响；建议在对应插件的 manifest.permissions 中声明）', {
+        count: undeclared.length,
+        items: undeclared.slice(0, 20).map((item) => `${item.key} ← ${item.usedBy.join(', ')}`)
+      });
+    }
+
     return {
       started,
       failed,
@@ -322,6 +354,7 @@ export class PluginManager {
       adminMenu: this.deps.adminMenu,
       site: () => this.siteInfo(),
       pluginSettings: settings,
+      permissions: this.deps.permissions,
       logger: this.deps.logger
     };
 

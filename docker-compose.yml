@@ -10,7 +10,7 @@ services:
       - --collation-server=utf8mb4_unicode_ci
       - --default-authentication-plugin=caching_sha2_password
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-cc80212562}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-password}
       MYSQL_DATABASE: ${DB_NAME:-ricenote}
       MYSQL_USER: ${DB_USER:-ricenote}
       MYSQL_PASSWORD: ${DB_PASSWORD:-ricenote}
@@ -19,7 +19,7 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-p${DB_ROOT_PASSWORD:-cc80212562}']
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-p${DB_ROOT_PASSWORD:-password}']
       interval: 10s
       timeout: 5s
       retries: 10

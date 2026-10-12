@@ -15,7 +15,8 @@
  *   node scripts/release-plugins.mjs --skip-published     # 已存在于 registry 的版本自动跳过
  *
  * `--skip-published` 建议常开：npm 不允许覆盖已发布的版本号，
- * 而全量发布会一次尝试 15 个包 —— 只要有**一个**版本没变就会以 EPUBLISHCONFLICT 中断整轮。
+ * 而全量发布会一次尝试 17 个包（4 个 SDK + 13 个插件）—— 只要有**一个**版本没变就会以
+ * EPUBLISHCONFLICT 中断整轮。
  * 开启后"只改了插件 X"也能直接跑全量，脚本会跳过没变的那些。
  *
  * 凭据：**只从环境变量读取**（NPM_TOKEN / NODE_AUTH_TOKEN 由调用方放进
@@ -268,7 +269,7 @@ for (const target of selected) {
   if (flags.dryRun) common.push('--dry-run');
 
   /*
-   * 已发布的版本无法覆盖：npm 以 EPUBLISHCONFLICT 拒绝，而全量发布会一次尝试 15 个包，
+   * 已发布的版本无法覆盖：npm 以 EPUBLISHCONFLICT 拒绝，而全量发布会一次尝试 17 个包，
    * 只要有**一个**没变就会中断整轮。因此在发布之前先做存在性检查。
    *
    * 只在真实发布时查：`--dry-run` 保持完全离线（它的职责是校验与预览，不该依赖网络）。

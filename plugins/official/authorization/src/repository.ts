@@ -16,13 +16,16 @@ export interface RoleRow {
 }
 
 /**
- * 同步内置角色及其权限点。
+ * 确保内置角色存在。
  *
- * - 角色记录由迁移创建，这里只补齐 `description`；
- * - 内置角色的权限集合以**代码为准**，每次启动重写，保证升级时权限变更自动生效；
- * - 自定义角色（builtin=0）不会被触碰。
+ * 内置角色现在**只有一个** `administrator`，且它的权限恒为 `*`：
+ * - 角色记录幂等写入（`builtin = 1`，不可删除，`description` 会被补齐）；
+ * - 权限只做"确保 `*` 在"，**不再重写**该角色已授予的其它权限点 ——
+ *   历史上"每次启动 DELETE 后重写"的语义会让管理员在后台做的调整在重启后消失
+ *   （对内置角色尤其致命），本轮把它改掉；
+ * - 自定义角色与其它已有角色完全不被触碰。
  */
-export async function syncBuiltinRoles(db: PluginDatabase): Promise<void> {
+export async function ensureBuiltinRoles(db: PluginDatabase): Promise<void> {
   for (const role of BUILTIN_ROLES) {
     await db.execute(
       `INSERT INTO rn_authz_roles (name, description, builtin, created_at)
@@ -38,10 +41,11 @@ export async function syncBuiltinRoles(db: PluginDatabase): Promise<void> {
     const roleId = rows[0]?.id;
     if (!roleId) continue;
 
-    await db.execute('DELETE FROM rn_authz_role_permissions WHERE role_id = ?', [roleId]);
     for (const permission of role.permissions) {
       await db.execute(
-        'INSERT INTO rn_authz_role_permissions (role_id, permission) VALUES (?, ?)',
+        `INSERT INTO rn_authz_role_permissions (role_id, permission)
+         VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE permission = permission`,
         [roleId, permission]
       );
     }

@@ -3,7 +3,7 @@
   "id": "rice.media",
   "name": "媒体库",
   "description": "管理站点上传的图片与文件，供文章中引用。",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -18,6 +18,13 @@
     "media:store",
     "extensions:declare",
     "extensions:contribute"
+  ],
+  "permissions": [
+    {
+      "key": "media.manage",
+      "label": { "zh-CN": "管理媒体库", "en": "Manage the media library" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    }
   ],
   "migrations": "./migrations",
   "admin": {

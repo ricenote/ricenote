@@ -54,6 +54,7 @@
 | 页面 | `/pages` | `page.view` | `rice.pages` | 列表 + 筛选 + 抽屉式编辑 + 状态与模板选择 + 删除确认 |
 | 页面编辑 | `/pages/editor` | `page.manage` | `rice.pages` | 独立编辑页（**不进侧栏**，靠深链或列表跳转进入） |
 | 导航栏 | `/navigation` | `nav.view`（写入需 `nav.manage`） | `rice.navigation` | 前台预览、上下移排序、启用开关、类型化编辑；引用类目标失效时给出原因 |
+| 友情链接 | `/friend-links` | `link.view`（写入需 `link.manage`） | `rice.friend-links` | 友链列表 + 弹窗表单、启用开关、排序数值（越小越靠前）；前台页面为 `/links` |
 | 角色与权限 | `/roles` | `user.manage` | `rice.authorization` | 角色、权限点、用户-角色分派 |
 | 评论审核 | `/comments` | `comment.moderate` | `rice.comments` | 状态页签与计数、嵌套缩进展示、批量操作、详情浮层（含 IP 哈希与 UA） |
 | 用户 | `/users` | `user.manage` | `rice.identity` | 用户列表、创建、重置他人密码（**不能重置自己**） |
@@ -77,34 +78,39 @@ vendor 缺失时**自动降级**回文本域 —— 编辑功能与草稿都不�
 文章编辑页的标签是「输入即选择、不存在即创建」：单输入框内多选已有标签（忽略大小写与首尾空白、高亮匹配、键盘上下 + 回车选取）；
 输入不存在的名称时**按权限**自动创建标签并选中。分类选择保持为下拉。
 
-> 创建标签需要 `taxonomy.manage`。没有该权限的角色（如 `author` / `contributor`）只能选择已有标签，界面会给出原因说明，而不是"输入了没反应"。
+> 创建标签需要 `taxonomy.manage`。没有该权限的角色只能选择已有标签，界面会给出原因说明，而不是"输入了没反应"。
 
 ---
 
 ## 权限点与内置角色
 
-权限点由 `rice.authorization` 注册（`src/permissions.ts`），内置角色**以代码为准，每次启动同步**。
+权限点归**拥有它的一方**：插件在自己的 `manifest.permissions` 里声明（含展示名与分组），
+Core 的控制面与共用权限点写在内核里。Core 校验全局唯一并聚合，
+`rice.authorization` 只负责按站点语言展示与分派。
 
-| 权限点 | 组别 | 含义 |
-| --- | --- | --- |
-| `post.view` / `post.write` / `post.publish` / `post.delete` | 内容 | 文章查看、撰写、发布、删除 |
-| `page.view` / `page.manage` | 内容 | 页面查看 / 管理 |
-| `taxonomy.manage` | 内容 | 分类与标签维护（含"输入即创建标签"） |
-| `media.manage` | 内容 | 媒体上传与删除 |
-| `comment.moderate` | 互动 | 评论审核 |
-| `nav.view` / `nav.manage` | 外观 | 导航栏查看 / 管理 |
-| `theme.view` / `theme.manage` | 外观 | 主题查看 / 管理（含站点信息写入） |
-| `plugin.view` / `plugin.manage` | 扩展 | 插件查看 / 启停与设置 |
-| `plugin.install` | 扩展 | 插件**安装 / 更新 / 卸载 / 构建**（会在服务器上执行插件代码，默认仅管理员） |
-| `user.manage` | 系统 | 用户与角色管理 |
-| `system.audit` / `system.maintain` / `system.restart` | 系统 | 审计日志 / 运行日志与备份 / 一键重启 |
+| 权限点 | 组别 | 含义 | 声明方 |
+| --- | --- | --- | --- |
+| `post.view` / `post.write` / `post.publish` / `post.delete` | 内容 | 文章查看、撰写、发布、删除 | `rice.posts` |
+| `page.view` / `page.manage` | 内容 | 页面查看 / 管理 | `rice.pages` |
+| `taxonomy.manage` | 内容 | 分类与标签维护（含"输入即创建标签"） | `rice.taxonomy` |
+| `media.manage` | 内容 | 媒体上传与删除 | `rice.media` |
+| `comment.moderate` | 互动 | 评论审核 | `rice.comments` |
+| `nav.view` / `nav.manage` | 外观 | 导航栏查看 / 管理 | `rice.navigation` |
+| `link.view` / `link.manage` | 外观 | 友情链接查看 / 管理 | `rice.friend-links` |
+| `theme.view` / `theme.manage` | 外观 | 主题查看 / 管理（含站点信息写入） | Core |
+| `plugin.view` / `plugin.manage` | 扩展 | 插件查看 / 启停与设置 | Core |
+| `plugin.install` | 扩展 | 插件**安装 / 更新 / 卸载 / 构建**（会在服务器上执行插件代码，默认仅管理员） | Core |
+| `user.manage` | 用户 | 用户与角色管理（identity 与 authorization 共用） | Core |
+| `system.audit` / `system.maintain` / `system.restart` | 系统 | 审计日志 / 运行日志与备份 / 一键重启 | Core |
 
-| 内置角色 | 权限 |
-| --- | --- |
-| `administrator` | `*`（全部） |
-| `editor` | 内容 + 互动 + 外观查看与管理的组合（含评论审核、导航管理） |
-| `author` | 自己的文章写作与发布相关 + 页面/导航/分类的**查看** |
-| `contributor` | 写作与提交，但不含发布；管理类只读 |
+**内置角色只有 `administrator`（`*`）**：启动只保证它存在且权限为 `*`（否则库被改坏后没人能进后台）。
+
+> `editor` / `author` / `contributor` 曾是内置角色，现在**不再内置**（升级时由迁移删除）：
+> 插件不该替站点决定"谁该有什么权限"。请按自己的分工在「角色与权限」页自建角色并勾选权限点。
+> 新建用户也**不会再自动获得角色**（首个用户仍自动成为 `administrator`），需要显式分配。
+
+未声明的权限点（第三方插件在补上声明之前）会以「未登记」分组出现在权限目录里，
+**仍然可以分配给角色** —— 鉴权按权限点标识比对，与是否声明无关。
 
 > **`plugin.install` 与 `plugin.manage` 是刻意分开的**：安装会在服务器上执行插件代码（含依赖安装与构建脚本），
 > 因此后台安装时需要勾选"已知晓风险"的确认框，并写入审计。

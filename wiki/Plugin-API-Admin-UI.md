@@ -69,7 +69,8 @@ export default defineAdminPage({ /* ... */ });
 - `entry` 必须是 `./admin/*.js`；
 - 宿主把它换算为 URL：`./admin/main.js` → `/plugin-admin/<pluginId>/main.js`；
 - 该路径的访问要求：**已登录 + 插件已启用 + 路径限定在插件的 `admin/` 目录内**；
-- `permission` 决定侧栏是否显示（权限不足则不出现）；
+- `permission` 决定侧栏是否显示（权限不足则不出现）；该标识要先在自己的 `manifest.permissions` 里声明，
+  见 [[权限点声明与角色分配|Plugin-API-Permissions]]；
 - `hidden: true` 表示**不进侧栏**（编辑器类页面靠深链或列表跳转进入）。
 
 `pnpm validate` 会校验入口文件存在、路径与 ID 全局唯一。

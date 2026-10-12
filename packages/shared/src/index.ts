@@ -12,6 +12,7 @@ export * from './content-template.js';
 export * from './url.js';
 export * from './embed.js';
 export * from './manifests.js';
+export * from './localized-text.js';
 export * from './content-fields.js';
 export * from './types/dto.js';
 export * from './types/services.js';

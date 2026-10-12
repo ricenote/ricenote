@@ -1,0 +1,30 @@
+{#
+  阅读版式：正文收窄居中，行宽更短、更适合长文（条款、隐私政策、说明书）。
+
+  与默认页面模板的差别只在版式，不影响内容。
+#}
+{% extends "layout.njk" %}
+
+{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}
+{% block description %}{{ seoDescription or site.description }}{% endblock %}
+
+{% block content %}
+<article class="rn-post rn-page rn-page--narrow">
+  <header class="rn-post__header">
+    <h1 class="rn-post__title">{% if content %}{{ content.title }}{% else %}{{ page.title }}{% endif %}</h1>
+    {% if content and content.updatedAt %}
+      <p class="rn-post__meta">
+        <time datetime="{{ content.updatedAt }}">最后更新 {{ content.updatedAt | date('YYYY年MM月DD日') }}</time>
+      </p>
+    {% endif %}
+  </header>
+
+  <div class="rn-prose">
+    {% if content and content.html %}
+      {{ content.html }}
+    {% else %}
+      <p class="rn-muted">该页面暂无正文。</p>
+    {% endif %}
+  </div>
+</article>
+{% endblock %}

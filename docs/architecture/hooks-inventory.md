@@ -37,7 +37,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 
 | 插槽 | 位置（主题约定） | 当前注册者 | 优先级 |
 | --- | --- | --- | --- |
-| `head.end` | `</head>` 之前 | `rice.seo` → `seo.meta` | 0 |
+| `head.end` | `</head>` 之前 | `rice.seo` → `seo.meta`；`rice.feed` → `feed.discovery` | 0 |
 | `body.start` | `<body>` 起始 | 无 | — |
 | `body.end` | `</body>` 之前 | 无 | — |
 | `header.navigation` | 主导航区域 | `rice.navigation` → `navigation.header` | 20 |
@@ -86,6 +86,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `rice.posts` | `term.tag` | `/tag/:slug` | `archive` | — | 是 |
 | `rice.pages` | `page.show` | `/page/:slug` | `page` | 内容可选模板键 | 由插件设置控制 |
 | `rice.search` | `search` | `/search` | `search` | — | **否**（结果随关键词变化） |
+| `rice.friend-links` | `links` | `/links` | `links` | 需主题声明 `templates.links` | 是 |
 
 `name` 供主题的 `url('name', params)` 使用；`kind` 决定主题模板；`template` 见
 `docs/plugin-api/v1.md` 第 14 节。
@@ -99,6 +100,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `rice.comments` | GET | `/api/comments` | 默认（public） | 按 `postId` 读取已通过评论 |
 | `rice.seo` | GET | `/sitemap.xml` | 默认（public） | 受 `settings.enableSitemap` 控制 |
 | `rice.seo` | GET | `/robots.txt` | 默认（public） | 受 `settings.enableRobots` 控制 |
+| `rice.feed` | GET | `/feed.xml` | 默认（public） | RSS 2.0 订阅源，受 `settings.enableFeed` 控制 |
 
 ### 2.3 管理 API（`ctx.routes.adminApi`，挂载前缀 `/api/admin`）
 
@@ -139,6 +141,10 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `rice.comments` | GET | `/comments` | `comment.moderate` |
 | `rice.comments` | GET | `/comments/counts` | `comment.moderate` |
 | `rice.comments` | POST | `/comments/moderate` | `comment.moderate` |
+| `rice.friend-links` | GET | `/friend-links/items` | `link.view` |
+| `rice.friend-links` | POST | `/friend-links/items` | `link.manage` |
+| `rice.friend-links` | PUT | `/friend-links/items/:linkId` | `link.manage` |
+| `rice.friend-links` | DELETE | `/friend-links/items/:linkId` | `link.manage` |
 
 ### 2.4 Core 自有的管理 API（不属于插件，供对照）
 
@@ -188,7 +194,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `identity.user.profile.updated.v1` | `rice.identity` | 无 | 资料修改 |
 | `identity.authorization.role.assigned.v1` | `rice.authorization` | 无 | 角色分派 |
 | `identity.authorization.role.revoked.v1` | `rice.authorization` | 无 | 角色回收 |
-| `identity.authorization.bootstrap.completed.v1` | `rice.authorization` | 无 | 内置角色同步完成 |
+| `identity.authorization.bootstrap.completed.v1` | `rice.authorization` | 无 | 首个用户成为管理员后发出 |
 | `content.post.published.v1` | `rice.posts` | `rice.navigation`（仅当该文章被导航引用） | 由非发布态转发布 |
 | `content.post.updated.v1` | `rice.posts` | `rice.navigation`（仅当该文章被导航引用） | 更新既有文章（标题 / 别名变更也在此广播） |
 | `content.post.unpublished.v1` | `rice.posts` | `rice.navigation`（仅当该文章被导航引用） | 由发布态转非发布 |
@@ -250,6 +256,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `media.library` | 媒体库 | `/media` | `Image` | 10 | `media.manage` | `rice.media` |
 | `pages.list` | 页面 | `/pages` | `FileStack` | 15 | `page.view` | `rice.pages` |
 | `navigation.items` | 导航栏 | `/navigation` | `Navigation` | 18 | `nav.view` | `rice.navigation` |
+| `friend-links.list` | 友情链接 | `/friend-links` | `Link` | 19 | `link.view` | `rice.friend-links` |
 | `taxonomy.terms` | 分类与标签 | `/taxonomy` | `Tags` | 15 | `post.view` | `rice.taxonomy` |
 | `users.roles` | 角色与权限 | `/roles` | `ShieldCheck` | 20 | `user.manage` | `rice.authorization` |
 | `comments.moderate` | 评论审核 | `/comments` | `MessageSquare` | 20 | `comment.moderate` | `rice.comments` |
@@ -344,6 +351,8 @@ Core 在插件启动时读取声明并注册菜单，同时：
 | `page.manage` | 管理独立页面 | pages 增删改 |
 | `nav.view` | 查看导航栏 | 导航项列表、目标候选、后台菜单 |
 | `nav.manage` | 管理导航栏 | 导航项增删改与排序 |
+| `link.view` | 查看友情链接 | 友链列表、后台菜单 |
+| `link.manage` | 管理友情链接 | 友链增删改 |
 | `taxonomy.manage` | 管理分类与标签 | taxonomy 增删 |
 | `media.manage` | 管理媒体库 | media 上传/删除 |
 | `comment.moderate` | 审核与管理评论 | comments 后台 |

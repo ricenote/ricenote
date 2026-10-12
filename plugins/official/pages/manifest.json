@@ -3,7 +3,7 @@
   "id": "rice.pages",
   "name": "页面",
   "description": "创建「关于我们」「联系方式」这类固定内容页面，可自定义地址、状态与排序。",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -19,6 +19,18 @@
     "events:subscribe",
     "slots:register",
     "extensions:declare"
+  ],
+  "permissions": [
+    {
+      "key": "page.view",
+      "label": { "zh-CN": "查看页面", "en": "View pages" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    },
+    {
+      "key": "page.manage",
+      "label": { "zh-CN": "管理独立页面", "en": "Manage standalone pages" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    }
   ],
   "migrations": "./migrations",
   "admin": {

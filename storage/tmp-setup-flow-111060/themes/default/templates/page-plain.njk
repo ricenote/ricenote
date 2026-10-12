@@ -1,0 +1,19 @@
+{#
+  落地页版式：去掉标题与卡片边框，正文直接铺在页面上，适合以图/文为主的推广页。
+#}
+{% extends "layout.njk" %}
+
+{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}
+{% block description %}{{ seoDescription or site.description }}{% endblock %}
+
+{% block content %}
+<div class="df-page df-page--plain">
+  <div class="df-prose">
+    {% if content and content.html %}
+      {{ content.html }}
+    {% else %}
+      <p>该页面暂无正文。</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

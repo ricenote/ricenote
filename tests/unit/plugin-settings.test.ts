@@ -330,6 +330,11 @@ describe('官方插件清单的设置声明', () => {
       fields: { maxItems: 10 }
     },
     {
+      path: 'plugins/official/feed',
+      groups: ['feed'],
+      fields: { enableFeed: true, itemLimit: 20, fullText: false, cacheMaxAge: 1800 }
+    },
+    {
       path: 'plugins/third-party/reading-time',
       groups: ['display'],
       fields: { wordsPerMinute: 300, showWordCount: true, label: '阅读时长' }

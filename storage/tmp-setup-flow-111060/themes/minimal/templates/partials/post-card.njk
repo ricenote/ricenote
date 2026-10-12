@@ -1,0 +1,35 @@
+{# 文章卡片：列表页复用。 #}
+<article class="rn-post-card">
+  {% if post.coverUrl %}
+    <a class="rn-post-card__cover" href="{{ post.url }}" tabindex="-1" aria-hidden="true">
+      <img src="{{ post.coverUrl }}" alt="" loading="lazy" decoding="async">
+    </a>
+  {% endif %}
+
+  <div class="rn-post-card__body">
+    <h2 class="rn-post-card__title">
+      <a href="{{ post.url }}">{{ post.title }}</a>
+    </h2>
+
+    <p class="rn-post-card__meta">
+      {% if post.publishedAt %}<time datetime="{{ post.publishedAt }}">{{ post.publishedAt | date('YYYY年MM月DD日') }}</time>{% endif %}
+      {% if post.authorName %}<span class="rn-dot">·</span><span>{{ post.authorName }}</span>{% endif %}
+    </p>
+
+    {% if post.excerpt %}
+      <p class="rn-post-card__excerpt">{{ post.excerpt }}</p>
+    {% endif %}
+
+    {% if post.terms and post.terms.length %}
+      <ul class="rn-terms">
+        {% for term in post.terms %}
+          <li>
+            <a href="{% if term.type == 'category' %}{{ url('term.category', { slug: term.slug }) }}{% else %}{{ url('term.tag', { slug: term.slug }) }}{% endif %}">
+              {{ term.name }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</article>

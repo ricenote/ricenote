@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.friend-links",
+  "name": "友情链接",
+  "description": "管理站点的友情链接，并为访客提供一个展示友链的页面。",
+  "version": "1.1.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "capabilities": ["database:own", "services:consume", "routes:public", "routes:admin"  ],
+  "permissions": [
+    {
+      "key": "link.view",
+      "label": { "zh-CN": "查看友情链接", "en": "View friend links" },
+      "group": { "zh-CN": "外观", "en": "Appearance" }
+    },
+    {
+      "key": "link.manage",
+      "label": { "zh-CN": "管理友情链接", "en": "Manage friend links" },
+      "group": { "zh-CN": "外观", "en": "Appearance" }
+    }
+  ],
+  "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "friend-links.list",
+        "label": "友情链接",
+        "path": "/friend-links",
+        "icon": "Link",
+        "order": 19,
+        "permission": "link.view",
+        "entry": "./admin/main.js"
+      }
+    ]
+  }
+}

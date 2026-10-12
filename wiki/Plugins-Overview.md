@@ -1,9 +1,9 @@
 # 官方插件一览
 
-RiceNote 的业务能力全部由插件实现。仓库随附 **11 个官方插件**（`plugins/official/`）与 **1 个第三方示例**（`plugins/third-party/reading-time`）。
+RiceNote 的业务能力全部由插件实现。仓库随附 **13 个官方插件**（`plugins/official/`）与 **1 个第三方示例**（`plugins/third-party/reading-time`）。
 
 > **官方插件 vs 内置插件**：从官方目录随仓库分发的插件带「官方」身份但**可更新、可卸载**；
-> 内置（随进程分发、不可卸载）的只有 Core 自身的基础设施。所有 11 个官方插件都可以独立启停。
+> 内置（随进程分发、不可卸载）的只有 Core 自身的基础设施。所有 13 个官方插件都可以独立启停。
 
 官方插件提供了博客系统的基础功能，开发主题或者其他增强插件时可以直接使用。
 
@@ -13,17 +13,19 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **11 个官方插�
 
 | 插件 | ID | 版本 | 提供的能力契约 | 依赖 | 后台页面 |
 | --- | --- | --- | --- | --- | --- |
-| 身份与认证 | `rice.identity` | 1.3.0 | `identity.auth@1`、`identity.users@1` | —— | 用户 `/users` |
-| 角色与权限 | `rice.authorization` | 1.3.0 | `identity.authorization@1` | `identity.users@1` | 角色与权限 `/roles` |
-| 文章 | `rice.posts` | 1.6.0 | `content.posts@1` | `identity.users@1` | 文章 `/posts`、编辑文章 `/posts/editor` |
-| 页面 | `rice.pages` | 1.3.0 | `content.pages@1` | —— | 页面 `/pages`、页面编辑 `/pages/editor` |
-| 导航栏 | `rice.navigation` | 1.1.0 | `content.navigation@1` | —— | 导航栏 `/navigation` |
-| 分类与标签 | `rice.taxonomy` | 1.1.0 | `content.taxonomy@1` | —— | 分类与标签 `/taxonomy` |
-| 媒体库 | `rice.media` | 1.2.0 | `media.library@1` | —— | 媒体库 `/media` |
-| 评论 | `rice.comments` | 1.2.0 | `content.comments@1` | ——（对 posts / identity 为请求期可选依赖） | 评论审核 `/comments` |
-| 搜索 | `rice.search` | 1.1.0 | `content.search@1` | —— | —— |
-| SEO | `rice.seo` | 1.1.0 | ——（消费 `content.posts@1`） | —— | —— |
-| 编辑增强 | `rice.editor-enhance` | 1.0.0 | ——（纯前端贡献） | —— | —— |
+| 身份与认证 | `rice.identity` | 1.4.0 | `identity.auth@1`、`identity.users@1` | —— | 用户 `/users` |
+| 角色与权限 | `rice.authorization` | 1.4.0 | `identity.authorization@1` | `identity.users@1` | 角色与权限 `/roles` |
+| 文章 | `rice.posts` | 1.7.0 | `content.posts@1` | `identity.users@1` | 文章 `/posts`、编辑文章 `/posts/editor` |
+| 页面 | `rice.pages` | 1.4.0 | `content.pages@1` | —— | 页面 `/pages`、页面编辑 `/pages/editor` |
+| 导航栏 | `rice.navigation` | 1.2.0 | `content.navigation@1` | —— | 导航栏 `/navigation` |
+| 分类与标签 | `rice.taxonomy` | 1.2.0 | `content.taxonomy@1` | —— | 分类与标签 `/taxonomy` |
+| 媒体库 | `rice.media` | 1.3.0 | `media.library@1` | —— | 媒体库 `/media` |
+| 评论 | `rice.comments` | 1.3.0 | `content.comments@1` | ——（对 posts / identity 为请求期可选依赖） | 评论审核 `/comments` |
+| 搜索 | `rice.search` | 1.2.0 | `content.search@1` | —— | —— |
+| SEO | `rice.seo` | 1.2.0 | ——（消费 `content.posts@1`） | —— | —— |
+| 编辑增强 | `rice.editor-enhance` | 1.1.0 | ——（纯前端贡献） | —— | —— |
+| RSS 订阅 | `rice.feed` | 1.1.0 | ——（消费 `content.posts@1`） | —— | —— |
+| 友情链接 | `rice.friend-links` | 1.1.0 | —— | —— | 友情链接 `/friend-links` |
 | _示例：阅读时长_ | `acme.reading-time` | 1.1.0 | —— | —— | —— |
 
 “提供的能力契约”是插件对外暴露的**能力名**；其它插件依赖能力而不是插件 ID，因此可以替换实现。
@@ -52,9 +54,9 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **11 个官方插�
 - **对外能力**：`identity.authorization@1`；依赖 `identity.users@1`。
 - **数据表**：`rn_authz_roles`、`rn_authz_role_permissions`、`rn_authz_user_roles`。
 - **后台页面**：角色与权限 `/roles`（`user.manage`）。
-- **内置角色**：`administrator`(`*`) / `editor` / `author` / `contributor`，**以代码为准、每次启动同步**。
-- **权限点**：见 [[后台功能导览|Admin-Guide]] 的权限点表（内容、互动、外观、扩展、系统五组）。
-- **订阅事件**：`identity.user.created.v1` —— 新用户自动获得默认角色。**这是为了避免与 identity 形成循环依赖**（identity 不反向依赖 authorization）。
+- **内置角色**：只有 `administrator`（`*`），启动只保证它存在且权限为 `*`（防止"库被改坏后没人能进后台"）。其余角色由站点管理员自建 —— 插件不替站点决定"谁该有什么权限"。
+- **权限点**：**不持有**权限点目录。目录来自 Core 的聚合视图（各插件在 `manifest.permissions` 里声明 + Core 的控制面权限点 + 实际使用点），本插件只按站点语言解析文案。详见 [[后台功能导览|Admin-Guide]]。
+- **订阅事件**：`identity.user.created.v1` —— **首个用户**自动成为管理员，其余新用户**默认不分配角色**（后台创建时显式指定了角色才分派）。**这是为了避免与 identity 形成循环依赖**（identity 不反向依赖 authorization）。
 
 ---
 
@@ -184,6 +186,31 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **11 个官方插�
 
 - **分发方式**：把上游 `@toast-ui/editor@3.2.2`（MIT）的自包含产物 vendor 进插件 `admin/vendor/`，**宿主不新增依赖、插件侧无构建步骤**。
 - **降级**：vendor 缺失时自动回退为普通文本域，**编辑功能与草稿都不缺失**。
+
+---
+
+## RSS 订阅 `rice.feed`
+
+- **做什么**：为站点提供标准 **RSS 2.0** 订阅地址 `/feed.xml`，并在 `<head>` 注入自动发现链接 —— 读者把站点地址粘进阅读器即可订阅。
+- **对外能力**：无（**消费** `content.posts@1`，且为可选 —— posts 被禁用时降级为"只有站点信息的空订阅源"，不报错）。
+- **数据表**：无。
+- **公开路由**：`GET /feed.xml` —— 只收录**已发布**文章，按发布时间倒序；每条含标题、链接、`guid`、`pubDate`（RFC 822 / GMT）、分类与摘要。
+- **渲染**：通过标准插槽 `head.end` 注入 `<link rel="alternate" type="application/rss+xml">`。
+- **设置**：是否提供订阅（默认开）、条数上限（默认 20，上限 100）、是否输出正文全文（默认关）、缓存时间（默认 1800 秒）。
+- **注意**：关闭「开启订阅」后路由与自动发现链接都不注册，因此改动需重启服务生效。
+
+---
+
+## 友情链接 `rice.friend-links`
+
+- **做什么**：管理站点的友情链接（名称 / 地址 / 头像 / 描述 / 排序 / 启用），并在前台提供 `/links` 页面。
+- **对外能力**：无。刻意**不提供跨插件服务契约** —— 友链只给**主题**用，而主题读不到服务契约，取数走页面注入的 `data.friendLinks`（元素含 `name` / `url` / `avatarUrl` / `description`）。
+- **数据表**：`rn_friend_links`。
+- **公开路由**：`/links`（`kind=links`）。主题需在 `theme.json` 声明 `templates.links` 并提供模板；两套官方主题已内置 `links.njk`（默认主题为头像卡片网格、极简主题为单列列表），**导航栏与页脚未做改动**。
+- **后台页面**：友情链接 `/friend-links`（`link.view` / `link.manage`）—— 列表 + 弹窗表单、启用开关、排序数值（越小越靠前）。
+- **接口**：`GET/POST /api/admin/friend-links/items`、`PUT/DELETE /api/admin/friend-links/items/:linkId`。
+- **缓存**：`/links` 参与 HTML 缓存，增删改后按 `friend-links` 标签**精确失效**（本插件的内容只出现在这一个页面上，无需整站清缓存）。
+- **校验**：地址必须是 `http(s)://` 完整地址；头像可空、可为完整地址或媒体库路径（`/uploads/…`、`/media/…`）。
 
 ---
 

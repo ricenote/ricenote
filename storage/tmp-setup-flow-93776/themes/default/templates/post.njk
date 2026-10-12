@@ -1,0 +1,36 @@
+{% extends "layout.njk" %}
+
+{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}
+
+{% block content %}
+<article class="df-article">
+  <h1 class="df-article__title">{{ post.title }}</h1>
+  <p class="df-article__meta">
+    {% if post.publishedAt %}<time datetime="{{ post.publishedAt }}">{{ post.publishedAt | date('YYYY-MM-DD') }}</time>{% endif %}
+    {% if post.authorName %} · {{ post.authorName }}{% endif %}
+  </p>
+
+  {#
+    特色图片（主题声明的内容自定义字段，作者在后台填链接）优先于媒体库封面：
+    前者是作者对这篇内容的显式选择，后者是通用设置 —— 显式选择应该赢。
+    两者都没有、或封面被主题设置关掉时，这一段整体不渲染。
+  #}
+  {% if post.fields.featuredImage %}
+    <img class="df-article__feature" src="{{ post.fields.featuredImage }}" alt="{{ post.title }}" loading="eager">
+  {% elif post.coverUrl and theme.settings.showCover %}
+    <img class="df-article__cover" src="{{ post.coverUrl }}" alt="" loading="eager">
+  {% endif %}
+
+  {{ slot('post.beforeContent', { postId: post.id }) }}
+
+  <div class="df-prose">{{ post.html }}</div>
+
+  {{ slot('post.afterContent', { postId: post.id }) }}
+</article>
+
+{% if has_feature('comments') %}
+  <section class="df-comments"><h2>评论</h2>{{ slot('post.comments', { postId: post.id }) }}</section>
+{% endif %}
+
+<p class="df-back"><a href="{{ url('home') }}">← 返回文章列表</a></p>
+{% endblock %}

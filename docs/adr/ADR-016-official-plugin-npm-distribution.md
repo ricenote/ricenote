@@ -13,12 +13,12 @@
 git clone … && pnpm install
 cp .env.example .env      # 手改数据库连接与 SESSION_SECRET
 pnpm build && pnpm migrate
-pnpm start                # 靠 RICENOTE_SEED_PLUGINS 启用 11 个官方插件
+pnpm start                # 靠 RICENOTE_SEED_PLUGINS 启用 13 个官方插件
 ```
 
 它把三件事绑死了，而每件都站不住：
 
-1. **官方插件随仓库分发**：`plugins/official` 下的 11 个插件是"内置"的 ——
+1. **官方插件随仓库分发**：`plugins/official` 下的 13 个插件是"内置"的 ——
    不可卸载、没有版本概念、升级只能 `git pull`；而 ADR-015 已经让安装器
    支持 npm / Git / 本地三路来源，官方插件却用不到自己修的这条高速路。
 2. **装什么由仓库决定**：想只跑一个纯博客（不要评论、不要搜索）也得把整仓拉下来；
@@ -30,7 +30,7 @@ pnpm start                # 靠 RICENOTE_SEED_PLUGINS 启用 11 个官方插件
 
 ### 1. 官方插件作为独立 npm 包发布（`@ricenote/plugin-*`）
 
-11 个插件各自一个包，仓库内仍以 workspace 开发（零构建热调试不变），
+13 个插件各自一个包，仓库内仍以 workspace 开发（零构建热调试不变），
 发布由 `pnpm publish` 完成 —— 它会负责把 `workspace:` 协议改写成实际版本区间。
 
 发布形态的四项硬要求（`pnpm validate` 与 `scripts/release-plugins.mjs` 都会拦）：
@@ -146,5 +146,5 @@ label / description / capabilities / requires / repository / license`。
 | 只做声明式清单 + 一条 install 命令（不做交互） | 首次安装的人最需要的是"下一步该做什么"；纯清单把选择成本推给用户 |
 | 首次启动时自动安装缺失插件 | 启动路径联网不可预测、失败难定位；且与"受控重启"心智冲突 |
 | 保留所有插件为内置，只加"可选启用" | 解决不了版本管理：升级仍靠 `git pull`，且禁用≠不安装 |
-| 用 changesets 管理多包版本 | 对 11 个插件的当前节奏过重；推荐清单已经把"发哪个版本"收敛到一处，需要时再引入 |
+| 用 changesets 管理多包版本 | 对 13 个插件的当前节奏过重；推荐清单已经把"发哪个版本"收敛到一处，需要时再引入 |
 | 沙箱化安装脚本 | 会破坏大量正常包；"安装即授予服务器代码执行权限"已是明确口径，用高风险确认 + 审计承担责任 |

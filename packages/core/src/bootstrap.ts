@@ -25,6 +25,8 @@ import {
 } from '@ricenote/shared';
 import { escapeHtml, markTrusted, sanitizeRichText } from './render/safe-html.js';
 import { capabilityMatches } from './capabilities.js';
+import { PermissionRegistry } from './security/permission-registry.js';
+import { CORE_PERMISSIONS } from './security/permissions.js';
 import { loadConfig, type LoadConfigOptions, type RiceNoteConfig } from './config/loader.js';
 import { createLogger, resolveLogFormat, type Logger } from './logger.js';
 import { SiteSettingsProvider } from './system/site-settings.js';
@@ -223,6 +225,18 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       siteLanguage: () => siteInfo().language
     });
 
+    /*
+     * 权限点登记表。
+     *
+     * 声明由两方提供：Core 自有/共用的控制面权限点（此处登记），
+     * 以及各插件 `manifest.permissions`（由 PluginManager 在发现阶段登记）；
+     * "使用"由上下文工厂在插件注册管理路由/菜单时登记。
+     *
+     * 安全网关**不读它** —— 鉴权仍按标识字符串比对，因此未声明的权限点照旧可用。
+     */
+    const permissions = new PermissionRegistry();
+    permissions.declare(null, CORE_PERMISSIONS);
+
     // ---- 发布 Core 自身的服务契约 ----
     const securityService: CoreSecurityService = {
       registerSessionResolver: (resolver) => {
@@ -241,7 +255,8 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
           permissionsOf: (userId) => resolver.permissionsOf(userId),
           rolesOf: (userId) => resolver.rolesOf(userId)
         });
-      }
+      },
+      listDeclaredPermissions: () => permissions.list()
     };
 
     const themeService: CoreThemeServiceContract = {
@@ -323,6 +338,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       extensions,
       adminMenu,
       migrations,
+      permissions,
       siteInfo,
       coreApiVersion: PLUGIN_API_VERSION
     });

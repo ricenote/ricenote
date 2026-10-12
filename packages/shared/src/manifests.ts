@@ -67,6 +67,24 @@ export interface PluginExtensionContributionDeclaration {
   label?: string;
 }
 
+/**
+ * 权限点声明：本插件**拥有**哪些权限点。
+ *
+ * 权限点是"谁声明、谁展示、谁校验"的三方约定：
+ * - **声明**：拥有它的插件（本字段）或 Core（内核自有的控制面权限点）；
+ * - **展示**：权限管理界面（authorization 插件消费 Core 聚合后的结果）；
+ * - **校验**：Core 的安全网关按字符串比对，**不依赖**声明 ——
+ *   因此未声明的权限点仍然可用，只是会被标记为「未登记」并给出警告（宽松策略）。
+ */
+export interface PluginPermissionDeclaration {
+  /** 权限点标识，形如 `post.publish`（`<域>.<动作>`），全局唯一。 */
+  key: string;
+  /** 展示名。 */
+  label: LocalizedText;
+  /** 权限管理界面里的分组名。 */
+  group: LocalizedText;
+}
+
 export interface PluginManifest {
   schemaVersion: 1;
   id: string;
@@ -121,6 +139,14 @@ export interface PluginManifest {
    * 需要运行时动态判定时才改用 `ctx.extensions`。
    */
   contributions?: PluginExtensionContributionDeclaration[];
+  /**
+   * 本插件拥有的权限点声明。
+   *
+   * 只描述"标识 + 展示文案 + 分组"与归属，**鉴权不依赖它**：
+   * Core 仍按标识字符串比对，未声明的标识照旧可用（但会被标记为「未登记」并告警）。
+   * Core 会校验标识格式与**全局唯一性**（跨插件重复声明直接启动失败）。
+   */
+  permissions?: PluginPermissionDeclaration[];
 }
 
 /** 插件自带后台界面中的一个页面。 */

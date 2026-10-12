@@ -28,6 +28,7 @@ RiceNote 用 ADR 记录关键架构决策。**每条 ADR 一经接受即冻结**
 | [ADR-015](https://github.com/ricenote/ricenote/blob/main/docs/adr/ADR-015-plugin-sources-and-install-orchestration.md) | 插件三路来源（npm/Git/本地）、三段式安装编排与任务队列（修订 ADR-007） | 已接受 |
 | [ADR-016](https://github.com/ricenote/ricenote/blob/main/docs/adr/ADR-016-official-plugin-npm-distribution.md) | 官方插件 npm 分发、推荐清单与 `ricenote setup` 安装向导 | 已接受 |
 | [ADR-017](https://github.com/ricenote/ricenote/blob/main/docs/adr/ADR-017-named-extension-points.md) | 命名扩展点（三作用域统一模型）与内容自定义字段 | 已接受 |
+| [ADR-018](https://github.com/ricenote/ricenote/blob/main/docs/adr/ADR-018-plugin-permission-declarations.md) | 权限点声明下放到插件，内置角色收敛为 administrator（修订 ADR-005） | 已接受 |
 
 ---
 
@@ -38,6 +39,7 @@ RiceNote 用 ADR 记录关键架构决策。**每条 ADR 一经接受即冻结**
 | 为什么是单体、为什么 SSR | ADR-001、ADR-002 |
 | 插件怎么组织、怎么启停 | ADR-004、ADR-012 |
 | 安全边界为什么在 Core | ADR-005 |
+| 权限点归谁声明、角色谁说了算 | ADR-005、ADR-018 |
 | 后台界面为什么是 shadcn-vue | ADR-006 |
 | 插件如何安装与分发 | ADR-007、ADR-015、ADR-016 |
 | 内容模型（页面、版式、导航、字段） | ADR-010、ADR-013、ADR-017 |
@@ -91,6 +93,7 @@ v1 **单站点**，站点标识固定为 `default`。但 `rn_site_state`、`rn_t
 | ADR-013 | [[服务契约\|Plugin-API-Service-Contracts]]（导航插件） |
 | ADR-014 | [[插件自带后台界面\|Plugin-API-Admin-UI]] |
 | ADR-017 | [[命名扩展点注册表\|Architecture-Extension-Registry]] |
+| ADR-018 | [[权限点声明与角色分配\|Plugin-API-Permissions]] |
 
 ---
 

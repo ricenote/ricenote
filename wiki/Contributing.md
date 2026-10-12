@@ -36,11 +36,12 @@ wiki/                                    ← 内容源（Git 仓库的一部分�
 ├── Architecture-Data-and-Migrations.md
 ├── Architecture-Security.md
 ├── Architecture-Extension-Registry.md
-├── Plugin-API-Getting-Started.md        ← 插件开发（共 7 页）
+├── Plugin-API-Getting-Started.md        ← 插件开发（共 8 页）
 ├── Plugin-API-Manifest-Reference.md
 ├── Plugin-API-Context-Reference.md
 ├── Plugin-API-Service-Contracts.md
 ├── Plugin-API-Admin-UI.md
+├── Plugin-API-Permissions.md
 ├── Plugin-API-Settings.md
 ├── Plugin-API-Tutorial.md
 ├── Theme-API-Overview.md                ← 主题开发（共 4 页）

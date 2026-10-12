@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/plugin-taxonomy",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "RiceNote 分类与标签插件",
   "keywords": [
@@ -34,8 +34,8 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@ricenote/plugin-sdk": "^0.5.0",
-    "@ricenote/shared": "^0.5.0"
+    "@ricenote/plugin-sdk": "^0.6.0",
+    "@ricenote/shared": "^0.6.0"
   },
   "peerDependenciesMeta": {
     "@ricenote/plugin-sdk": {

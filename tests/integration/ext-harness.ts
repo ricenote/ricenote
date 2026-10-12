@@ -77,7 +77,7 @@ export async function login(session: Session, username: string, password: string
 export interface ExtHarness {
   kernel: RiceNoteKernel;
   admin: Session;
-  /** contributor 角色会话（无 media.manage），用于验证权限过滤。 */
+  /** 无任何角色的受限会话，用于验证"未授权即不可见"的过滤。 */
   limited: Session;
   stop(): Promise<void>;
 }
@@ -109,7 +109,7 @@ export async function bootExtHarness(): Promise<ExtHarness> {
   const admin = createSession(origin);
   await login(admin, 'admin', 'admin12345');
 
-  // 受限会话：新建用户默认拿到 contributor 角色（无 media.manage）
+  // 受限会话：新用户默认**不分配角色**，因此不具备任何权限点
   const limited = createSession(origin);
   const created = await admin.request('POST', '/api/admin/users', {
     body: { username: 'viewer01', email: 'viewer01@example.com', password: 'viewer12345' }

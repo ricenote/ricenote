@@ -1,0 +1,21 @@
+{% extends "layout.njk" %}
+
+{% block content %}
+  {% if posts and posts.items.length %}
+    <div class="rn-post-list">
+      {% for post in posts.items %}
+        {% include "partials/post-card.njk" %}
+      {% endfor %}
+    </div>
+
+    {% include "partials/pagination.njk" %}
+  {% else %}
+    <section class="rn-empty">
+      <h2>还没有文章</h2>
+      <p class="rn-muted">
+        登录管理后台即可开始写作。若尚未初始化，请先创建管理员账号。
+      </p>
+      <p><a class="rn-button" href="/admin/">进入管理后台</a></p>
+    </section>
+  {% endif %}
+{% endblock %}

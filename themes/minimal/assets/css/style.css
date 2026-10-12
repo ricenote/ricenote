@@ -827,3 +827,66 @@ img {
   max-width: 40rem;
   margin: 0 auto;
 }
+
+/* ------------------------------ 友情链接页 ------------------------------ */
+
+/* 由 friend-links 插件提供的 /links 页面：单列列表，头像 + 名称 + 描述 */
+.rn-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rn-link {
+  border-bottom: 1px solid var(--rn-border);
+}
+
+.rn-link:last-child {
+  border-bottom: 0;
+}
+
+/* 链接本身不加下划线（列表项已用分隔线表达边界） */
+.rn-link__anchor {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem 0;
+  border-bottom: 0;
+}
+
+.rn-link__anchor:hover {
+  border-bottom-color: transparent;
+}
+
+.rn-link__avatar {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid var(--rn-border);
+  background: var(--rn-surface);
+}
+
+.rn-link__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.rn-link__name {
+  font-family: var(--rn-font-heading);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--rn-text);
+}
+
+.rn-link__anchor:hover .rn-link__name {
+  color: var(--rn-accent);
+}
+
+.rn-link__desc {
+  font-size: 0.9375rem;
+  color: #48525c;
+}

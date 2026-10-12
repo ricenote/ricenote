@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.taxonomy",
+  "name": "分类与标签",
+  "description": "为文章提供分类与标签，方便组织与归档内容。",
+  "version": "1.1.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "provides": ["content.taxonomy@1"],
+  "capabilities": [
+    "database:own",
+    "services:provide",
+    "services:consume",
+    "routes:admin"
+  ],
+  "permissions": [
+    {
+      "key": "taxonomy.manage",
+      "label": { "zh-CN": "管理分类与标签", "en": "Manage categories and tags" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    }
+  ],
+  "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "taxonomy.terms",
+        "label": "分类与标签",
+        "path": "/taxonomy",
+        "icon": "Tags",
+        "order": 15,
+        "permission": "post.view",
+        "entry": "./admin/main.js"
+      }
+    ]
+  }
+}

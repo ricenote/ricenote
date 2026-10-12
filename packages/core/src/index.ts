@@ -170,3 +170,9 @@ export {
 export { CsrfManager, LoginThrottle } from './security/csrf.js';
 export { AuditLogger, type AuditInput, type AuditQuery } from './security/audit.js';
 export { SecurityGateway, readCookie, type AuthorizationResolver, type GatewayDeps } from './security/gateway.js';
+export {
+  PermissionRegistry,
+  type PermissionUsageSource,
+  type UndeclaredPermission
+} from './security/permission-registry.js';
+export { CORE_PERMISSIONS } from './security/permissions.js';

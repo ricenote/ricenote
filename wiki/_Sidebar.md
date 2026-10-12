@@ -34,6 +34,7 @@
 - [[PluginContext 逐方法参考|Plugin-API-Context-Reference]]
 - [[跨插件服务契约|Plugin-API-Service-Contracts]]
 - [[插件自带后台界面|Plugin-API-Admin-UI]]
+- [[权限点声明与角色分配|Plugin-API-Permissions]]
 - [[声明式设置表单|Plugin-API-Settings]]
 - [[完整教程：从零写插件|Plugin-API-Tutorial]]
 

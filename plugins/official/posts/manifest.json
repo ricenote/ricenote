@@ -3,7 +3,7 @@
   "id": "rice.posts",
   "name": "文章",
   "description": "撰写、发布与归档文章，并生成站点的文章页面与归档页面。",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -22,6 +22,28 @@
     "events:subscribe",
     "slots:register",
     "extensions:declare"
+  ],
+  "permissions": [
+    {
+      "key": "post.view",
+      "label": { "zh-CN": "查看文章", "en": "View posts" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    },
+    {
+      "key": "post.write",
+      "label": { "zh-CN": "撰写与编辑文章", "en": "Write and edit posts" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    },
+    {
+      "key": "post.publish",
+      "label": { "zh-CN": "发布与撤回文章", "en": "Publish and unpublish posts" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    },
+    {
+      "key": "post.delete",
+      "label": { "zh-CN": "删除文章", "en": "Delete posts" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    }
   ],
   "migrations": "./migrations",
   "admin": {

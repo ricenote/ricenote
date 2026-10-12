@@ -1,0 +1,26 @@
+{#
+  阅读版式：收窄居中，适合条款、隐私政策等长文页面。
+#}
+{% extends "layout.njk" %}
+
+{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}
+{% block description %}{{ seoDescription or site.description }}{% endblock %}
+
+{% block content %}
+<article class="df-article df-page df-page--narrow">
+  <h1 class="df-article__title">{% if content %}{{ content.title }}{% else %}{{ page.title }}{% endif %}</h1>
+  {% if content and content.updatedAt %}
+    <p class="df-article__meta">
+      <time datetime="{{ content.updatedAt }}">更新于 {{ content.updatedAt | date('YYYY-MM-DD') }}</time>
+    </p>
+  {% endif %}
+
+  <div class="df-prose">
+    {% if content and content.html %}
+      {{ content.html }}
+    {% else %}
+      <p>该页面暂无正文。</p>
+    {% endif %}
+  </div>
+</article>
+{% endblock %}

@@ -32,6 +32,7 @@
 | `settingsSchema` | 引用共享的 `settingsSchema` 定义 | | **声明式设置表单**（推荐，见 [[设置\|Plugin-API-Settings]]） |
 | `extensionPoints` | 数组，≤ 30 项 | | 声明自己提供的命名扩展点 |
 | `contributions` | 数组，≤ 40 项 | | 向扩展点贡献 |
+| `permissions` | 数组，≤ 40 项 | | **本插件拥有的权限点声明**（`key` + `label` + `group`），见第 8 节 |
 | `admin` | 对象，`required: ["pages"]` | | 后台页面声明 |
 
 > **不存在的字段**（常见误解）：`main`（用 `entry`）、`dependsOn`（用 `requires`）、`scripts`、
@@ -230,7 +231,59 @@ if (!media) { /* 降级路径 */ }
 
 ---
 
-## 8. 两个完整示例
+## 8. `permissions[]`（声明权限点）
+
+权限点的**展示文案与归属由拥有它的那一方声明**：插件写在这里，Core 的控制面权限点写在内核
+（`packages/core/src/security/permissions.ts`）。Core 校验全局唯一并聚合，`rice.authorization`
+只负责按站点语言展示与分派 —— **新增插件不需要改动 `rice.authorization`**。
+
+```json
+{
+  "permissions": [
+    {
+      "key": "post.publish",
+      "label": { "zh-CN": "发布与撤回文章", "en": "Publish and unpublish posts" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    }
+  ]
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `key` | 字符串，`^<域>\.<动作>$`，≤ 80 | ✅ | 权限点标识，如 `post.publish`（两段都允许短横线）。**全局唯一** |
+| `label` | `localizedText` | ✅ | 展示名（字符串或多语言对象，与设置字段的 `label` 同构） |
+| `group` | `localizedText` | ✅ | 权限管理界面里的分组名。自由文案，同一站点内保持一致即可 |
+
+`key` 与插件 ID **不绑定**：`rice.posts` 声明 `post.*`，域表达的是业务归属而不是包名。
+
+**两条规则（与启动期、`pnpm validate` 完全一致）：**
+
+| 情况 | 处理 |
+| --- | --- |
+| 同一标识被两方声明（跨插件，或与 Core 冲突） | **错误**：启动失败、`pnpm validate` 失败 |
+| 某标识被使用但无人声明 | **仅告警**：插件照常工作，该权限点以「未登记」分组出现在权限目录里，仍可分配 |
+| `key` 不符合 `<域>.<动作>` | **错误** |
+
+> "用了没声明"只告警，是因为**鉴权按权限点标识字符串比对，与是否声明无关**：
+> 声明影响的是展示与归属，漏声明不该让站点起不来。但它意味着权限目录里没有中文名，应当补上。
+
+权限点的"使用"从三处收集：`admin.pages[].permission`、`contributions[].permission`（加载期静态可见），
+以及运行期的 `ctx.routes.adminApi({ permission })` / `ctx.adminMenu.add({ permission })`。
+逐字段与合并视图（`core.security@1` 的 `listDeclaredPermissions()`）见
+[Plugin API v1 第 19 节](https://github.com/ricenote/ricenote/blob/main/docs/plugin-api/v1.md)。
+
+> **宿主版本要求**：`permissions` 是 `0.5.4` 引入的字段，而 manifest schema 设了
+> `additionalProperties: false` —— 旧宿主读到这个未知字段会**直接判定清单非法**。
+> 因此声明它的插件必须把宿主区间写到 `^0.5.4` 及以上（官方插件跟随宿主次版本，当前为 `^0.6.0`）。
+> 不声明该字段的插件不受影响。
+
+面向插件作者的操作指引（什么时候需要、命名约定、声明之后谁来授权、怎么自查）见
+[[权限点声明与角色分配|Plugin-API-Permissions]]。
+
+---
+
+## 9. 两个完整示例
 
 ### 最小合法
 
@@ -252,7 +305,7 @@ if (!media) { /* 降级路径 */ }
   "schemaVersion": 1,
   "id": "rice.posts",
   "name": "文章",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -265,6 +318,16 @@ if (!media) { /* 降级路径 */ }
     "slots:register", "extensions:declare"
   ],
   "migrations": "./migrations",
+  "permissions": [
+    { "key": "post.view", "label": { "zh-CN": "查看文章", "en": "View posts" },
+      "group": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "post.write", "label": { "zh-CN": "撰写与编辑文章", "en": "Write and edit posts" },
+      "group": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "post.publish", "label": { "zh-CN": "发布与撤回文章", "en": "Publish and unpublish posts" },
+      "group": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "post.delete", "label": { "zh-CN": "删除文章", "en": "Delete posts" },
+      "group": { "zh-CN": "内容", "en": "Content" } }
+  ],
   "admin": {
     "pages": [
       { "id": "posts.list", "label": "文章", "path": "/posts", "icon": "FileText",
@@ -294,7 +357,7 @@ if (!media) { /* 降级路径 */ }
 
 ---
 
-## 9. 校验与常见错误
+## 10. 校验与常见错误
 
 ```bash
 pnpm validate      # 无需数据库，适合接入 CI

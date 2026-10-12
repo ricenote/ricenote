@@ -14,7 +14,8 @@
     "page": "page.njk",
     "archive": "archive.njk",
     "search": "search.njk",
-    "404": "404.njk"
+    "404": "404.njk",
+    "links": "links.njk"
   },
   "pageTemplates": {
     "default": {

@@ -1,0 +1,26 @@
+{% extends "layout.njk" %}
+
+{% block title %}{{ term.name }} · {{ site.title }}{% endblock %}
+
+{% block content %}
+<header class="rn-archive-header">
+  <p class="rn-eyebrow">{{ '分类' if term.type == 'category' else '标签' }}</p>
+  <h1>{{ term.name }}</h1>
+  <p class="rn-muted">
+    共 {{ posts.total }} 篇{% if pagination and pagination.totalPages > 1 %} · 第 {{ pagination.page }} 页{% endif %}
+  </p>
+</header>
+
+{% if posts and posts.items.length %}
+  <div class="rn-post-list">
+    {% for post in posts.items %}
+      {% include "partials/post-card.njk" %}
+    {% endfor %}
+  </div>
+  {% include "partials/pagination.njk" %}
+{% else %}
+  <section class="rn-empty">
+    <p class="rn-muted">该{{ '分类' if term.type == 'category' else '标签' }}下暂无已发布文章。</p>
+  </section>
+{% endif %}
+{% endblock %}

@@ -3,7 +3,7 @@
   "id": "rice.navigation",
   "name": "导航栏",
   "description": "管理站点顶部导航栏，自由编排自定义链接、页面与文章。",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -16,6 +16,18 @@
     "routes:admin",
     "events:subscribe",
     "slots:register"
+  ],
+  "permissions": [
+    {
+      "key": "nav.view",
+      "label": { "zh-CN": "查看导航栏", "en": "View the navigation bar" },
+      "group": { "zh-CN": "外观", "en": "Appearance" }
+    },
+    {
+      "key": "nav.manage",
+      "label": { "zh-CN": "管理导航栏", "en": "Manage the navigation bar" },
+      "group": { "zh-CN": "外观", "en": "Appearance" }
+    }
   ],
   "migrations": "./migrations",
   "admin": {

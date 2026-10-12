@@ -1,0 +1,12 @@
+{% extends "layout.njk" %}
+
+{% block title %}页面不存在 · {{ site.title }}{% endblock %}
+
+{% block content %}
+<section class="df-empty">
+  <p class="df-code">404</p>
+  <h1>页面不存在</h1>
+  <p>{{ message or '你访问的页面不存在或已被移除。' }}</p>
+  <a class="df-button" href="{{ url('home') }}">返回首页</a>
+</section>
+{% endblock %}

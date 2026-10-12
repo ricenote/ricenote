@@ -182,6 +182,32 @@
         }
       }
     },
+    "permissions": {
+      "type": "array",
+      "maxItems": 40,
+      "description": "本插件**拥有**的权限点声明（标识 + 展示文案 + 分组）。Core 会校验格式与全局唯一性并聚合，权限管理界面据此展示、供管理员分配；插件在 adminApi / admin.pages / adminMenu 里只是**使用**这些标识。未在此声明的标识仍然可用（鉴权不依赖声明），但会被标记为「未登记」并给出警告。",
+      "items": {
+        "type": "object",
+        "required": ["key", "label", "group"],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "maxLength": 80,
+            "description": "权限点标识，形如 post.publish（`<域>.<动作>`）。"
+          },
+          "label": {
+            "$ref": "https://ricenote.dev/schemas/settings.schema.json#/definitions/localizedText",
+            "description": "权限点的展示名（例如「发布与撤回文章」）。"
+          },
+          "group": {
+            "$ref": "https://ricenote.dev/schemas/settings.schema.json#/definitions/localizedText",
+            "description": "权限管理界面里的分组名（例如「内容」）。组名是自由文案，同一站点内保持一致即可。"
+          }
+        }
+      }
+    },
     "admin": {
       "type": "object",
       "description": "插件自带后台界面的声明：界面代码放在插件目录的 ./admin/ 下，Core 负责托管并把每页注册为后台菜单入口。",

@@ -71,8 +71,8 @@ plugins/third-party/notice/
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
-    "@ricenote/plugin-sdk": "^0.5.0",
-    "@ricenote/shared": "^0.5.0"
+    "@ricenote/plugin-sdk": "^0.6.0",
+    "@ricenote/shared": "^0.6.0"
   },
   "peerDependenciesMeta": {
     "@ricenote/plugin-sdk": { "optional": true },

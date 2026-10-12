@@ -13,7 +13,7 @@
 
 | 插槽 | 位置 | 当前消费者 |
 | --- | --- | --- |
-| `head.end` | `</head>` 前 | `rice.seo`（OG / Twitter / JSON-LD / robots） |
+| `head.end` | `</head>` 前 | `rice.seo`（OG / Twitter / JSON-LD / robots）、`rice.feed`（订阅自动发现链接） |
 | `body.start` | `<body>` 开始 | —— |
 | `body.end` | `</body>` 前 | —— |
 | `header.navigation` | 页眉 | `rice.navigation` |
@@ -40,6 +40,7 @@
 | `term.tag` | `/tag/:slug` | `rice.posts` |
 | `page.show` | `/page/:slug` | `rice.pages` |
 | `search` | `/search` | `rice.search` |
+| `links` | `/links` | `rice.friend-links` |
 
 模板里用 `url('post.show', { slug })` 生成地址；未注册时降级为 `#`。
 
@@ -51,6 +52,7 @@
 | `GET /preview/:token` | Core | 后台预览（`noindex`） |
 | `GET /sitemap.xml` | `rice.seo` | `routes:public` |
 | `GET /robots.txt` | `rice.seo` | `routes:public` |
+| `GET /feed.xml` | `rice.feed` | `routes:public` |
 | `GET /media/:mediaId` | `rice.media` | `routes:public` |
 | `POST /comments/submit` | `rice.comments` | `routes:public` |
 | `GET /api/comments` | `rice.comments` | `routes:public` |
@@ -73,6 +75,7 @@
 | `/terms`、`/terms/:termId` | `rice.taxonomy` | `post.view` / `taxonomy.manage` |
 | `/media`、`/media/:mediaId` | `rice.media` | `media.manage` |
 | `/comments`、`/comments/counts`、`/comments/moderate` | `rice.comments` | `comment.moderate` |
+| `/friend-links/items`、`/friend-links/items/:linkId` | `rice.friend-links` | `link.view` / `link.manage` |
 
 ### 2.4 Core 管理端点
 
@@ -152,28 +155,46 @@
 | `taxonomy.terms` | 分类与标签 | `/taxonomy` | `post.view` | 15 | `rice.taxonomy` |
 | `media.library` | 媒体库 | `/media` | `media.manage` | 10 | `rice.media` |
 | `comments.moderate` | 评论审核 | `/comments` | `comment.moderate` | 20 | `rice.comments` |
+| `friend-links.list` | 友情链接 | `/friend-links` | `link.view` | 19 | `rice.friend-links` |
 
 Core 自有入口（不通过插件）：仪表盘 `/`、外观中心 `/themes`、扩展中心 `/plugins`、
 运行日志 `/logs`、备份与恢复 `/backup`、系统设置 `/settings`、个人资料 `/profile`。
 
 排序规则：**`order` 降序，同分按 ID 升序**。
-`rice.search` 与 `rice.seo` **没有**后台页面。
+`rice.search`、`rice.seo` 与 `rice.feed` **没有**后台页面。
 
 ---
 
 ## 6. 权限点
 
-由 `rice.authorization` 注册（`src/permissions.ts`），内置角色以代码为准、每次启动同步。
+**声明方 = 拥有它的那一方**：插件在自己的 `manifest.permissions` 里声明，
+Core 的控制面与共用权限点在 `packages/core/src/security/permissions.ts` 里声明。
+Core 校验全局唯一并聚合（`core.security@1` 的 `listDeclaredPermissions()`），
+`rice.authorization` 只负责按站点语言展示与分派（见 ADR-018）。
 
-| 组 | 权限点 |
-| --- | --- |
-| 内容 | `post.view`、`post.write`、`post.publish`、`post.delete`、`page.view`、`page.manage`、`taxonomy.manage`、`media.manage` |
-| 互动 | `comment.moderate` |
-| 外观 | `nav.view`、`nav.manage`、`theme.view`、`theme.manage` |
-| 扩展 | `plugin.view`、`plugin.manage`、`plugin.install` |
-| 系统 | `user.manage`、`system.audit`、`system.maintain`、`system.restart` |
+| 组 | 权限点 | 声明方 |
+| --- | --- | --- |
+| 内容 | `post.view`、`post.write`、`post.publish`、`post.delete` | `rice.posts` |
+| 内容 | `page.view`、`page.manage` | `rice.pages` |
+| 内容 | `taxonomy.manage` | `rice.taxonomy` |
+| 内容 | `media.manage` | `rice.media` |
+| 互动 | `comment.moderate` | `rice.comments` |
+| 外观 | `nav.view`、`nav.manage` | `rice.navigation` |
+| 外观 | `link.view`、`link.manage` | `rice.friend-links` |
+| 外观 | `theme.view`、`theme.manage` | Core |
+| 扩展 | `plugin.view`、`plugin.manage`、`plugin.install` | Core |
+| 用户 | `user.manage` | Core（identity 与 authorization 共用） |
+| 系统 | `system.audit`、`system.maintain`、`system.restart` | Core |
 
-内置角色：`administrator`（`*`）、`editor`、`author`、`contributor`。
+内置角色**只有** `administrator`（`*`）。`editor` / `author` / `contributor` 不再是内置角色：
+插件不替站点决定分工，管理员按需自建角色并显式授权。
+
+两条规则刻意不对称：**重复声明是错误**（启动与 `pnpm validate` 都会失败），
+**用了却没声明只告警** —— 未声明的权限点以「未登记」分组出现在目录里、**仍然可以分配**，
+因为鉴权按标识字符串比对，与是否声明无关。
+
+面向插件作者的操作步骤（何时需要、命名约定、声明之后谁来授权、宿主版本要求）见
+[[权限点声明与角色分配|Plugin-API-Permissions]]。
 
 ---
 

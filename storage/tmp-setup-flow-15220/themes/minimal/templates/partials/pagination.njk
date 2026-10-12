@@ -1,0 +1,18 @@
+{# 分页控件：依赖插件提供的 pagination 上下文 #}
+{% if pagination and pagination.totalPages > 1 %}
+  <nav class="rn-pagination" aria-label="分页">
+    {% if pagination.hasPrev %}
+      <a class="rn-pagination__link" href="{{ pagination.prevUrl }}" rel="prev">← 上一页</a>
+    {% else %}
+      <span class="rn-pagination__link rn-pagination__link--disabled">← 上一页</span>
+    {% endif %}
+
+    <span class="rn-pagination__status">第 {{ pagination.page }} / {{ pagination.totalPages }} 页</span>
+
+    {% if pagination.hasNext %}
+      <a class="rn-pagination__link" href="{{ pagination.nextUrl }}" rel="next">下一页 →</a>
+    {% else %}
+      <span class="rn-pagination__link rn-pagination__link--disabled">下一页 →</span>
+    {% endif %}
+  </nav>
+{% endif %}

@@ -3,7 +3,7 @@
   "id": "rice.seo",
   "name": "SEO",
   "description": "提升站点在搜索引擎与社交平台上的展示效果，并生成供搜索引擎抓取的站点地图。",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",

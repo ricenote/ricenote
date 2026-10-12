@@ -1,0 +1,43 @@
+{% extends "layout.njk" %}
+
+{% block title %}搜索 · {{ site.title }}{% endblock %}
+
+{% block content %}
+<header class="rn-archive-header">
+  <h1>搜索</h1>
+  <form class="rn-search-form" action="{{ url('search') }}" method="get" role="search">
+    <input
+      type="search"
+      name="q"
+      value="{{ keyword }}"
+      placeholder="输入关键词，例如：主题系统"
+      aria-label="搜索关键词"
+      autocomplete="off"
+      required
+    >
+    <button type="submit">搜索</button>
+  </form>
+</header>
+
+{% if keyword %}
+  <p class="rn-muted">
+    关键词「{{ keyword }}」共匹配 {{ posts.total }} 篇
+    {% if pagination and pagination.totalPages > 1 %} · 第 {{ pagination.page }} / {{ pagination.totalPages }} 页{% endif %}
+  </p>
+
+  {% if posts.items.length %}
+    <div class="rn-post-list">
+      {% for post in posts.items %}
+        {% include "partials/post-card.njk" %}
+      {% endfor %}
+    </div>
+    {% include "partials/pagination.njk" %}
+  {% else %}
+    <section class="rn-empty">
+      <p class="rn-muted">没有找到匹配的内容，试试更短的关键词。</p>
+    </section>
+  {% endif %}
+{% else %}
+  <p class="rn-muted">输入关键词以检索站内文章。</p>
+{% endif %}
+{% endblock %}

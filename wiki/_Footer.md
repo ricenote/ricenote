@@ -1,1 +1,1 @@
-RiceNote 0.5.1 ｜ MIT 许可 ｜ [仓库](https://github.com/ricenote/ricenote) ｜ [变更日志](https://github.com/ricenote/ricenote/blob/main/CHANGELOG.md) ｜ [问题反馈](https://github.com/ricenote/ricenote/issues) ｜ 内容源：仓库 `wiki/` 目录（`pnpm wiki:publish` 同步）
+RiceNote 0.6.0 ｜ MIT 许可 ｜ [仓库](https://github.com/ricenote/ricenote) ｜ [变更日志](https://github.com/ricenote/ricenote/blob/main/CHANGELOG.md) ｜ [问题反馈](https://github.com/ricenote/ricenote/issues) ｜ 内容源：仓库 `wiki/` 目录（`pnpm wiki:publish` 同步）

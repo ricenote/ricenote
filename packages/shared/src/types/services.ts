@@ -6,7 +6,7 @@
  * 禁止直接 import 其他插件内部模块（见 docs/plugin-api/v1.md）。
  */
 
-import type { ContentFieldsSchema } from '../manifests.js';
+import type { ContentFieldsSchema, LocalizedText } from '../manifests.js';
 
 import type {
   AdminUserSummary,
@@ -501,6 +501,35 @@ export interface CoreSecurityService {
     permissionsOf(userId: number): Promise<string[]>;
     rolesOf(userId: number): Promise<string[]>;
   }): void;
+  /**
+   * 权限点的「声明 + 使用」合并视图（authorization 插件用它组装权限目录）。
+   *
+   * 声明来自：各插件 `manifest.permissions` 与 Core 自有的控制面权限点；
+   * 使用来自：`manifest.admin.pages[].permission`、运行期注册的
+   * `ctx.routes.adminApi({ permission })` 与 `ctx.adminMenu.add({ permission })`。
+   *
+   * **只读且不参与鉴权**：鉴权仍按标识字符串比对，与是否声明无关。
+   * 因此"用了但没声明"的权限点会以 `declaredBy === null` 出现在结果里（供界面标记「未登记」）。
+   */
+  listDeclaredPermissions(): DeclaredPermission[];
+}
+
+/**
+ * 一个权限点在「声明 + 使用」两侧的合并视图。
+ *
+ * 供权限管理界面展示与分配；未登记的权限点也出现在列表里，避免"用了却没有中文名"。
+ */
+export interface DeclaredPermission {
+  /** 权限点标识，形如 `post.publish`。 */
+  key: string;
+  /** 声明方提供的展示名；未声明时为 `null`（界面回退为显示标识本身）。 */
+  label: LocalizedText | null;
+  /** 声明方提供的分组名；未声明时为 `null`。 */
+  group: LocalizedText | null;
+  /** 声明该权限点的插件 ID；`null` 表示由 Core 自己声明（控制面权限点）。 */
+  declaredBy: string | null;
+  /** 实际使用该权限点的插件 ID（按字典序；不含 Core 自身的路由）。 */
+  usedBy: string[];
 }
 
 /** Core 提供给插件的主题服务。 */

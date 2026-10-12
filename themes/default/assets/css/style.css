@@ -699,3 +699,75 @@ img {
   max-width: 44rem;
   margin: 0 auto;
 }
+
+/* ------------------------------ 友情链接页 ------------------------------ */
+
+/* 由 friend-links 插件提供的 /links 页面：卡片网格，头像 + 名称 + 描述 */
+.df-links {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .df-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .df-links {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.df-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  background: var(--df-paper);
+  border: 1px solid var(--df-line);
+  border-radius: var(--df-radius);
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.df-link:hover {
+  border-color: #c9c4ba;
+  transform: translateY(-2px);
+}
+
+.df-link__avatar {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--df-line);
+  background: var(--df-paper);
+}
+
+.df-link__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.df-link__name {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--df-ink);
+}
+
+.df-link:hover .df-link__name {
+  color: var(--df-accent);
+}
+
+.df-link__desc {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--df-ink-soft);
+}

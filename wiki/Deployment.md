@@ -55,7 +55,7 @@ MySQL 容器使用以下环境变量（其它服务通过 Docker 网络内的 `m
 
 | 变量 | 默认值 | 用途 |
 | --- | --- | --- |
-| `DB_ROOT_PASSWORD` | `cc80212562` | MySQL root 密码（**仅容器内使用**，请务必改掉） |
+| `DB_ROOT_PASSWORD` | `password` | MySQL root 密码（**仅容器内使用**，请务必改掉） |
 | `DB_NAME` | `ricenote` | 初始库名 |
 | `DB_USER` | `ricenote` | 应用账号 |
 | `DB_PASSWORD` | `ricenote` | 应用账号密码 |

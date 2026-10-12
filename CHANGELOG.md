@@ -7,6 +7,130 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-12
+
+> **次版本**：应用版本 `0.5.4` → `0.6.0`，13 个官方插件的**宿主区间**随之跨到 `^0.6.0` 并各自升一个次版本。
+> 起因是本版本动了内核（清单新增 `permissions` 字段、`core.security@1` 新增方法）与关键插件
+> （authorization 的权限点机制、13 个插件的清单），插件与宿主需要成套发布。
+> 插件 API 无破坏性变更（manifest 只新增**可选**字段），因此这是"配套发布"而非"接口破坏"。
+
+### Changed（版本与宿主区间）
+
+- **应用版本 `0.5.4` → `0.6.0`**：根 `package.json`、`packages/core` 的 `APP_VERSION`、
+  插件目录 `appVersion` 与四个 SDK 包（`shared` / `plugin-sdk` / `theme-sdk` / `admin-sdk`）。
+- **13 个官方插件的宿主区间 `^0.5.0` → `^0.6.0`**，并各自升一个次版本（跟随宿主次版本是仓库既有约定）：
+  identity 1.4.0、authorization 1.4.0、posts 1.7.0、pages 1.4.0、navigation 1.2.0、taxonomy 1.2.0、
+  media 1.3.0、comments 1.3.0、search 1.2.0、seo 1.2.0、editor-enhance 1.1.0、feed 1.1.0、
+  friend-links 1.1.0；`manifest.json` / `package.json` / 插件目录三处保持一致。
+- **升级提示**：这些插件在 `0.5.x` 宿主上会被判定为"宿主区间不符"，属预期 —— 请走插件更新流程，
+  不要手改插件的 `package.json`。
+
+### Docs
+
+- **wiki 新增「权限点声明与角色分配」页**（面向插件作者）：何时需要权限点、`permissions` 的写法与
+  命名约定、两条不对称规则、Core 保留的共用权限点、"声明 ≠ 授权"（内置角色自 0.5.4 起只剩
+  `administrator`）、自查手段与宿主版本要求；侧栏、开发者页面索引与相关页面的交叉链接同步加入。
+- **起步页新增第 4 节「权限点：声明在你自己的清单里」**（后续章节顺延编号）；
+  `manifest` 参考的第 8 节补上宿主版本要求与指引链接。
+- **版本与区间字样全仓同步**：`wiki/Home.md` 与 `wiki/_Footer.md`（此前仍停留在 `0.5.1`）、
+  `wiki/Upgrading.md`、`wiki/FAQ.md`、`wiki/Configuration.md`、`wiki/Plugins-Install-and-Update.md`、
+  `wiki/Plugin-API-Tutorial.md`、`wiki/Plugins-Overview.md` 的版本表、`README.md` 与
+  `docs/plugin-api/v1.md` 的示例；`docs/plugin-api/v1.md` 第 19 节补充「宿主版本要求」与
+  「声明之后谁来授权」两小节。
+- **wiki 的 ADR 索引补上 ADR-018**（此前只更新了 `docs/adr/README.md`），并把开发者索引里的
+  ADR 范围从 `ADR-001 ~ ADR-017` 更正为 `ADR-001 ~ ADR-018`。
+- **修正两处已失真的文档描述**：`LOG_FORMAT` / `NO_COLOR` 并非"未接线" —— 它们由日志模块
+  （`packages/core/src/logger.ts`）直接读取环境变量并生效（只是不参与配置模式校验），
+  三个键里只有 `DB_ROOT_PASSWORD` 确实不被应用消费。
+
+## [0.5.4] - 2026-10-12
+
+> **含行为变更**：权限点声明下放到各插件，内置角色收敛为仅 `administrator`，
+> 新用户不再自动获得角色；`editor` / `author` / `contributor` 由迁移删除（挂在它们上的用户会失去角色）。
+> 插件 API 无破坏性变更（manifest 只新增可选字段、`core.security@1` 只新增方法），宿主区间 `^0.5.0` 不变。
+
+### Changed（权限点归属：插件声明、Core 聚合）
+
+- **新增 `manifest.permissions` 声明**：插件在自己的清单里声明**拥有的**权限点
+  （`key` + 多语言 `label` + `group`）。此前这些信息硬编码在 `rice.authorization` 的
+  `src/permissions.ts` 里，导致**每加一个插件都要改 authorization** —— 插件之间出现反向源码耦合。
+- **`core.security@1` 新增 `listDeclaredPermissions()`**：Core 自己声明控制面与共用权限点
+  （`theme.*` / `plugin.*` / `user.manage` / `system.*`，其中 `user.manage` 被 identity 与
+  authorization 共用），校验全局唯一，并把「声明 + 使用」聚合成一份视图交给 authorization 展示。
+  使用点来自 `admin.pages[].permission`、`contributions[].permission`（加载期静态）与运行期的
+  `ctx.routes.adminApi` / `ctx.adminMenu.add`。**新增插件不再需要改动 authorization 一行代码。**
+- **两条刻意不对称的规则**（启动期与 `pnpm validate` 共用同一份实现）：
+  **同一标识被两方声明 = 错误**（归属不清，权限目录会出现两个同名项）；
+  **被使用但无人声明 = 仅告警**（鉴权按标识字符串比对、不依赖声明，因此不拦），
+  这类权限点以「未登记」分组出现在目录里、仍可分配。
+- `resolveLocalizedText()` 从 `@ricenote/theme-sdk` 下沉到 `@ricenote/shared`
+  （插件只依赖 shared / plugin-sdk，不该为解析文案去依赖 theme-sdk）；theme-sdk 保留同名转发。
+- 8 个官方插件的 `manifest.json` 补上各自的 `permissions` 声明
+  （`link.view` / `link.manage` 由此从 authorization **移出**到 `rice.friend-links`）。
+- 文档同步：新增 [ADR-018](docs/adr/ADR-018-plugin-permission-declarations.md) 并给 ADR-005 追加修订章节，
+  更新 `docs/plugin-api/v1.md`（新增第 19 节）、`wiki/Plugin-API-Manifest-Reference.md`（新增第 8 节）与
+  wiki 中权限点/角色相关的全部页面。
+- 版本号 `0.5.3` → `0.5.4`（根 `package.json`、`packages/core` 的 `APP_VERSION`、
+  插件目录 `appVersion` 与四个 SDK 包）。
+
+### Removed（内置角色收敛）
+
+- **`editor` / `author` / `contributor` 不再是内置角色**：插件不该替站点决定"谁该有什么权限"。
+  升级时这三个角色连同它们的角色-权限、用户-角色关联由
+  `plugins/official/authorization/migrations/0002_remove_legacy_builtin_roles.sql` 一次性删除
+  —— **已经挂在它们上的用户会失去角色**，请在「角色与权限」页自建角色并重新分派。
+- **内置角色不再"每次启动重写权限"**：过去启动会 `DELETE` 后重写内置角色的权限集合，
+  管理员在后台做的调整会在下次重启消失。现在启动只保证 `administrator` 存在且权限含 `*`。
+- **新用户不再自动获得角色**：`identity.user.created.v1` 的处理改为 —— 首个用户仍自动成为
+  `administrator`（否则全新站点没人能进后台）；其余新用户不分配任何角色，只记一条提示日志，
+  后台创建用户时显式指定了 `role` 才分派。新建的用户默认**没有任何权限**，需管理员显式授权。
+
+## [0.5.3] - 2026-10-12
+
+> 补丁版本：新增两个官方**可选**插件（RSS 订阅、友情链接），官方插件集 11 → 13；
+> 两套官方主题补上对应的页面模板，插件目录、权限点与文档一并同步。
+> 无接口破坏性变更，插件宿主区间 `^0.5.0` 不变。
+
+### Added（两个新的官方可选插件）
+
+- **`rice.feed`（RSS 订阅）**：提供标准 **RSS 2.0** 订阅地址 `/feed.xml`，读者用任意 RSS
+  阅读器即可订阅最新文章；同时在 `head.end` 注入 `<link rel="alternate">`，把站点地址粘进
+  阅读器也能自动发现订阅源。只收录**已发布**文章（草稿与归档不出现），条数、是否输出正文
+  全文、缓存时间均可在后台调整；`posts` 插件被禁用时降级为不含条目的合法订阅源而不是报错。
+  该插件**不持有数据表**，禁用后不留残留。
+- **`rice.friend-links`（友情链接）**：后台「友情链接」管理页支持增删改与启停，字段为
+  名称 / 地址 / 头像 / 描述 / 排序；新增对访客可见的固定页面 `/links`，把友链列表以
+  `data.friendLinks` 交给主题逐条渲染（元素含 `name`/`url`/`avatarUrl`/`description`）——
+  这是本插件唯一的主题接口，刻意不引入跨插件服务契约。页面可缓存，增删改后按
+  `friend-links` 标签精确失效。
+- **两套官方主题接入**：`themes/default` 与 `themes/minimal` 各新增 `templates/links.njk`
+  并在 `theme.json` 声明 `templates.links`，配套样式（默认主题为头像卡片网格、极简主题为
+  单列列表）。导航栏与页脚**未做任何改动**：需要入口时用导航栏插件添加一条指向
+  `/links` 的自定义链接即可。
+
+### Fixed（后台构建）
+
+- 修掉 **0.5.2 引入的一处后台构建缺陷**：清理「运行日志」页文案时误删了 `scannedLines` 这个响应式
+  变量，但模板里仍在引用它，于是 `apps/admin` 的 `vue-tsc` 类型检查失败、`pnpm build` 中断
+  （运行时不影响已发布的产物，但源码仓库无法构建）。现改为只显示「命中 N 条」，
+  不再暴露「扫描 N 行」这类内部细节。
+
+### Changed（插件目录、权限与文档同步）
+
+- `packages/shared/manifests/plugin-catalog.json` 登记两个新插件，`category` 均为 `optional`
+  （安装向导默认不勾选，可独立启停），插件总数 11 → 13。
+- 新增权限点 `link.view` / `link.manage`（分组「外观」）并写入内置角色：`editor` /
+  `author` / `contributor` 获得 `link.view`，`link.manage` 目前只属于管理员（`*`）。
+- `.env.example` 修正「官方插件全量清单」注释（此前已漏 `navigation` 与 `editor-enhance`），
+  并把 `RICENOTE_SEED_PLUGINS` 示例对齐安装向导的「必需 + 推荐」档。
+- 文档与清单同步：`wiki/Plugins-Overview.md`、`wiki/Home.md`、`wiki/Hooks-Inventory.md`、
+  `wiki/Admin-Guide.md`、`README.md`、`docs/plugin-api/v1.md`、
+  `docs/architecture/overview.md`、`docs/architecture/hooks-inventory.md`、
+  `docs/adr/ADR-016-official-plugin-npm-distribution.md`，以及 `scripts/release-plugins.mjs`
+  头注释里的包数量（15 → 17）。
+- 版本号 `0.5.2` → `0.5.3`（根 `package.json`、`packages/core` 的 `APP_VERSION`、
+  插件目录 `appVersion` 与四个 SDK 包）。
+
 ## [0.5.2] - 2026-10-12
 
 > 补丁版本：后台管理界面文案全面面向普通用户（删除技术性说明、术语通俗化，含插件卡片描述），
@@ -856,7 +980,10 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ricenote/ricenote/releases/tag/v0.6.0
+[0.5.4]: https://github.com/ricenote/ricenote/releases/tag/v0.5.4
+[0.5.3]: https://github.com/ricenote/ricenote/releases/tag/v0.5.3
 [0.5.2]: https://github.com/ricenote/ricenote/releases/tag/v0.5.2
 [0.5.1]: https://github.com/ricenote/ricenote/releases/tag/v0.5.1
 [0.4.0]: https://github.com/ricenote/ricenote/releases/tag/v0.4.0

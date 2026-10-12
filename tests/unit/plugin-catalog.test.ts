@@ -142,9 +142,19 @@ describe('勾选联动：依赖闭包', () => {
 });
 
 describe('扩展中心目录视图：三种状态', () => {
+  /*
+   * 已装版本从**目录里的推荐版本**派生，而不是写字面量：目录一升版，
+   * 写死的版本就会让"不应提示可更新"的断言静默失真（identity 曾因此恰好相等才通过）。
+   */
+  const recommended = (id: string): string => findCatalogEntryById(id)?.version ?? '0.0.0';
+  const previousMinor = (version: string): string => {
+    const [major, minor] = version.split('.');
+    return `${major}.${Math.max(0, Number(minor) - 1)}.0`;
+  };
+
   const summary = [
-    { id: 'rice.identity', version: '1.3.0', builtin: true },
-    { id: 'rice.posts', version: '1.4.0', builtin: false }
+    { id: 'rice.identity', version: recommended('rice.identity'), builtin: true },
+    { id: 'rice.posts', version: previousMinor(recommended('rice.posts')), builtin: false }
   ];
 
   it('未装 / 已装 / 落后于推荐版本 分别标注正确', () => {
@@ -157,7 +167,7 @@ describe('扩展中心目录视图：三种状态', () => {
       { installed: true, builtin: true, outdated: false }
     );
 
-    // posts 已装 1.4.0 < 推荐 1.5.0 → 提示可更新
+    // posts 已装版本刻意低于目录推荐版本 → 提示可更新
     const posts = byId.get('rice.posts');
     assert.deepEqual(
       { installed: posts?.installed, builtin: posts?.builtin, outdated: posts?.updateToRecommended },

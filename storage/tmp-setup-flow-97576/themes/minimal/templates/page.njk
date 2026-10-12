@@ -1,0 +1,33 @@
+{#
+  自定义页面（kind = page）的默认模板。
+
+  页面正文由 pages 插件提供在 `content` 变量中：
+    content.title / content.html（已消毒的受信 HTML）/ content.updatedAt / content.slug
+  注意：`content` 仅在 pages 插件启用时存在，因此所有访问都要带判空，
+  否则禁用该插件后访问 /page/xxx 会渲染出错（虽然那时根本不会有该路由）。
+#}
+{% extends "layout.njk" %}
+
+{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}
+{% block description %}{{ seoDescription or site.description }}{% endblock %}
+
+{% block content %}
+<article class="rn-post rn-page">
+  <header class="rn-post__header">
+    <h1 class="rn-post__title">{% if content %}{{ content.title }}{% else %}{{ page.title }}{% endif %}</h1>
+    {% if content and content.updatedAt %}
+      <p class="rn-post__meta">
+        <time datetime="{{ content.updatedAt }}">最后更新 {{ content.updatedAt | date('YYYY年MM月DD日') }}</time>
+      </p>
+    {% endif %}
+  </header>
+
+  <div class="rn-prose">
+    {% if content and content.html %}
+      {{ content.html }}
+    {% else %}
+      <p class="rn-muted">该页面暂无正文。</p>
+    {% endif %}
+  </div>
+</article>
+{% endblock %}

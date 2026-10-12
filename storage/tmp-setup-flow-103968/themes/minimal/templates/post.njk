@@ -1,0 +1,49 @@
+{% extends "layout.njk" %}
+
+{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}
+{% block description %}{{ seoDescription or post.excerpt or site.description }}{% endblock %}
+
+{% block content %}
+<article class="rn-post">
+  <header class="rn-post__header">
+    <h1 class="rn-post__title">{{ post.title }}</h1>
+    <p class="rn-post__meta">
+      {% if post.publishedAt %}<time datetime="{{ post.publishedAt }}">{{ post.publishedAt | date('YYYY年MM月DD日 HH:mm') }}</time>{% endif %}
+      {% if post.authorName %}<span class="rn-dot">·</span><span>{{ post.authorName }}</span>{% endif %}
+    </p>
+
+    {% if post.terms and post.terms.length %}
+      <ul class="rn-terms">
+        {% for term in post.terms %}
+          <li>
+            <a href="{% if term.type == 'category' %}{{ url('term.category', { slug: term.slug }) }}{% else %}{{ url('term.tag', { slug: term.slug }) }}{% endif %}">
+              {{ term.name }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </header>
+
+  {{ slot('post.beforeContent', { postId: post.id }) }}
+
+  <div class="rn-prose">
+    {% if post.html %}
+      {{ post.html }}
+    {% else %}
+      <p class="rn-muted">这篇内容暂无正文。</p>
+    {% endif %}
+  </div>
+
+  {{ slot('post.afterContent', { postId: post.id }) }}
+</article>
+
+{% if has_feature('comments') %}
+  <section class="rn-comments">
+    <h2>评论</h2>
+    {{ slot('post.comments', { postId: post.id }) }}
+  </section>
+{% endif %}
+
+<p class="rn-back"><a href="{{ url('home') }}">← 返回首页</a></p>
+{% endblock %}

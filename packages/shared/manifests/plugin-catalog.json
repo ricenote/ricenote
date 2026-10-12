@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "appVersion": "0.5.2",
+  "appVersion": "0.6.0",
   "plugins": [
     {
       "id": "rice.identity",
       "npm": "@ricenote/plugin-identity",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "category": "required",
       "label": "身份与认证",
       "description": "管理用户账号与登录。",
@@ -24,7 +24,7 @@
     {
       "id": "rice.authorization",
       "npm": "@ricenote/plugin-authorization",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "category": "required",
       "label": "角色与权限",
       "description": "管理角色与权限，并为用户分配角色。",
@@ -43,7 +43,7 @@
     {
       "id": "rice.posts",
       "npm": "@ricenote/plugin-posts",
-      "version": "1.6.0",
+      "version": "1.7.0",
       "category": "recommended",
       "label": "文章",
       "description": "撰写、发布与归档文章，并生成站点的文章页面与归档页面。",
@@ -65,7 +65,7 @@
     {
       "id": "rice.pages",
       "npm": "@ricenote/plugin-pages",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "category": "recommended",
       "label": "页面",
       "description": "创建「关于我们」「联系方式」这类固定内容页面，可自定义地址、状态与排序。",
@@ -87,7 +87,7 @@
     {
       "id": "rice.navigation",
       "npm": "@ricenote/plugin-navigation",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "category": "recommended",
       "label": "导航栏",
       "description": "管理站点顶部导航栏，自由编排自定义链接、页面与文章。",
@@ -106,7 +106,7 @@
     {
       "id": "rice.taxonomy",
       "npm": "@ricenote/plugin-taxonomy",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "category": "recommended",
       "label": "分类与标签",
       "description": "为文章提供分类与标签，方便组织与归档内容。",
@@ -123,7 +123,7 @@
     {
       "id": "rice.media",
       "npm": "@ricenote/plugin-media",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "category": "recommended",
       "label": "媒体库",
       "description": "管理站点上传的图片与文件，供文章中引用。",
@@ -144,7 +144,7 @@
     {
       "id": "rice.comments",
       "npm": "@ricenote/plugin-comments",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "category": "recommended",
       "label": "评论",
       "description": "为文章提供访客评论与回复，支持审核与垃圾评论拦截。",
@@ -164,7 +164,7 @@
     {
       "id": "rice.search",
       "npm": "@ricenote/plugin-search",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "category": "recommended",
       "label": "搜索",
       "description": "为站点提供全站搜索，聚合文章与页面等内容。",
@@ -176,7 +176,7 @@
     {
       "id": "rice.seo",
       "npm": "@ricenote/plugin-seo",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "category": "recommended",
       "label": "SEO",
       "description": "提升站点在搜索引擎与社交平台上的展示效果，并生成供搜索引擎抓取的站点地图。",
@@ -188,13 +188,37 @@
     {
       "id": "rice.editor-enhance",
       "npm": "@ricenote/plugin-editor-enhance",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "optional",
       "label": "编辑增强",
       "description": "增强文章与页面的编辑体验：Markdown 双栏编辑器、编辑工具栏（预览、插入图片）与列表页「新建」入口。",
       "capabilities": ["extensions:contribute"],
       "requires": [],
       "repository": "https://github.com/ricenote/plugin-editor-enhance",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.feed",
+      "npm": "@ricenote/plugin-feed",
+      "version": "1.1.0",
+      "category": "optional",
+      "label": "RSS 订阅",
+      "description": "为站点提供订阅地址，读者用 RSS 阅读器即可自动获取最新文章。",
+      "capabilities": ["routes:public", "services:consume", "slots:register"],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-feed",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.friend-links",
+      "npm": "@ricenote/plugin-friend-links",
+      "version": "1.1.0",
+      "category": "optional",
+      "label": "友情链接",
+      "description": "管理站点的友情链接，并为访客提供一个展示友链的页面。",
+      "capabilities": ["database:own", "services:consume", "routes:public", "routes:admin"],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-friend-links",
       "license": "MIT"
     }
   ]

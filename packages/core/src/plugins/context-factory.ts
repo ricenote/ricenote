@@ -40,6 +40,7 @@ import type { SlotRegistry } from '../render/slots.js';
 import type { ExtensionRegistry } from '../extensions/registry.js';
 import type { AdminMenuRegistry } from './admin-menu.js';
 import type { LoadedPlugin } from './manifest.js';
+import type { PermissionRegistry } from '../security/permission-registry.js';
 import { resolvePluginSettings } from './settings-schema.js';
 
 export interface ContextFactoryDeps {
@@ -63,6 +64,13 @@ export interface ContextFactoryDeps {
   site: () => SiteInfo;
   /** 站点级插件配置覆盖（来自 rn_plugin_settings）。 */
   pluginSettings: Map<string, Record<string, unknown>>;
+  /**
+   * 权限点登记表。
+   *
+   * 注册管理路由/菜单时把"用到的权限点"记进去，供 Core 聚合展示，
+   * 并在"用了却没声明"时给出告警（宽松策略：不影响鉴权）。
+   */
+  permissions: PermissionRegistry;
   logger: Logger;
 }
 
@@ -199,6 +207,8 @@ export function createPluginContext(
         if (!capabilities.has('routes:admin')) {
           throw forbidden(pluginId, 'routes:admin', 'ctx.routes.adminApi');
         }
+        // 登记"用到的权限点"（鉴权仍由网关按标识字符串比对，不依赖声明）
+        deps.permissions.track(spec.permission, pluginId, 'admin-api');
         return track(deps.router.registerAdminApi(pluginId, spec));
       }
     },
@@ -252,6 +262,7 @@ export function createPluginContext(
         if (!capabilities.has('admin:menu')) {
           throw forbidden(pluginId, 'admin:menu', 'ctx.adminMenu.add');
         }
+        deps.permissions.track(item.permission, pluginId, 'admin-menu');
         return track(deps.adminMenu.add(pluginId, item));
       },
       list() {

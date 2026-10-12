@@ -165,8 +165,8 @@ onMounted(load);
 
       <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p class="text-[11px] text-muted-foreground">
-          扫描 {{ scannedLines }} 行 · 命中 {{ total }} 条
-          <span v-if="truncated" class="text-[hsl(var(--warning))]"> · 已达读取上限，仅显示最近的部分记录</span>
+          命中 {{ total }} 条
+          <span v-if="truncated" class="text-[hsl(var(--warning))]"> · 仅显示最近的部分记录</span>
         </p>
         <div class="flex items-center gap-2">
           <Button variant="outline" size="sm" @click="reload">应用筛选</Button>

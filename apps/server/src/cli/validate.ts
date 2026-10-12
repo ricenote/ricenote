@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import {
   createManifestValidator,
+  RiceNoteError,
   satisfiesRange,
   type PluginManifest,
   type ThemeManifest,
@@ -16,7 +17,12 @@ import {
 } from '@ricenote/shared';
 import { PLUGIN_API_VERSION, STANDARD_SLOTS } from '@ricenote/plugin-sdk';
 import { THEME_API_VERSION } from '@ricenote/theme-sdk';
-import { APP_VERSION, discoverPluginsFrom } from '@ricenote/core';
+import {
+  APP_VERSION,
+  CORE_PERMISSIONS,
+  PermissionRegistry,
+  discoverPluginsFrom
+} from '@ricenote/core';
 import { validateCatalog, type CatalogValidation } from './validate-catalog.js';
 
 const validator = createManifestValidator();
@@ -38,6 +44,13 @@ interface ValidationReport {
   theme: { total: number; valid: number; invalid: { dir: string; issues: ValidationIssue[] }[] };
   /** 官方插件目录（推荐版本、包名、可发布形态）的校验结果。 */
   catalog: CatalogValidation;
+  /**
+   * 与权限点有关的**提示**（不算失败）。
+   *
+   * 例如"某个标识被使用但没有任何插件声明它" —— 鉴权不依赖声明，因此不拦；
+   * 但它意味着权限目录里这个权限点没有中文名与归属，作者应当补上。
+   */
+  permissionNotes: string[];
 }
 
 const GREEN = '\u001b[32m';
@@ -166,6 +179,15 @@ export function validateProject(options: ValidateOptions): ValidationReport {
    */
   pluginApiIssues.push(...validateExtensions(discovery.plugins));
 
+  /*
+   * 权限点声明：与运行期同一套规则（重复声明报错、用了没声明只提示）。
+   * 静态可见的"使用点"只有 manifest 里的（后台页面与扩展点贡献）；
+   * 运行期 `ctx.routes.adminApi({ permission })` 注册的权限点 CLI 看不到，
+   * 那部分由启动日志里的同一份告警兜住。
+   */
+  const permissionResult = validatePermissions(discovery.plugins);
+  pluginApiIssues.push(...permissionResult.errors);
+
   const invalidPlugins = [...pluginIssues, ...pluginApiIssues];
   const themeResult = validateThemes(options.themesDir);
   /*
@@ -189,8 +211,51 @@ export function validateProject(options: ValidateOptions): ValidationReport {
       valid: themeResult.total - themeResult.invalid.length,
       invalid: themeResult.invalid
     },
-    catalog: catalogResult
+    catalog: catalogResult,
+    permissionNotes: permissionResult.notes
   };
+}
+
+/**
+ * 权限点声明的静态校验（跨插件）。
+ *
+ * **直接复用运行期的 `PermissionRegistry`**，而不是在这里再写一份规则：
+ * 两条规则刻意不对称 —— **重复声明 = 错误**（归属不清，权限目录会出现两个同名项）、
+ * **用了却没声明 = 提示**（鉴权按标识字符串比对、不依赖声明，因此不拦）——
+ * 两处各写一份必然漂移，所以让 CLI 与启动期走同一份实现。
+ *
+ * 注意：某个插件声明冲突时，它剩余未登记的声明会被跳过，随之可能出现几条
+ * 额外的"未声明"提示；这发生在已经失败（`ok = false`）的轮次里，不影响判断。
+ */
+function validatePermissions(
+  plugins: ReadonlyArray<{ dir: string; manifest: PluginManifest }>
+): { errors: { dir: string; issues: ValidationIssue[] }[]; notes: string[] } {
+  const registry = new PermissionRegistry();
+  // Core 自有/共用的控制面权限点先占位，插件不得重复声明它们
+  registry.declare(null, CORE_PERMISSIONS);
+
+  const byDir = new Map<string, ValidationIssue[]>();
+
+  for (const plugin of plugins) {
+    try {
+      registry.declareManifest(plugin.manifest.id, plugin.manifest);
+    } catch (error) {
+      const message = error instanceof RiceNoteError ? error.message : String(error);
+      const bucket = byDir.get(plugin.dir) ?? [];
+      bucket.push({ path: '/permissions', message, keyword: 'permissions' });
+      byDir.set(plugin.dir, bucket);
+    }
+  }
+
+  const notes = registry
+    .undeclared()
+    .map(
+      (item) =>
+        `权限点 ${item.key} 被使用但未声明（${item.usedBy.join('、')}）：` +
+        '请在对应插件的 manifest.permissions 中补上，否则权限目录里它没有中文名与归属'
+    );
+
+  return { errors: [...byDir.entries()].map(([dir, issues]) => ({ dir, issues })), notes };
 }
 
 /** 内置内容字段名：主题的 contentFields 不得占用（它们由内容本身与持久化列占用）。 */
@@ -463,6 +528,11 @@ export function runValidate(options: ValidateOptions): number {
 
   // 提示不算失败：例如开发中的插件还没进目录、清单版本还没随发版更新
   for (const note of report.catalog.notes) {
+    process.stdout.write(`  ${YELLOW}!${RESET} ${DIM}${note}${RESET}\n`);
+  }
+
+  // 权限点提示同样不算失败：未声明的标识仍然可用，只是没有中文名与归属
+  for (const note of report.permissionNotes) {
     process.stdout.write(`  ${YELLOW}!${RESET} ${DIM}${note}${RESET}\n`);
   }
 

@@ -157,7 +157,7 @@
   `↑/↓` 移动、`Enter` 选中、`Esc` 或点击组件外部关闭；
 - 回车提交自由文本：命中已有标签则直接选中；**未命中且当前用户有 `taxonomy.manage`**
   （administrator / editor）时才 `POST /api/admin/terms { name, type: 'tag' }` 创建后选中；
-- **无 `taxonomy.manage` 时不提供创建**（author / contributor 只能选已有），输入框给出
+- **无 `taxonomy.manage` 时不提供创建**（只能选已有标签），输入框给出
   「没有创建标签的权限」一行提示，不产生任何写请求；
 - 本地先按名称查重，尽量不白撞服务端的重名判断；万一命中 **409**（服务端只按 slug 判重），
   改为重拉列表并选中那条同名 / 同 slug 的标签，提示「该标签已存在，已选中」——**不算失败**；

@@ -1,0 +1,23 @@
+{#
+  落地页版式：不输出标题与页眉信息，正文直接铺满。
+
+  适用场景：标题已经写在正文里的活动页 / 简介页。
+  在后台页面编辑里把「页面模板」选为「落地页（无标题）」即可切到本模板，
+  内容本身不做任何改动（模板只是渲染层选择）。
+#}
+{% extends "layout.njk" %}
+
+{% block title %}{{ page.title }} · {{ site.title }}{% endblock %}
+{% block description %}{{ seoDescription or site.description }}{% endblock %}
+
+{% block content %}
+<div class="rn-page rn-page--plain">
+  <div class="rn-prose">
+    {% if content and content.html %}
+      {{ content.html }}
+    {% else %}
+      <p class="rn-muted">该页面暂无正文。</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

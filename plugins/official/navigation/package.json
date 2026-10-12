@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/plugin-navigation",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "RiceNote 导航栏插件：自定义链接、页面与文章组成的有序顶部导航",
   "keywords": [
@@ -34,8 +34,8 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@ricenote/plugin-sdk": "^0.5.0",
-    "@ricenote/shared": "^0.5.0"
+    "@ricenote/plugin-sdk": "^0.6.0",
+    "@ricenote/shared": "^0.6.0"
   },
   "peerDependenciesMeta": {
     "@ricenote/plugin-sdk": {

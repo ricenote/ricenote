@@ -3,7 +3,7 @@
   "id": "rice.search",
   "name": "搜索",
   "description": "为站点提供全站搜索，聚合文章与页面等内容。",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",

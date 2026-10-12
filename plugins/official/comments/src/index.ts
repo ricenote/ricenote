@@ -22,7 +22,7 @@ import {
 import { createCommentsService, type CommentsRuntime, type CommentsSettings } from './service.js';
 import { createCommentsSlot } from './slot.js';
 
-/** 互动分区的权限点（由 authorization 插件的权限目录声明）。 */
+/** 互动分区的权限点（由本插件的 `manifest.permissions` 声明，见 ADR-018）。 */
 const PERMISSION_MODERATE = 'comment.moderate';
 
 export default definePlugin({

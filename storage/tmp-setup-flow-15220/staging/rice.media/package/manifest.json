@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.media",
+  "name": "媒体库",
+  "description": "管理站点上传的图片与文件，供文章中引用。",
+  "version": "1.2.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "provides": ["media.library@1"],
+  "capabilities": [
+    "database:own",
+    "services:provide",
+    "services:consume",
+    "routes:admin",
+    "routes:public",
+    "media:store",
+    "extensions:declare",
+    "extensions:contribute"
+  ],
+  "permissions": [
+    {
+      "key": "media.manage",
+      "label": { "zh-CN": "管理媒体库", "en": "Manage the media library" },
+      "group": { "zh-CN": "内容", "en": "Content" }
+    }
+  ],
+  "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "media.library",
+        "label": "媒体库",
+        "path": "/media",
+        "icon": "Image",
+        "order": 10,
+        "permission": "media.manage",
+        "entry": "./admin/main.js"
+      }
+    ]
+  },
+  "extensionPoints": [
+    {
+      "name": "rice.media.picker",
+      "scope": "admin",
+      "replaceable": false,
+      "description": "媒体选择/上传面板：任何插件在自己的界面里渲染它即可获得完整的上传与选库能力",
+      "props": [
+        {
+          "name": "onPick",
+          "description": "选中后回调：{ url, fileName, mimeType, size }；不传时面板隐藏「插入」按钮（只读预览）"
+        }
+      ]
+    }
+  ],
+  "contributions": [
+    {
+      "point": "rice.media.picker",
+      "scope": "admin",
+      "mode": "replace",
+      "entry": "./admin/picker.js",
+      "order": 0,
+      "permission": "media.manage",
+      "label": "媒体库"
+    }
+  ],
+  "settingsSchema": {
+    "upload": {
+      "label": { "zh-CN": "上传", "en": "Uploads" },
+      "description": {
+        "zh-CN": "上传体积限制在收到请求时校验。修改后需重启服务生效。",
+        "en": "The size limit is enforced per request. A restart is required after changes."
+      },
+      "fields": {
+        "maxFileBytes": {
+          "type": "number",
+          "label": { "zh-CN": "单文件体积上限（字节）", "en": "Max file size (bytes)" },
+          "description": {
+            "zh-CN": "默认 8388608 字节 = 8 MB；上限 67108864 字节 = 64 MB",
+            "en": "Defaults to 8388608 bytes = 8 MB; maximum 67108864 bytes = 64 MB"
+          },
+          "default": 8388608,
+          "min": 1024,
+          "max": 67108864
+        }
+      }
+    }
+  }
+}
