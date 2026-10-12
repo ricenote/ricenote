@@ -22,7 +22,9 @@
     "theme": "pnpm --filter @ricenote/server theme",
     "setup": "pnpm --filter @ricenote/server run setup",
     "release:plugins": "node scripts/release-plugins.mjs",
-    "repos:plugins": "node scripts/split-plugin-repos.mjs"
+    "repos:plugins": "node scripts/split-plugin-repos.mjs",
+    "wiki:check": "node scripts/publish-wiki.mjs --check",
+    "wiki:publish": "node scripts/publish-wiki.mjs"
   },
   "dependencies": {
     "@ricenote/plugin-sdk": "workspace:*",

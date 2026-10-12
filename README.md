@@ -239,6 +239,24 @@ pnpm migrate                     # Core 与插件迁移（加锁串行、幂等�
 - [Theme API v1](docs/theme-api/v1.md)
 - [架构决策记录（ADR）](docs/adr/)
 
+### GitHub Wiki（面向使用者与开发者的在线文档）
+
+`wiki/` 目录是本项目 GitHub Wiki 的**内容源**，与上面的 `docs/` 独立维护：
+前者是"可对外阅读"的使用手册 + 深度开发者文档（逐方法 API 参考、从零写插件的完整教程、
+内核机制源码级剖析），后者是权威设计文档与 ADR。
+
+```bash
+pnpm wiki:check      # 校验源目录（必须有 Home.md、不得出现仓库相对链接），不联网
+pnpm wiki:publish    # 镜像同步到 GitHub Wiki（支持 --dry-run / --message= / --remote=）
+```
+
+- 发布是**镜像同步**：以 `wiki/` 为准增删页面，因此"删除一个页面"也会生效；无变化时直接跳过（退出码 0）。
+- 首次发布前需在 GitHub 仓库 **Settings → Features 勾选 Wikis**，并先在 wiki 页面创建第一个页面
+  （否则 `ricenote.wiki.git` 不存在，脚本会给出中文指引）。
+- 新增页面只需在 `wiki/` 下建 `.md` 并在 `wiki/_Sidebar.md` 加一行链接；
+  页面互链用 `[[显示文本|完整页面名]]`，指向仓库文件一律用绝对 URL。写法规约见
+  [wiki/Development/Contributing.md](wiki/Development/Contributing.md)。
+
 ## 变更日志
 
 见 [CHANGELOG.md](CHANGELOG.md)，遵循 [Keep a Changelog 1.1.0](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/spec/v2.0.0.html)。
