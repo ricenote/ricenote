@@ -1,0 +1,209 @@
+/*
+ * rice.editor-enhance —— 正文编辑器贡献的样式（仅 editorBody 的两条贡献声明 style）。
+ *
+ * 两条硬性约束：
+ * 1. 只写本插件自己的 `.ee-*` 类；涉及第三方（Toast UI）的覆盖全部限定在
+ *    `.ee-editor` 作用域内，**绝不改动宿主的全局类名** —— 宿主样式是唯一定义处，
+ *    插件越权改全局会污染整个后台；
+ * 2. 视觉沿用后台语言：1px 细边框、无阴影、无毛玻璃、等宽编辑区、
+ *    中间 1px 分隔线表达两栏层级（层级只靠边框与背景色差）。
+ *
+ * 注意：这是纯静态 CSS（由宿主以 <link> 注入，不走 Tailwind 管线），
+ * 因此设计令牌要写成 `hsl(var(--border))` 的原始形式，不能用 @apply。
+ */
+
+.ee-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 22rem;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+
+.ee-editor__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.ee-editor__meta {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+}
+
+/* 第一个统计项推到左侧，其余（草稿时间）靠右 */
+.ee-editor__meta:first-of-type {
+  margin-right: auto;
+}
+
+.ee-editor__panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+.ee-editor__pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 中间 1px 分隔线 */
+.ee-editor__pane + .ee-editor__pane {
+  border-left: 1px solid hsl(var(--border));
+}
+
+.ee-editor__textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 20rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.ee-editor__toastui {
+  flex: 1;
+  min-height: 20rem;
+}
+
+.ee-editor__pane--preview {
+  overflow: auto;
+}
+
+.ee-editor__preview {
+  padding: 0.75rem 1rem;
+  font-size: 14px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.ee-editor__preview :where(h1, h2, h3) {
+  margin: 1em 0 0.5em;
+  font-weight: 600;
+}
+
+.ee-editor__preview :where(h1) { font-size: 1.5rem; }
+.ee-editor__preview :where(h2) { font-size: 1.25rem; }
+.ee-editor__preview :where(h3) { font-size: 1.1rem; }
+
+.ee-editor__preview :where(p, ul, ol, blockquote, pre, table) {
+  margin: 0.75em 0;
+}
+
+.ee-editor__preview :where(ul, ol) {
+  padding-left: 1.25rem;
+  list-style: revert;
+}
+
+.ee-editor__preview :where(blockquote) {
+  padding-left: 0.75rem;
+  border-left: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
+
+.ee-editor__preview :where(code) {
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  background: hsl(var(--muted));
+  font-size: 0.9em;
+}
+
+.ee-editor__preview :where(pre) {
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: hsl(var(--muted));
+  overflow: auto;
+}
+
+.ee-editor__preview :where(pre code) {
+  padding: 0;
+  background: transparent;
+}
+
+.ee-editor__preview :where(img) {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+}
+
+.ee-editor__preview :where(a) {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.ee-editor__preview :where(table) {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ee-editor__preview :where(th, td) {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.ee-editor__error {
+  margin: 0.75rem 1rem;
+  font-size: 12px;
+  color: hsl(var(--destructive));
+}
+
+/* 窄屏：预览折为标签页（断点与 editor.js 的 matchMedia 900px 对齐） */
+.ee-editor__panes--narrow {
+  grid-template-columns: 1fr;
+}
+
+.ee-editor__panes--narrow .ee-editor__pane + .ee-editor__pane {
+  border-left: 0;
+}
+
+/*
+ * Toast UI 覆盖：选择器一律以 .ee-editor 起头，只影响本插件的编辑器容器。
+ */
+.ee-editor .toastui-editor-defaultUI {
+  border: 0;
+}
+
+.ee-editor .toastui-editor-defaultUI-toolbar {
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--muted));
+}
+
+.ee-editor .toastui-editor-main,
+.ee-editor .toastui-editor-ww-container,
+.ee-editor .toastui-editor-md-container {
+  background: transparent;
+}
+
+/* 中间 1px 分隔线（Toast UI 默认是一根带阴影的拖拽条） */
+.ee-editor .toastui-editor-md-splitter {
+  width: 1px;
+  background: hsl(var(--border));
+  box-shadow: none;
+}
+
+.ee-editor .toastui-editor-contents,
+.ee-editor .toastui-editor-md-preview {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+/* 兜底：即使 vendor 版 Toast UI 自带阴影，也按后台规范压平 */
+.ee-editor .toastui-editor-defaultUI * {
+  max-width: 100%;
+}

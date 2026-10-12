@@ -6,7 +6,7 @@
   "options": {
     "workspacePath": "c:/dev/ricenote"
   },
-  "members": [
+  "validMembers": [
     {
       "memberId": "view-inventory@ricenote-ui-migration",
       "name": "view-inventory",
@@ -26,6 +26,64 @@
       "name": "migrate-c",
       "role": "迁移用户与角色两个界面",
       "sessionId": "7ac0309767cc406b8c6c94e4768af4bf",
+      "status": "running"
+    }
+  ],
+  "members": [
+    {
+      "memberId": "sdk-slots@ricenote-ui-migration",
+      "name": "sdk-slots",
+      "role": "实现 admin-sdk 后台插槽宿主",
+      "sessionId": "288bdfa9dc7042098f14efe2567be584",
+      "status": "running"
+    },
+    {
+      "memberId": "posts-fields@ricenote-ui-migration",
+      "name": "posts-fields",
+      "role": "posts 插件内容字段落地",
+      "sessionId": "b4f7d4fff9b84752b28c43448325f43f",
+      "status": "running"
+    },
+    {
+      "memberId": "pages-fields@ricenote-ui-migration",
+      "name": "pages-fields",
+      "role": "pages 插件内容字段落地",
+      "sessionId": "a0e0d20c05ac4b5db6249d06d2dc8636",
+      "status": "running"
+    },
+    {
+      "memberId": "media-picker@ricenote-ui-migration",
+      "name": "media-picker",
+      "role": "媒体库提供媒体选择器锚点",
+      "sessionId": "d7280d33f9994b4880aa737b3aba383c",
+      "status": "running"
+    },
+    {
+      "memberId": "ext-tests@ricenote-ui-migration",
+      "name": "ext-tests",
+      "role": "扩展点核心单测",
+      "sessionId": "8bf5623f53494bb8889d6d8a92381c5a",
+      "status": "running"
+    },
+    {
+      "memberId": "editor-enhance@ricenote-ui-migration",
+      "name": "editor-enhance",
+      "role": "新增编辑增强插件",
+      "sessionId": "45587ed192ba49eba547cab4f189db27",
+      "status": "running"
+    },
+    {
+      "memberId": "docs-017@ricenote-ui-migration",
+      "name": "docs-017",
+      "role": "扩展点与内容字段文档与 ADR",
+      "sessionId": "0408667065f9476d88a56ec199dacf15",
+      "status": "running"
+    },
+    {
+      "memberId": "ext-integration@ricenote-ui-migration",
+      "name": "ext-integration",
+      "role": "扩展点集成测试",
+      "sessionId": "5c22a5493d954a7e9fc589424c06df22",
       "status": "running"
     }
   ]

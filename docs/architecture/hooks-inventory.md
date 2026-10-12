@@ -19,7 +19,8 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | 公开页面路由 | `ctx.routes.page(...)` | 自由注册，`name` 与 `path` 全局唯一 |
 | 原始 HTTP 路由 | `ctx.routes.raw(...)` | 自由注册，路径不得与内置路由冲突 |
 | 管理 API | `ctx.routes.adminApi(...)` | 挂在 `/api/admin` 下，自动套用守卫 |
-| 插槽 | `ctx.slots.register(slotName, ...)` | 9 个标准插槽 + 任意自定义名字 |
+| 插槽 | `ctx.slots.register(slotName, ...)` | 9 个标准插槽 + 任意自定义名字（render 作用域别名） |
+| 命名扩展点 | `ctx.extensions.declare/contribute/apply/list` | 三作用域（admin / render / server），也可由 `manifest.json` 声明式提供 |
 | 服务契约 | `ctx.services.provide/use/tryUse` | 契约名即接口，见第 4 节 |
 | 事件 | `ctx.events.on/emit` | 事件名即接口，见第 3 节 |
 | 后台菜单 | `ctx.adminMenu.add(...)` | 贡献后台导航入口 |
@@ -49,6 +50,27 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 排序规则：**priority 降序，同优先级按注册顺序**。
 单组件抛错会被隔离（降级为空片段并记 error 日志），不会让整页渲染失败。
 插件被禁用后其插槽条目自动消失。
+
+### 1.1 命名扩展点（admin 锚点，本轮新增）
+
+插槽是**命名扩展点注册表**在 `render` 作用域的视图（见 `docs/plugin-api/v1.md` 第 18 节、
+[ADR-017](../adr/ADR-017-named-extension-points.md)）。三个作用域（admin / render / server）共用一套
+注册表与裁决规则；下表是官方插件当前实际声明的 **admin 锚点**（提供方 → 消费者）：
+
+| 扩展点 | 提供方 | 消费者 | 作用域 | 可替换 |
+| --- | --- | --- | --- | --- |
+| `rice.posts.listActions` | `rice.posts` | `rice.editor-enhance` | admin | 是 |
+| `rice.pages.listActions` | `rice.pages` | `rice.editor-enhance` | admin | 是 |
+| `rice.posts.editorToolbar` | `rice.posts` | `rice.editor-enhance` | admin | 是 |
+| `rice.pages.editorToolbar` | `rice.pages` | `rice.editor-enhance` | admin | 是 |
+| `rice.posts.editorBody` | `rice.posts` | `rice.editor-enhance` | admin | 是 |
+| `rice.pages.editorBody` | `rice.pages` | `rice.editor-enhance` | admin | 是 |
+| `rice.media.picker` | `rice.media` | 任意需要选图/上传的插件界面 | admin | 否（第三方） |
+
+> 六个编辑类锚点都带 `kind`（`'post'` / `'page'`），编辑类还带 `value` / `onChange(next)` / `onPreview()`；
+> `rice.media.picker` 的 context 是 `onPick({ url, fileName, mimeType, size })`（贡献权限 `media.manage`）。
+> 目前**没有具名的 `server` 作用域扩展点**：`server` 通道能力已就绪（`ctx.extensions.apply()` 默认 abort），
+> 但尚无官方插件声明使用。
 
 ---
 
@@ -124,7 +146,9 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 `/dashboard`、`/menu`、`/site`（GET/PUT，写需 `theme.manage`）、`/audit`（`system.audit`）、
 `/capabilities`（`plugin.view`）、`/me`（GET/PUT，仅登录）、
 `/themes*`、`/plugins*`、`/logs`（`system.maintain`）、`/backup*`（`system.maintain`）、
-`/system/state`（仅登录）、`/system/restart`（`system.restart`）。
+`/system/state`（仅登录）、`/system/restart`（`system.restart`）、
+`/extensions`（仅登录；下发当前生效的 admin 作用域扩展点与贡献）、
+`/content-fields`（仅登录；下发当前主题声明的内容自定义字段元数据）。
 
 插件安装相关的 Core API（ADR-015，读需 `plugin.view`、写需 `plugin.install`）：
 
@@ -194,7 +218,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | 契约 | 方法 | 消费方 |
 | --- | --- | --- |
 | `core.security@1` | `registerSessionResolver` / `registerAuthorizationResolver` | `rice.identity`、`rice.authorization` |
-| `core.theme@1` | `activeThemeId` / `settings` / `pageTemplates` / `invalidate` / `clearCache` | `rice.posts`、`rice.pages`、`rice.comments`、`rice.seo`、`rice.navigation` |
+| `core.theme@1` | `activeThemeId` / `settings` / `pageTemplates` / **`contentFields`** / `invalidate` / `clearCache` | `rice.posts`、`rice.pages`、`rice.comments`、`rice.seo`、`rice.navigation` |
 | `core.html@1` | `sanitize` / `markTrusted` / `escape` | `rice.posts`、`rice.pages`、`rice.comments`、`rice.seo`、`rice.navigation` |
 | `core.setup@1` | `siteId` / `bootstrapAdmin` / `paths` | `rice.identity`、`rice.media`、`rice.taxonomy`、`rice.posts`、`rice.pages`、`rice.navigation` |
 | `core.site@1` | `info()`（生效站点信息，同步） | 保留给第三方插件（官方插件经 `ctx.site` 使用） |
@@ -304,7 +328,11 @@ Core 在插件启动时读取声明并注册菜单，同时：
 插件必须在 manifest 中声明它要用的能力，否则对应 `ctx.*` 调用会抛 `RN_FORBIDDEN`：
 
 `routes:public`、`routes:admin`、`database:own`、`events:publish`、`events:subscribe`、
-`services:provide`、`services:consume`、`slots:register`、`admin:menu`、`media:store`。
+`services:provide`、`services:consume`、`slots:register`、`admin:menu`、`media:store`、
+`extensions:declare`、`extensions:contribute`。
+
+`slots:register` 是 render 作用域贡献的**别名能力**；`extensions:declare` / `extensions:contribute`
+分别门控 `ctx.extensions.declare` / `ctx.extensions.contribute`（`apply` 不需要额外能力）。
 
 ---
 

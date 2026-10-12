@@ -127,6 +127,50 @@
 - 安装时复制插件目录排除 `node_modules`：工作区软链换位置即失效，
   依赖应由安装阶段重新生成。
 
+### Added（命名扩展点，ADR-017）
+
+- **命名扩展点三作用域统一模型**（`packages/core/src/extensions/registry.ts` +
+  `contributions.ts`）：一套注册表覆盖 `render`（站点渲染）/ `admin`（后台界面）/ `server`（服务端钩子）；
+  声明与贡献可由 `manifest.json` 的 `extensionPoints[]` / `contributions[]` 声明式完成（插件零代码），
+  也可走运行时门面 `ctx.extensions.declare/contribute/apply/list`。
+- **替换语义**：`replace` 贡献整体接管扩展点（默认内容与其他追加贡献不再呈现），胜出者取 `order` 最大者、
+  同分由 `pnpm validate` 判错；`append` 按 `order` 降序。`replaceable: false` **只约束第三方**，
+  提供方自己的 `replace` 不受约束。
+- **旧 API 退化为别名**：`SlotRegistry`（`packages/core/src/render/slots.ts`）成为注册表的 render 作用域门面，
+  `ctx.slots.register`、主题 `slot()` 与九个标准插槽、第三方 `acme.reading-time` 插件均**无需改动**。
+- **后台作用域下发 + 后台界面 SDK 宿主**：`GET /api/admin/extensions`（启用态 + scope + 权限三重过滤，
+  携带 entry / style URL 与 label）；`packages/admin-sdk/src/extension/` 的 `useAdminExtensions()` /
+  `<PluginSlot>` / `defineAdminContribution`（无贡献→默认内容；append→默认 + 贡献按 order 降序；
+  replace→仅胜出者；每条贡献独立错误边界；样式按引用计数注入 / 卸载；import 失败追加 `?retry=1` 重试一次）。
+- **能力**：新增 `extensions:declare` / `extensions:contribute`；`slots:register` 保留为 render 贡献的别名能力。
+- **文章与页面的独立编辑页**：两插件各新增一个 `hidden` 后台页面（路由与深链可用、不进侧栏），
+  并声明三个跨插件锚点 `rice.{posts,pages}.listActions` / `.editorToolbar` / `.editorBody`（admin，`replaceable`）。
+- **媒体选择器锚点 `rice.media.picker`**：媒体库声明该 admin 扩展点（`replaceable: false`）并用
+  `mode: "replace"` 贡献面板；消费者未安装媒体库时渲染默认内容（直接填链接）。
+- **内容自定义字段**：`@ricenote/shared` 的值级校验与读取过滤（fail-closed）、Core 的本地化 DTO 与
+  `core.theme@1` 新增 `contentFields()`、`GET /api/admin/content-fields` 下发、文章 / 页面各新增
+  `fields` JSON 列与读写过滤、默认主题声明 `featuredImage` 并在文章页 / 页面 / 首页卡片渲染。
+
+### Changed（同上）
+
+- 插件扩展能力从"只有渲染插槽"扩展为**三作用域命名扩展点**；`SlotRegistry` 内部委托给注册表，
+  不再有第二套插槽实现（`replace` 接管、按插件清理与零残留断言三处天然一致）。
+- 主题清单新增可选 `contentFields`（复用设置字段定义与多语言结构）。
+- `pnpm validate` 新增命名扩展点静态校验（能力声明、扩展点全局唯一、贡献入口作用域白名单与文件存在、
+  `replace` 同 `order` 冲突）与主题 `contentFields` 保留字校验。
+
+### Fixed（同上）
+
+- **提供方自身的 `replace` 被 `replaceable: false` 误拒**：贡献校验本意是约束**第三方**，
+  之前会把提供方自己的 `replace` 也拦下（媒体库的默认面板会因此无法注册）。
+  判据改为三段条件 `mode === 'replace' && !replaceable && consumer !== provider`
+  （`packages/core/src/extensions/registry.ts`）。
+- **贡献组件未声明 `props` 导致 context 读不到**：宿主用 `h(component, context)` 传值，
+  Vue 只把组件自己声明过的字段填进 `setup(props)`，未声明者会落进 `ctx.attrs`，
+  于是 `setup(props)` 静默拿到 `undefined`（表现为"点了没反应且无报错"）。
+  `defineAdminContribution` 现要求并文档化 `props` 声明
+  （`packages/admin-sdk/src/extension/contribution.ts`）——这是一处文档与实现口径需要一并澄清的坑。
+
 ## [0.4.0] - 2026-10-11
 
 第四个里程碑版本（插件平台化）。两条主线：**后台界面交还给插件**（插件自带界面 +

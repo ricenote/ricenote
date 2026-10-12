@@ -43,7 +43,8 @@ export function createPostsSearchSource(runtime: PostsRuntime): SearchSource {
             runtime.db,
             runtime.siteId,
             normalized,
-            input
+            input,
+            runtime.logger
           );
           return { items: await toHits(runtime, result.items), total: result.total };
         } catch (error) {
@@ -54,7 +55,7 @@ export function createPostsSearchSource(runtime: PostsRuntime): SearchSource {
         }
       }
 
-      const result = await searchPublished(runtime.db, runtime.siteId, trimmed, input);
+      const result = await searchPublished(runtime.db, runtime.siteId, trimmed, input, runtime.logger);
       return { items: await toHits(runtime, result.items), total: result.total };
     }
   };

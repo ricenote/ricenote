@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.editor-enhance",
+  "name": "编辑增强",
+  "description": "接管文章与页面的编辑体验：列表页「新建」入口、编辑器工具栏（前台预览、插入图片）与 Markdown 双栏编辑器。插入图片复用媒体库的图片选择器；未安装媒体库时降级为直接填写图片链接。",
+  "version": "1.0.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "capabilities": ["extensions:contribute"],
+  "contributions": [
+    {
+      "point": "rice.posts.listActions",
+      "scope": "admin",
+      "mode": "replace",
+      "order": 10,
+      "entry": "./admin/list-action.js",
+      "label": "新建文章"
+    },
+    {
+      "point": "rice.pages.listActions",
+      "scope": "admin",
+      "mode": "replace",
+      "order": 10,
+      "entry": "./admin/list-action.js",
+      "label": "新建页面"
+    },
+    {
+      "point": "rice.posts.editorToolbar",
+      "scope": "admin",
+      "mode": "append",
+      "order": 10,
+      "entry": "./admin/toolbar.js",
+      "label": "编辑工具栏"
+    },
+    {
+      "point": "rice.pages.editorToolbar",
+      "scope": "admin",
+      "mode": "append",
+      "order": 10,
+      "entry": "./admin/toolbar.js",
+      "label": "编辑工具栏"
+    },
+    {
+      "point": "rice.posts.editorBody",
+      "scope": "admin",
+      "mode": "replace",
+      "order": 10,
+      "entry": "./admin/editor.js",
+      "style": "./admin/editor.css",
+      "label": "Markdown 编辑器"
+    },
+    {
+      "point": "rice.pages.editorBody",
+      "scope": "admin",
+      "mode": "replace",
+      "order": 10,
+      "entry": "./admin/editor.js",
+      "style": "./admin/editor.css",
+      "label": "Markdown 编辑器"
+    }
+  ]
+}

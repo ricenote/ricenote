@@ -156,6 +156,15 @@ export function registerDeclaredAdminPages(
       path: page.path,
       pluginId: page.pluginId,
       entryUrl: page.entryUrl,
+      /*
+       * `hidden` 必须在这里一并带上。
+       *
+       * `/menu` 优先返回**已注册**的菜单项、并把同路径的"声明项"过滤掉，
+       * 因此这里漏字段等于**静默覆盖**了声明里的 `hidden: true` ——
+       * 结果是"已启动插件"的隐藏页反而出现在侧栏（未启动时倒是正确的，
+       * 因为那时走的是声明项那条路）。两侧都带，行为才不会取决于插件启没启动。
+       */
+      ...(page.hidden ? { hidden: true } : {}),
       ...(page.styleUrl ? { styleUrl: page.styleUrl } : {}),
       ...(page.icon ? { icon: page.icon } : {}),
       ...(page.order === undefined ? {} : { order: page.order }),

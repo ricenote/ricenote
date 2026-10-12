@@ -1,0 +1,48 @@
+{
+  "name": "@ricenote/plugin-editor-enhance",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "RiceNote 编辑增强插件：文章与页面的 Markdown 编辑器、编辑工具栏与列表新建入口",
+  "keywords": [
+    "ricenote",
+    "plugin"
+  ],
+  "homepage": "https://github.com/ricenote/plugin-editor-enhance",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ricenote/plugin-editor-enhance.git"
+  },
+  "license": "MIT",
+  "author": "RiceNote",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "admin",
+    "manifest.json",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@ricenote/plugin-sdk": "^0.4.0"
+  },
+  "peerDependenciesMeta": {
+    "@ricenote/plugin-sdk": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ricenote/plugin-sdk": "workspace:^",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
+  }
+}

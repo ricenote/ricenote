@@ -32,6 +32,10 @@ coverage/
 .nyc_output/
 tests/.tmp/
 
+# 多智能体协作的**运行时状态**（`.codebuddy/plans` 是项目资料、要入库；
+# 而 teams 下面是含机器哈希目录与逐成员会话文件的过程产物，换台机器就没有意义）。
+.codebuddy/teams/
+
 # 由 scripts/split-plugin-repos.mjs 生成的独立插件仓库。
 # 它们各自带 .git：嵌套仓库会被父仓库当成 embedded repo，反而破坏 monorepo 的版本管理，
 # 因此两者必须物理分开（生成物不入主仓库）。

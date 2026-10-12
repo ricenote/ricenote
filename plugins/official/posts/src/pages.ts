@@ -9,6 +9,7 @@ import type { PageRouteSpec, PluginContext } from '@ricenote/plugin-sdk';
 import {
   buildCollection,
   loadAuthorNames,
+  loadContentFields,
   parsePage,
   taxonomyInternalOf,
   taxonomyOf,
@@ -64,7 +65,12 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
       const page = parsePage(request.query.page);
       const { items, total } = await listPublished(runtime.db, runtime.siteId, { page, pageSize });
       const authorNames = await loadAuthorNames(runtime, items);
-      const viewModels = await toPostViewModels(runtime, items, { withHtml: false, authorNames });
+      // 内容自定义字段声明在请求期读取（不缓存），随主题切换即时生效
+      const viewModels = await toPostViewModels(runtime, items, {
+        withHtml: false,
+        authorNames,
+        fields: await loadContentFields(runtime)
+      });
 
       return {
         kind: 'home',
@@ -102,6 +108,7 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
       const authorNames = await loadAuthorNames(runtime, [row]);
       const post = await toPostViewModel(runtime, row, {
         withHtml: true,
+        fields: await loadContentFields(runtime),
         ...(authorNames[row.author_id] ? { authorName: authorNames[row.author_id] } : {})
       });
 
@@ -165,7 +172,11 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
         pageSize
       });
       const authorNames = await loadAuthorNames(runtime, items);
-      const viewModels = await toPostViewModels(runtime, items, { withHtml: false, authorNames });
+      const viewModels = await toPostViewModels(runtime, items, {
+        withHtml: false,
+        authorNames,
+        fields: await loadContentFields(runtime)
+      });
       const canonical = `/post/${slug}`;
 
       return {

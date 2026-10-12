@@ -177,11 +177,23 @@ export class ExtensionRegistry {
         point,
         scope
       });
-    } else if (mode === 'replace' && !declaration.replaceable) {
+    } else if (
+      mode === 'replace' &&
+      !declaration.replaceable &&
+      pluginId !== declaration.providerId
+    ) {
+      /*
+       * `replaceable` 管的是**别人**能不能替换这个扩展点的内容，不管提供方自己。
+       *
+       * 提供方贡献一份 replace 往往是它最自然的出厂形态：媒体库声明
+       * `rice.media.picker`，默认实现就是自己的选择面板 —— 它就是"默认内容"本身，
+       * 没有理由被自己声明的开关拦下。若这里不排除提供方，`replaceable: false`
+       * 就会被逼成"任何插件都能替换我的面板"，语义反而失真。
+       */
       throw new RiceNoteError(
         ErrorCode.VALIDATION_FAILED,
-        `扩展点 ${point} 声明为不可替换（replaceable: false），拒绝 replace 贡献`,
-        { status: 400, details: { pluginId, point } }
+        `扩展点 ${point} 声明为不可替换（replaceable: false），拒绝其他插件的 replace 贡献`,
+        { status: 400, details: { pluginId, point, providerId: declaration.providerId } }
       );
     }
 

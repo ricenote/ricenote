@@ -15,7 +15,9 @@
     "services:consume",
     "routes:admin",
     "routes:public",
-    "media:store"
+    "media:store",
+    "extensions:declare",
+    "extensions:contribute"
   ],
   "migrations": "./migrations",
   "admin": {
@@ -31,6 +33,31 @@
       }
     ]
   },
+  "extensionPoints": [
+    {
+      "name": "rice.media.picker",
+      "scope": "admin",
+      "replaceable": false,
+      "description": "媒体选择/上传面板：任何插件在自己的界面里渲染它即可获得完整的上传与选库能力",
+      "props": [
+        {
+          "name": "onPick",
+          "description": "选中后回调：{ url, fileName, mimeType, size }；不传时面板隐藏「插入」按钮（只读预览）"
+        }
+      ]
+    }
+  ],
+  "contributions": [
+    {
+      "point": "rice.media.picker",
+      "scope": "admin",
+      "mode": "replace",
+      "entry": "./admin/picker.js",
+      "order": 0,
+      "permission": "media.manage",
+      "label": "媒体库"
+    }
+  ],
   "settingsSchema": {
     "upload": {
       "label": { "zh-CN": "上传", "en": "Uploads" },

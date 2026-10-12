@@ -5,9 +5,11 @@
     <div class="df-grid" data-columns="{{ theme.settings.columns }}">
       {% for post in posts.items %}
         <article class="df-card">
-          {% if theme.settings.showCover and post.coverUrl %}
+          {# 卡片图优先取主题声明的「特色图片」，否则回落到媒体库封面（受主题设置开关约束） #}
+          {% set cardImage = post.fields.featuredImage or (theme.settings.showCover and post.coverUrl) %}
+          {% if cardImage %}
             <a class="df-card__cover" href="{{ post.url }}" tabindex="-1" aria-hidden="true">
-              <img src="{{ post.coverUrl }}" alt="" loading="lazy" decoding="async">
+              <img src="{{ cardImage }}" alt="" loading="lazy" decoding="async">
             </a>
           {% endif %}
           <div class="df-card__body">

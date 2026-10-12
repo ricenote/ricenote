@@ -15,14 +15,24 @@ import {
   type PageSaveRequest,
   type PageStatus
 } from '@ricenote/shared';
+import { MAX_CONTENT } from './service.js';
 
-export function registerAdminRoutes(
-  ctx: PluginContext,
-  deps: { service: ContentPagesService; defaultPageSize: number }
-): void {
+export interface PagesAdminDeps {
+  service: ContentPagesService;
+  defaultPageSize: number;
+  /**
+   * 渲染预览 HTML（与保存/发布同一条管线，由插件启动时注入）。
+   *
+   * 走依赖注入而不是让 admin 直接抓 runtime：这里只声明"需要一个渲染函数"，
+   * 管线细节（Markdown 方言、消毒策略）仍只有一份实现。
+   */
+  preview: (content: string) => Promise<string>;
+}
+
+export function registerAdminRoutes(ctx: PluginContext, deps: PagesAdminDeps): void {
   const { service } = deps;
 
-  /** 列表。 */
+  /** 列表（每项的 `fields` 已由 service 按当前主题声明过滤）。 */
   ctx.routes.adminApi({
     method: 'GET',
     path: '/pages',
@@ -43,7 +53,7 @@ export function registerAdminRoutes(
     }
   });
 
-  /** 详情。 */
+  /** 详情（`fields` 同样按当前主题声明过滤）。 */
   ctx.routes.adminApi({
     method: 'GET',
     path: '/pages/:pageId',
@@ -54,6 +64,27 @@ export function registerAdminRoutes(
         throw new RiceNoteError(ErrorCode.PAGE_NOT_FOUND, '页面不存在', { status: 404 });
       }
       reply.json({ data: detail });
+    }
+  });
+
+  /**
+   * 正文预览（只读渲染，不落库）。
+   *
+   * 刻意放在 `/pages/:pageId` 之前匹配也无妨：两者方法不同（POST vs GET/PUT/DELETE）。
+   * 权限与保存一致（`page.manage`）—— 预览会把**未保存的正文**渲染出来，
+   * 允许只读用户提交任意 Markdown 再拿到渲染结果，等于绕开了"谁能写"的边界。
+   */
+  ctx.routes.adminApi({
+    method: 'POST',
+    path: '/pages/preview',
+    permission: 'page.manage',
+    handler: async (request, reply) => {
+      const body = (request.body ?? {}) as Record<string, unknown>;
+      const content = String(body.content ?? '');
+      if (content.length > MAX_CONTENT) {
+        throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '正文过长（超过 50 万字符）', { status: 400 });
+      }
+      reply.json({ data: { html: await deps.preview(content) } });
     }
   });
 
@@ -109,7 +140,13 @@ function parseId(raw: unknown): number {
   return id;
 }
 
-/** 把请求体收敛为保存载荷（只取已知字段，避免写入意外字段）。 */
+/**
+ * 把请求体收敛为保存载荷（只取已知字段，避免写入意外字段）。
+ *
+ * `fields` 在这个白名单里，但**只原样透传、不在这里预校验**：
+ * 校验必须由业务层用当前主题声明的白名单做（未声明的键会被拒绝），
+ * 这里若顺手"过滤掉"未知键，作者会以为保存成功了。
+ */
 function readPayload(body: unknown): PageSaveRequest {
   const raw = (body ?? {}) as Record<string, unknown>;
   return {
@@ -120,6 +157,9 @@ function readPayload(body: unknown): PageSaveRequest {
     ...(raw.template === null || typeof raw.template === 'string' ? { template: raw.template } : {}),
     ...(raw.sortOrder === undefined ? {} : { sortOrder: Number(raw.sortOrder) }),
     ...(typeof raw.seoTitle === 'string' ? { seoTitle: raw.seoTitle } : {}),
-    ...(typeof raw.seoDescription === 'string' ? { seoDescription: raw.seoDescription } : {})
+    ...(typeof raw.seoDescription === 'string' ? { seoDescription: raw.seoDescription } : {}),
+    // 请求体没带 fields 键表示"本次不涉及内容字段"（更新时保留既有值），与"提交了空值"区分开；
+    // 带了就是外部输入：这里不做结构判断（类型不符交给业务层的校验函数报错）
+    ...(raw.fields === undefined ? {} : { fields: raw.fields as Record<string, unknown> })
   };
 }

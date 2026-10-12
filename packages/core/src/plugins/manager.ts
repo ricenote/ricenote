@@ -41,6 +41,7 @@ import type { SlotRegistry } from '../render/slots.js';
 import type { ExtensionRegistry } from '../extensions/registry.js';
 import type { AdminMenuRegistry } from './admin-menu.js';
 import { registerDeclaredAdminPages, resolveAdminPages } from './admin-pages.js';
+import { registerDeclaredExtensions } from '../extensions/contributions.js';
 import { isOfficialPlugin } from './catalog.js';
 import { parsePackageSpec } from './install/sources.js';
 import {
@@ -349,6 +350,20 @@ export class PluginManager {
         plugin: plugin.manifest.id,
         pages: pageDisposers.length
       });
+    }
+
+    /*
+     * 声明式扩展点与贡献（manifest.extensionPoints / contributions）：
+     * 与插件自己调用 ctx.extensions 等价，但插件零代码、可被 pnpm validate 静态校验。
+     * 句柄同样交给 bundle 回收，因此"插件停止 = 声明与贡献一起消失"。
+     */
+    const extensionDisposers = await registerDeclaredExtensions({
+      plugin,
+      extensions: this.deps.extensions,
+      logger: this.deps.logger
+    });
+    if (extensionDisposers.length > 0) {
+      bundle.disposers.push(...extensionDisposers);
     }
   }
 
@@ -711,6 +726,8 @@ export class PluginManager {
           pluginId: page.pluginId,
           entryUrl: page.entryUrl,
           available: this.isStarted(page.pluginId),
+          // hidden 只影响侧栏可见性：路由与深链照常注册（编辑页就是这种页面）
+          ...(page.hidden ? { hidden: true } : {}),
           ...(hasStyle && page.styleUrl ? { styleUrl: page.styleUrl } : {}),
           ...(page.icon ? { icon: page.icon } : {}),
           ...(page.order === undefined ? {} : { order: page.order }),

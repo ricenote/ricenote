@@ -32,7 +32,9 @@ export function registerPublicPages(ctx: PluginContext, runtime: PagesRuntime): 
         };
       }
 
-      const content = toPageContentViewModel(runtime, row, { withHtml: true });
+      // 内容字段声明来自当前主题；视图模型构造保持同步，因此在请求期（async）取好后传入
+      const declaredFields = await runtime.theme.contentFields();
+      const content = toPageContentViewModel(runtime, row, { withHtml: true, declaredFields });
 
       return {
         kind: 'page',
@@ -41,6 +43,13 @@ export function registerPublicPages(ctx: PluginContext, runtime: PagesRuntime): 
         ...(row.template ? { template: row.template } : {}),
         data: {
           content,
+          /*
+           * 内容字段同时挂在 data 顶层：模板上下文会把 data 铺开进 `page.*`
+           * （见 Core 的 buildTemplateContext），因此 `{{ page.fields.featuredImage }}`
+           * 与 `{{ content.fields.featuredImage }}`（与 posts 的 `post.fields` 对齐）都能读到。
+           * 复用同一个已按主题声明过滤的对象，不重复解析/过滤。
+           */
+          fields: content.fields,
           seoDescription: row.seo_description ?? ''
         },
         cacheTags: [`page:${row.id}`, 'pages']

@@ -43,7 +43,7 @@
     {
       "id": "rice.posts",
       "npm": "@ricenote/plugin-posts",
-      "version": "1.5.0",
+      "version": "1.6.0",
       "category": "recommended",
       "label": "文章",
       "description": "文章撰写、发布、归档与前台页面（首页、文章页、分类与标签归档），并向搜索插件注册可搜索数据源。",
@@ -55,7 +55,8 @@
         "routes:admin",
         "events:publish",
         "events:subscribe",
-        "slots:register"
+        "slots:register",
+        "extensions:declare"
       ],
       "requires": ["rice.identity"],
       "repository": "https://github.com/ricenote/plugin-posts",
@@ -64,7 +65,7 @@
     {
       "id": "rice.pages",
       "npm": "@ricenote/plugin-pages",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "category": "recommended",
       "label": "页面",
       "description": "独立页面：创建「关于我们」「联系方式」等固定内容页，支持自定义地址、状态、排序与页面模板选择。",
@@ -76,7 +77,8 @@
         "routes:admin",
         "events:publish",
         "events:subscribe",
-        "slots:register"
+        "slots:register",
+        "extensions:declare"
       ],
       "requires": [],
       "repository": "https://github.com/ricenote/plugin-pages",
@@ -131,7 +133,9 @@
         "services:consume",
         "routes:admin",
         "routes:public",
-        "media:store"
+        "media:store",
+        "extensions:declare",
+        "extensions:contribute"
       ],
       "requires": [],
       "repository": "https://github.com/ricenote/plugin-media",
@@ -179,6 +183,18 @@
       "capabilities": ["routes:public", "services:consume", "slots:register"],
       "requires": [],
       "repository": "https://github.com/ricenote/plugin-seo",
+      "license": "MIT"
+    },
+    {
+      "id": "rice.editor-enhance",
+      "npm": "@ricenote/plugin-editor-enhance",
+      "version": "1.0.0",
+      "category": "optional",
+      "label": "编辑增强",
+      "description": "接管文章与页面的编辑体验：列表「新建」入口、编辑器工具栏（前台预览、插入图片）与带实时预览的 Markdown 正文编辑器。插入图片依赖媒体库的图片选择器，未安装时降级为直接填写图片链接。",
+      "capabilities": ["extensions:contribute"],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-editor-enhance",
       "license": "MIT"
     },
     {

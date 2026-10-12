@@ -9,6 +9,7 @@ import {
   ErrorCode,
   RiceNoteError,
   SERVICE_CONTRACTS,
+  assertContentFieldValues,
   normalizeSlug,
   resolveContentTemplateKey,
   slugify,
@@ -66,6 +67,17 @@ async function ensureUniqueSlug(
   });
 }
 
+/**
+ * 渲染并消毒 Markdown —— **唯一**的正文渲染管线。
+ *
+ * 保存/发布与编辑器预览都走这里，保证「后台预览所见 == 前台渲染所得」；
+ * 一旦各写一份，预览与前台迟早出现差异（这正是需要服务端预览接口的原因）。
+ */
+export async function renderPostHtml(runtime: PostsRuntime, content: string): Promise<string> {
+  const rendered = await renderMarkdown(content);
+  return runtime.html.sanitize(rendered).value;
+}
+
 /** 校验并规范化保存请求。 */
 export async function buildSaveInput(
   runtime: PostsRuntime,
@@ -91,8 +103,7 @@ export async function buildSaveInput(
   const status = assertStatus(payload.status ?? 'draft');
   const slug = await ensureUniqueSlug(runtime, payload.slug?.trim() || slugify(title, 'post'), exceptId);
 
-  const rendered = await renderMarkdown(content);
-  const sanitized = runtime.html.sanitize(rendered);
+  const contentHtml = await renderPostHtml(runtime, content);
   const excerpt =
     String(payload.excerpt ?? '').trim() ||
     markdownToPlainText(content, runtime.excerptLength);
@@ -103,6 +114,17 @@ export async function buildSaveInput(
     ? resolveContentTemplateKey(payload.template, await theme.pageTemplates())
     : null;
 
+  /*
+   * 内容自定义字段：按主题声明的白名单校验并归一化。
+   *
+   * 为什么拒绝未声明的键而不是静默丢弃：静默丢弃会让作者"填了却没生效"却毫无反馈；
+   * 抛 VALIDATION_FAILED 能立刻定位到"字段名写错或主题已更换"。
+   * theme 不可用时按"无声明"处理（fail-closed：任何字段都会被拒），
+   * 这与前台读取侧"无声明即空对象"的口径一致。
+   */
+  const declaredFields = theme ? await theme.contentFields() : {};
+  const fields = assertContentFieldValues(declaredFields, payload.fields);
+
   return {
     siteId: runtime.siteId,
     authorId,
@@ -110,16 +132,21 @@ export async function buildSaveInput(
     slug,
     excerpt: excerpt.slice(0, 500),
     content,
-    contentHtml: sanitized.value,
+    contentHtml,
     status,
     coverMediaId: payload.coverMediaId ?? null,
     template,
+    fields,
     ...(payload.seoTitle ? { seoTitle: String(payload.seoTitle).slice(0, 255) } : {}),
     ...(payload.seoDescription ? { seoDescription: String(payload.seoDescription).slice(0, 500) } : {})
   };
 }
 
-function toSummary(row: repo.PostRow, authorNames?: Record<number, string>): PostSummary {
+function toSummary(
+  row: repo.PostRow,
+  authorNames?: Record<number, string>,
+  fields?: Record<string, unknown>
+): PostSummary {
   const publishedAt = row.published_at
     ? row.published_at instanceof Date
       ? row.published_at.toISOString()
@@ -138,6 +165,8 @@ function toSummary(row: repo.PostRow, authorNames?: Record<number, string>): Pos
     authorId: row.author_id,
     ...(authorNames?.[row.author_id] ? { authorName: authorNames[row.author_id] } : {}),
     ...(row.template ? { template: row.template } : {}),
+    // 仅后台视图会传入 fields（前台是"无声明即不展示"，无需携带原始存储值）
+    ...(fields ? { fields } : {}),
     terms: [],
     ...(publishedAt ? { publishedAt } : {}),
     updatedAt:
@@ -151,11 +180,15 @@ function toSummary(row: repo.PostRow, authorNames?: Record<number, string>): Pos
   };
 }
 
-async function toDetail(runtime: PostsRuntime, row: repo.PostRow): Promise<PostDetail> {
+async function toDetail(
+  runtime: PostsRuntime,
+  row: repo.PostRow,
+  fields?: Record<string, unknown>
+): Promise<PostDetail> {
   const authorNames = await loadAuthorNames(runtime, [row]);
   const terms = await loadTerms(runtime, row.id);
   return {
-    ...toSummary(row, authorNames),
+    ...toSummary(row, authorNames, fields),
     content: row.content,
     html: row.content_html,
     ...(row.seo_title ? { seoTitle: row.seo_title } : {}),
@@ -174,18 +207,18 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
 
   return {
     async listPublished(input) {
-      const result = await repo.listPublished(runtime.db, runtime.siteId, input);
+      const result = await repo.listPublished(runtime.db, runtime.siteId, input, runtime.logger);
       const authorNames = await loadAuthorNames(runtime, result.items);
       return { items: result.items.map((row) => toSummary(row, authorNames)), total: result.total };
     },
 
     async findPublishedBySlug(slug) {
-      const row = await repo.findPublishedBySlug(runtime.db, runtime.siteId, slug);
+      const row = await repo.findPublishedBySlug(runtime.db, runtime.siteId, slug, runtime.logger);
       return row ? toDetail(runtime, row) : undefined;
     },
 
     async findPublishedById(id) {
-      const row = await repo.findPublishedById(runtime.db, runtime.siteId, id);
+      const row = await repo.findPublishedById(runtime.db, runtime.siteId, id, runtime.logger);
       return row ? toDetail(runtime, row) : undefined;
     },
 
@@ -193,13 +226,25 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
       const taxonomyInternal = taxonomyInternalOf(runtime);
       if (!taxonomyInternal) return { items: [], total: 0 };
       const postIds = await taxonomyInternal.postIdsOfTerm(input.termSlug);
-      const result = await repo.listPublishedByIds(runtime.db, runtime.siteId, postIds, input);
+      const result = await repo.listPublishedByIds(
+        runtime.db,
+        runtime.siteId,
+        postIds,
+        input,
+        runtime.logger
+      );
       const authorNames = await loadAuthorNames(runtime, result.items);
       return { items: result.items.map((row) => toSummary(row, authorNames)), total: result.total };
     },
 
     async searchPublished(input) {
-      const result = await repo.searchPublished(runtime.db, runtime.siteId, input.keyword, input);
+      const result = await repo.searchPublished(
+        runtime.db,
+        runtime.siteId,
+        input.keyword,
+        input,
+        runtime.logger
+      );
       const authorNames = await loadAuthorNames(runtime, result.items);
       return { items: result.items.map((row) => toSummary(row, authorNames)), total: result.total };
     },
@@ -215,29 +260,38 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
     },
 
     async listForAdmin(query: PostListQuery) {
-      const result = await repo.listForAdmin(runtime.db, runtime.siteId, {
-        page: query.page,
-        pageSize: query.pageSize,
-        status: query.status === 'all' ? undefined : query.status,
-        keyword: query.keyword
-      });
+      const result = await repo.listForAdmin(
+        runtime.db,
+        runtime.siteId,
+        {
+          page: query.page,
+          pageSize: query.pageSize,
+          status: query.status === 'all' ? undefined : query.status,
+          keyword: query.keyword
+        },
+        runtime.logger
+      );
       const authorNames = await loadAuthorNames(runtime, result.items);
 
       const items: PostSummary[] = [];
       for (const row of result.items) {
-        items.push({ ...toSummary(row, authorNames), terms: await loadTerms(runtime, row.id) });
+        // 后台列表携带**原始**字段值，由 admin 层按当前主题声明过滤后输出
+        items.push({
+          ...toSummary(row, authorNames, row.fields),
+          terms: await loadTerms(runtime, row.id)
+        });
       }
       return { items, total: result.total };
     },
 
     async findForAdmin(id) {
-      const row = await repo.findById(runtime.db, runtime.siteId, id);
-      return row ? toDetail(runtime, row) : undefined;
+      const row = await repo.findById(runtime.db, runtime.siteId, id, runtime.logger);
+      return row ? toDetail(runtime, row, row.fields) : undefined;
     },
 
     async save(input) {
       const previous = input.id
-        ? await repo.findById(runtime.db, runtime.siteId, input.id)
+        ? await repo.findById(runtime.db, runtime.siteId, input.id, runtime.logger)
         : undefined;
 
       if (input.id && !previous) {
@@ -250,6 +304,16 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
         previous?.author_id ?? input.authorId,
         input.id
       );
+
+      /*
+       * 「省略 fields = 不改动已存值」。
+       *
+       * 更新时若请求体没有 `fields` 键（例如不渲染字段控件的旧界面、或其他插件的调用），
+       * 沿用库中现有值，避免普通编辑把作者已填的内容清空；显式传 `{}` 才表示清空。
+       */
+      if (input.id && previous && input.payload.fields === undefined) {
+        built.fields = previous.fields;
+      }
 
       let postId: number;
       if (input.id) {
@@ -305,7 +369,7 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
     },
 
     async remove(id) {
-      const row = await repo.findById(runtime.db, runtime.siteId, id);
+      const row = await repo.findById(runtime.db, runtime.siteId, id, runtime.logger);
       if (!row) {
         throw new RiceNoteError(ErrorCode.NOT_FOUND, `文章不存在：${id}`, { status: 404 });
       }
@@ -330,7 +394,7 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
     },
 
     async recent(limit) {
-      const rows = await repo.recentPosts(runtime.db, runtime.siteId, limit);
+      const rows = await repo.recentPosts(runtime.db, runtime.siteId, limit, runtime.logger);
       const authorNames = await loadAuthorNames(runtime, rows);
       const items: PostSummary[] = [];
       for (const row of rows) {

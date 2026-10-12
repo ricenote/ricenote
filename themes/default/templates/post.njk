@@ -10,7 +10,14 @@
     {% if post.authorName %} · {{ post.authorName }}{% endif %}
   </p>
 
-  {% if post.coverUrl and theme.settings.showCover %}
+  {#
+    特色图片（主题声明的内容自定义字段，作者在后台填链接）优先于媒体库封面：
+    前者是作者对这篇内容的显式选择，后者是通用设置 —— 显式选择应该赢。
+    两者都没有、或封面被主题设置关掉时，这一段整体不渲染。
+  #}
+  {% if post.fields.featuredImage %}
+    <img class="df-article__feature" src="{{ post.fields.featuredImage }}" alt="{{ post.title }}" loading="eager">
+  {% elif post.coverUrl and theme.settings.showCover %}
     <img class="df-article__cover" src="{{ post.coverUrl }}" alt="" loading="eager">
   {% endif %}
 

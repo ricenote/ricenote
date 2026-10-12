@@ -19,6 +19,8 @@ import { PreviewStore } from './http/preview-store.js';
 import { registerSessionRoutes } from './http/admin/session-routes.js';
 import { registerThemeRoutes } from './http/admin/themes-routes.js';
 import { registerPluginRoutes } from './http/admin/plugins-routes.js';
+import { registerExtensionRoutes } from './http/admin/extensions-routes.js';
+import { registerContentFieldRoutes } from './http/admin/content-fields-routes.js';
 import { registerProfileRoutes } from './http/admin/profile-routes.js';
 import { registerSystemRoutes } from './http/admin/system-routes.js';
 import { guard, isWriteMethod } from './http/admin/guard.js';
@@ -49,6 +51,8 @@ export async function startHttpServer(
       registerSessionRoutes(instance, kernel);
       registerThemeRoutes(instance, kernel, { previewStore });
       registerPluginRoutes(instance, kernel);
+      registerExtensionRoutes(instance, kernel);
+      registerContentFieldRoutes(instance, kernel);
       registerProfileRoutes(instance, kernel);
       registerSystemRoutes(instance, kernel);
 

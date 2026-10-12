@@ -1,0 +1,13 @@
+-- 页面内容自定义字段的值（主题声明，文章与页面共用同一份）。
+--
+-- 存的是"键 → 值"的 JSON 对象，键由**主题声明**（theme.json 的 contentFields，
+-- 例如 featuredImage 特色图片），页面编辑页据此填写、主题模板据此读取
+-- （`{{ page.fields.featuredImage }}`）。
+--
+-- 写入前服务端按声明白名单校验：未声明的键 / 类型不符 / 越界一律拒绝保存；
+-- 读取时再按**当前主题**的声明过滤，因此换主题后旧键仍留在 JSON 里，
+-- 但不会再出现在后台响应或模板上下文中。
+--
+-- 该列为新增可空列，历史页面保持 NULL（= 没有任何内容字段值），
+-- 不改变既有数据的渲染行为。
+ALTER TABLE rn_pages ADD COLUMN fields JSON NULL AFTER template;

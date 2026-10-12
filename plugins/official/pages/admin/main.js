@@ -1,9 +1,13 @@
 /**
  * 页面插件的后台界面（零构建）。
  *
- * 迁移前位于 `apps/admin/src/views/PagesView.vue`，行为与文案保持一致。
- * 模板下拉的可选项来自**当前主题声明**（`pageTemplates`）：主题没声明时只提供
- * 「跟随主题默认」，服务端也会拒绝未声明的模板键。
+ * 迁移前位于 `apps/admin/src/views/PagesView.vue`。
+ *
+ * 本页只负责**列表与筛选**：「新建 / 编辑」都跳到独立编辑页
+ * （`admin/editor.js`，路由 `/pages/editor`，manifest 里 `hidden: true` 故不进侧栏）。
+ * 为什么不再用弹出对话框编辑：正文区需要占满视口，还要容纳外部插件贡献的
+ * 工具栏与编辑器（`rice.pages.editorToolbar` / `rice.pages.editorBody`），
+ * 塞进弹窗既放不下，也让"未保存离开保护"变得难以表达。
  */
 
 import {
@@ -12,17 +16,13 @@ import {
   defineAdminPage,
   onMounted,
   ref,
+  useRouter,
   useSession,
   useToast
 } from '/admin-sdk/v1/ricenote-admin.js';
 
 const STATUS_LABELS = { published: '已发布', draft: '草稿' };
 const STATUS_TONES = { published: 'success', draft: 'muted' };
-
-const STATUS_OPTIONS = [
-  { label: '草稿', value: 'draft' },
-  { label: '已发布', value: 'published' }
-];
 
 function messageOf(error) {
   return error && error.message ? error.message : '操作失败，请稍后重试';
@@ -32,6 +32,7 @@ export default defineAdminPage({
   title: '页面',
 
   setup() {
+    const router = useRouter();
     const session = useSession();
     const toast = useToast();
     const canManage = computed(() => session.can('page.manage'));
@@ -39,24 +40,8 @@ export default defineAdminPage({
     const items = ref([]);
     const total = ref(0);
     const loading = ref(false);
-    const saving = ref(false);
     const statusFilter = ref('all');
     const keyword = ref('');
-
-    const templateOptions = ref([{ label: '跟随主题默认模板', value: '' }]);
-
-    const dialogOpen = ref(false);
-    const editingId = ref(null);
-    const form = ref({
-      title: '',
-      slug: '',
-      content: '',
-      status: 'draft',
-      template: '',
-      sortOrder: 0,
-      seoTitle: '',
-      seoDescription: ''
-    });
 
     const columns = [
       { key: 'title', label: '标题' },
@@ -84,96 +69,14 @@ export default defineAdminPage({
       }
     }
 
-    /** 读取当前激活主题声明的页面模板清单。 */
-    async function loadTemplates() {
-      try {
-        const themes = await api.get('/themes');
-        const active = themes.find((theme) => theme.active);
-        templateOptions.value = [
-          { label: '跟随主题默认模板', value: '' },
-          ...(active && active.pageTemplates ? active.pageTemplates : []).map((item) => ({
-            label: item.description ? `${item.label} —— ${item.description}` : item.label,
-            value: item.key
-          }))
-        ];
-      } catch {
-        templateOptions.value = [{ label: '跟随主题默认模板', value: '' }];
-      }
+    /** 新建：进入独立编辑页（不带 id）。 */
+    function createPage() {
+      void router.push('/pages/editor');
     }
 
-    function resetForm() {
-      editingId.value = null;
-      form.value = {
-        title: '',
-        slug: '',
-        content: '',
-        status: 'draft',
-        template: '',
-        sortOrder: 0,
-        seoTitle: '',
-        seoDescription: ''
-      };
-    }
-
-    function openCreate() {
-      resetForm();
-      dialogOpen.value = true;
-    }
-
-    async function openEdit(row) {
-      try {
-        const detail = await api.get(`/pages/${row.id}`);
-        editingId.value = detail.id;
-        form.value = {
-          title: detail.title,
-          slug: detail.slug,
-          content: detail.content,
-          status: detail.status,
-          template: detail.template || '',
-          sortOrder: detail.sortOrder,
-          seoTitle: detail.seoTitle || '',
-          seoDescription: detail.seoDescription || ''
-        };
-        dialogOpen.value = true;
-      } catch (error) {
-        toast.error(messageOf(error));
-      }
-    }
-
-    async function save() {
-      const current = form.value;
-      if (!current.title.trim()) {
-        toast.error('页面标题不能为空');
-        return;
-      }
-
-      const payload = {
-        title: current.title.trim(),
-        ...(current.slug && current.slug.trim() ? { slug: current.slug.trim() } : {}),
-        content: current.content,
-        status: current.status,
-        template: current.template || null,
-        sortOrder: Number(current.sortOrder) || 0,
-        ...(current.seoTitle ? { seoTitle: current.seoTitle } : {}),
-        ...(current.seoDescription ? { seoDescription: current.seoDescription } : {})
-      };
-
-      saving.value = true;
-      try {
-        if (editingId.value) {
-          await api.put(`/pages/${editingId.value}`, payload);
-          toast.success('页面已更新');
-        } else {
-          await api.post('/pages', payload);
-          toast.success('页面已创建');
-        }
-        dialogOpen.value = false;
-        await load();
-      } catch (error) {
-        toast.error(messageOf(error));
-      } finally {
-        saving.value = false;
-      }
+    /** 编辑：把 id 放进 query，编辑页据此回填详情与内容字段。 */
+    function editPage(row) {
+      void router.push(`/pages/editor?id=${row.id}`);
     }
 
     async function remove(row) {
@@ -187,29 +90,21 @@ export default defineAdminPage({
       }
     }
 
-    onMounted(async () => {
-      await Promise.all([load(), loadTemplates()]);
-    });
+    onMounted(load);
 
     return {
       canManage,
       columns,
-      dialogOpen,
-      editingId,
-      form,
+      createPage,
+      editPage,
       items,
       keyword,
       load,
       loading,
-      openCreate,
-      openEdit,
       remove,
-      saving,
       statusFilter,
       statusLabels: STATUS_LABELS,
-      statusOptions: STATUS_OPTIONS,
       statusTones: STATUS_TONES,
-      templateOptions,
       total
     };
   },
@@ -224,10 +119,13 @@ export default defineAdminPage({
       <Icon name="refresh" />
       刷新
     </Button>
-    <Button v-if="canManage" @click="openCreate">
-      <Icon name="plus" />
-      新建页面
-    </Button>
+    <!-- 列表级动作锚点：其它插件可在此追加动作，或用 replace 整体接管 -->
+    <PluginSlot name="rice.pages.listActions" :context="{ kind: 'page' }">
+      <Button v-if="canManage" @click="createPage">
+        <Icon name="plus" />
+        新建页面
+      </Button>
+    </PluginSlot>
   </template>
 
   <template #toolbar>
@@ -276,7 +174,7 @@ export default defineAdminPage({
 
     <template #cell-actions="{ row }">
       <div class="flex items-center gap-1">
-        <Button v-if="canManage" variant="ghost" size="sm" @click="openEdit(row)">
+        <Button v-if="canManage" variant="ghost" size="sm" @click="editPage(row)">
           <Icon name="pencil" />
           编辑
         </Button>
@@ -287,49 +185,6 @@ export default defineAdminPage({
       </div>
     </template>
   </DataTable>
-
-  <Dialog v-model:open="dialogOpen" :title="editingId ? '编辑页面' : '新建页面'"
-    description="正文支持 Markdown；页面模板只影响版式，不改变内容。" width="lg">
-    <div class="flex flex-col gap-4">
-      <div class="grid gap-4 md:grid-cols-2">
-        <Field label="标题">
-          <Input v-model="form.title" placeholder="关于本站" :maxlength="255" />
-        </Field>
-        <Field label="地址别名" description="留空则按标题自动生成">
-          <Input v-model="form.slug" placeholder="about" :maxlength="200" />
-        </Field>
-      </div>
-
-      <div class="grid gap-4 md:grid-cols-3">
-        <div class="md:col-span-2">
-          <Field label="页面模板" description="可选项来自当前主题的 pageTemplates 声明">
-            <Select v-model="form.template" :options="templateOptions" />
-          </Field>
-        </div>
-        <Field label="状态">
-          <Select v-model="form.status" :options="statusOptions" />
-        </Field>
-      </div>
-
-      <Field label="正文（Markdown）">
-        <Textarea v-model="form.content" :rows="14" placeholder="# 标题&#10;&#10;在这里书写页面内容…" />
-      </Field>
-
-      <div class="grid gap-4 md:grid-cols-2">
-        <Field label="SEO 标题（可选）" description="留空则使用页面标题">
-          <Input v-model="form.seoTitle" :maxlength="255" />
-        </Field>
-        <Field label="SEO 描述（可选）" description="留空则自动截取正文">
-          <Input v-model="form.seoDescription" :maxlength="500" />
-        </Field>
-      </div>
-    </div>
-
-    <template #footer>
-      <Button variant="ghost" @click="dialogOpen = false">取消</Button>
-      <Button :loading="saving" @click="save">{{ editingId ? '保存修改' : '创建页面' }}</Button>
-    </template>
-  </Dialog>
 </AdminPage>
 `
 });

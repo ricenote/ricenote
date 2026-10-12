@@ -6,6 +6,8 @@
  * 禁止直接 import 其他插件内部模块（见 docs/plugin-api/v1.md）。
  */
 
+import type { ContentFieldsSchema } from '../manifests.js';
+
 import type {
   AdminUserSummary,
   AuthUser,
@@ -514,6 +516,18 @@ export interface CoreThemeService {
    * 否则切换主题后会出现"模板永远命中 fallback"的静默降级。
    */
   pageTemplates(): Promise<PageTemplateDescriptor[]>;
+  /**
+   * 当前主题声明的**内容自定义字段**（文章与页面共用同一份声明）。
+   *
+   * 内容插件用它做两件事，缺一不可：
+   * 1. 写入前按声明白名单校验（未声明的键必须**拒绝**，不能静默丢弃）；
+   * 2. 读取时按声明过滤（换主题后旧值留在库里，但不再暴露给模板）。
+   *
+   * 返回**原始声明**（含多语言文案与约束）：本地化与控件渲染属于后台的事，
+   * 服务契约只负责"声明是什么"。`pnpm validate` 已用 ajv 校验过声明本身，
+   * 这里不必重复做结构校验。
+   */
+  contentFields(): Promise<ContentFieldsSchema>;
   /** 按标签失效 HTML 缓存（例如 `post:12`、`home`）。 */
   invalidate(tags: string[]): number;
   /**

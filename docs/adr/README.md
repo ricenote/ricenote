@@ -20,6 +20,7 @@
 | [ADR-014](ADR-014-plugin-owned-admin-ui.md) | 插件自带后台界面 + 后台界面 SDK（零构建、动态挂载、单 Vue 实例） | 已接受 |
 | [ADR-015](ADR-015-plugin-sources-and-install-orchestration.md) | 插件三路来源（npm/Git/本地）、三段式安装编排与任务队列（修订 ADR-007） | 已接受 |
 | [ADR-016](ADR-016-official-plugin-npm-distribution.md) | 官方插件 npm 分发、推荐清单与 `ricenote setup` 安装向导 | 已接受 |
+| [ADR-017](ADR-017-named-extension-points.md) | 命名扩展点（三作用域统一模型）与内容自定义字段 | 已接受 |
 
 ## 说明书「待定项」的默认取值（M0–M2 实现依据）
 
@@ -84,3 +85,12 @@ v0.5.0「安装与分发」把安装过程与官方插件分发一起收口：�
   `builtin`（随仓库分发，不可卸载）与 `official`（属于官方目录，可更新可卸载）分离；
   新增 `ricenote setup` 安装向导（自动建库、随机密钥、勾选安装、首次初始化）与
   `RICENOTE_PLUGINS` 声明式清单（启动期只核对不安装）
+
+在此基础上，"插件能被扩展"从"只能往站点渲染塞片段"推广为**三作用域的命名扩展点**，
+并让主题可以声明**内容自定义字段**：
+
+- ADR-017：一套注册表覆盖 `render` / `admin` / `server` 三个作用域，支持声明式贡献与 `replace` 接管
+  （`replaceable: false` 只约束第三方、不约束提供方自身）；旧 `ctx.slots.register` 退化为 render 作用域别名，
+  主题与既有插件零改动；admin 作用域由服务端三重过滤下发、由后台界面 SDK 渲染（错误隔离、样式引用计数、加载重试）；
+  server 作用域默认响亮失败（abort），与 render 作用域的"降级为空片段"刻意相反；
+  主题 `contentFields` 让文章与页面共用的版式字段（如特色图片）有声明式位置，写入 fail-closed、读取按声明过滤

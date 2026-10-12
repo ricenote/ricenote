@@ -88,5 +88,383 @@
     "content": "{\"type\":\"shutdown_response\",\"request_id\":\"shutdown-1791731405192\",\"approve\":true,\"reason\":\"Auto-acknowledged by team-member runtime\",\"from\":\"view-inventory\",\"timestamp\":\"2026-10-11T15:10:06.162Z\"}",
     "timestamp": "2026-10-11T15:10:06.162Z",
     "read": true
+  },
+  {
+    "id": "msg-1791773575709-onxtx7",
+    "from": "sdk-slots",
+    "to": "team-lead",
+    "type": "message",
+    "content": "后台插槽宿主 SDK 侧已完成，仅改动 packages/admin-sdk/**。\n\n【新增/修改文件（行数）】\n- 新增 packages/admin-sdk/src/extension/use-extensions.ts（131）：模块级单次拉取+缓存、失败降级、effectiveFor 裁决\n- 新增 packages/admin-sdk/src/extension/PluginSlot.vue（169）：插槽宿主 + 内联错误边界 + 异步加载/重试 + 样式注入\n- 新增 packages/admin-sdk/src/extension/contribution.ts（57）：defineAdminContribution（与 defineAdminPage 同构）\n- 新增 packages/admin-sdk/src/extension/index.ts（18）：出口（useAdminExtensions / PluginSlot / defineAdminContribution + 类型）\n- 改 packages/admin-sdk/src/index.ts（+1 行）：`export * from './extension/index.js'`\n- 改 packages/admin-sdk/src/admin-page.ts（+2 行）：import PluginSlot 并加入 SDK_COMPONENTS（模板可直接写 `<PluginSlot>`）\n- browser-entry.ts 未改：它已 `export * from './index.js'`，扩展内容随之透出（避免重复 export 造成歧义）\n\n【effectiveFor 裁决要点】\n- 有 replace 贡献：只返回胜出者。order 最大者胜；同分时按 pluginId 字典序**升序取第一**兜底（客户端拿不到注册顺序，注释已说明）。\n- 无 replace：返回全部贡献按 order **降序**。\n- 读取走 `state.contributions.filter(point === ...)`，在 computed 中调用时自动保持响应式。\n\n【错误隔离与样式注入】\n- 错误隔离：`SlotBoundary`（内联在 PluginSlot.vue 模块作用域的 defineComponent）用 `onErrorCaptured` 捕获、置 failed=true 并 `return false`，之后**渲染空**；每条贡献各包一层，单条崩溃不影响默认内容/其它贡献/整页。\n- 异步加载：`defineAsyncComponent({ loader: () => importContribution(url), errorComponent: () => null })`，loader 内 `import(/* @vite-ignore */ url)`；失败 catch 后追加 `?retry=1`（已含 ? 则用 &）重试一次并 console.warn，重试仍失败则降级为空（参考 PluginHostView 的写法，未改动它）。\n- 样式注入：模块级引用计数表 `styleRefs: Map<url,{el,count}>`（放普通 `<script>` 块以获得跨实例模块作用域），首次引用插入 `<link rel=stylesheet>`，引用归零移除；组件用 watch 跟随生效贡献的 styleUrl 集合 diff，onBeforeUnmount 释放本实例全部持有项——多插槽共用同一 styleUrl 不会互相误删。\n- context 传递：`contributionProps = props.context ?? {}`，模板 `v-bind=\"contributionProps\"`（等价于 h(component, context)）。\n- 未做 ready 门控：加载完成前按\"无贡献\"处理、先渲染默认插槽（失败时 ready 也会置 true，界面不空白）；已按规格的三条渲染规则实现（无贡献→仅默认；append→默认+贡献降序；replace→仅胜出者、默认不渲染）。\n\n【验收命令真实退出码】\n1. `pnpm --filter @ricenote/admin-sdk build` → exitCode 0（vite 1606 modules ✓，vue-tsc --noEmit 无输出）\n2. `pnpm build` → exitCode 0（19 个项目全部 Done，含 apps/admin vue-tsc+vite、apps/server tsc）\n\n另：read_lints 对 extension/**、index.ts、admin-page.ts 均 0 诊断。",
+    "timestamp": "2026-10-12T02:52:55.709Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774226027-1k9x3n",
+    "from": "media-picker",
+    "to": "team-lead",
+    "type": "message",
+    "content": "媒体库「媒体选择器扩展点（rice.media.picker）」已交付，三条验收命令真实全绿。\n\n## 改动 / 新增文件\n1. `plugins/official/media/admin/picker.js` —— **新增，285 行**（≤300），零构建 ESM，无新依赖。\n2. `plugins/official/media/manifest.json` —— 83 行：capabilities 增 `extensions:declare` / `extensions:contribute`；新增 `extensionPoints`（`rice.media.picker`）与 `contributions`（`./admin/picker.js`，mode=replace，order 0，permission=media.manage，label=媒体库；未声明 style —— 全部用宿主 Tailwind 类）。\n3. `plugins/official/media/README.md` —— 新增小节「媒体选择器扩展点（`rice.media.picker`）」（含 `<PluginSlot name=\"rice.media.picker\" :context=\"{ onPick }\">` 用法 + 未装媒体库时回退为直接填链接的说明）+ 清单摘要行。\n4. `packages/shared/manifests/plugin-catalog.json` —— 仅 `rice.media` 一条：capabilities 同步 +2（版本仍 1.2.0，三处一致）。其它文件一律未动。\n\n## picker.js 上下文契约\n- 期望入参：`onPick`（可选，函数）。同时读 `props.onPick` 与 `setup(props, ctx)` 的 `ctx.attrs.onPick`（原因见下）。\n- 回调：`onPick({ url, fileName, mimeType, size })` —— 取自 `MediaSummary` 同名字段。\n- 无 `onPick` → 隐藏底部「插入」栏（连容器一起不渲染），浏览/搜索/上传仍可用，不报错。\n- 面板无外层对话框与标题；1px 细边框、无阴影、无毛玻璃；两个页签用 SDK 的 `<Tabs>`，选库页签 = 搜索 + 网格缩略图（点选高亮 `border-primary bg-accent`，再点取消）+ 分页，写法对齐 `admin/main.js`。\n\n## 如何对齐现有上传规则\n- 同一份 accept 白名单常量（`.png,.jpg,.jpeg,.gif,.webp,.avif,.svg,.pdf,.txt,.md,.zip`），同一调用 `api.upload('/media', formData)`，**FormData 字段名 `file`**，与 `admin/main.js` 逐项一致。\n- 体积上限**不在前端写死**：面板只是提示\"上限由服务端设置决定（默认 8MB，见插件设置）\"，超限/类型不符一律用服务端回传文案（服务端会带真实上限），前端不另起规则。\n- 上传成功后切到列表并把新文件设为选中项，需用户点「插入」才触发回调（避免手滑静默插入）；失败走 `useToast` 报错，不静默。\n- 未改媒体库页面既有上传/删除行为，`admin/main.js` 一行未动。\n\n## ⚠️ 一处必须偏离你给的示例（请裁决，我按可运行方案实现）\n你给的形状是 `\"replaceable\": false` + 媒体库自己用 `mode: \"replace\"` 贡献 —— 运行期这个组合会被宿主**拒绝**：\n`packages/core/src/extensions/registry.ts:180` 对 `mode === 'replace' && !declaration.replaceable` 直接抛 `VALIDATION_FAILED`（不区分是不是提供方自己），异常在 `packages/core/src/extensions/contributions.ts:114` 被 try/catch 吞掉并\"跳过该条\"，于是面板**永远不会注册**（`pnpm validate` 不查这条，所以校验仍是 0，问题只在运行期日志暴露）。\n我的处理：改 `\"replaceable\": true`（显式写出）+ 保留 `mode: \"replace\"`。语义与你的目标完全一致 —— 媒体库启用 → 面板替换消费者默认内容；停用/卸载 → 贡献随插件消失 → 消费者渲染默认内容（这个回退由\"贡献随启停消失\"驱动，与 replaceable 无关）。README 里写清了为什么必须是 true。\n如果你坚持 `false`，唯一自洽的替代是把 mode 改成 `append`，但那样消费者的默认内容会与面板同时出现，不符合\"面板接管默认内容\"的诉求。请告知是否维持我的做法。\n\n## 另一个契约事实（与 sdk-slots 有关）\n`packages/admin-sdk/src/extension/contribution.ts` 的注释示例写 `setup(props)` 直接读 context，但 `defineAdminContribution` 不声明任何 props，而 runtime-core 的 `setFullProps` 会把未声明字段全部放进 **attrs**（`setup` 第一个参数就是 `shallowReadonly(instance.props)`，此时为空对象）。所以 `setup(props) { props.onPick }` 实际拿不到值。picker.js 因此两种都读，注释里说明了原因；若希望文档示例成立，需要在 `defineAdminContribution` 内声明 props（不在我的改动范围）。\n\n## 验收（真实退出码）\n- `pnpm build` → **0**（19 个 workspace 项目全部 Done）\n- `pnpm validate` → **0**：插件 **12/12**、主题 **2/2**、官方插件目录 **11/11**（appVersion 0.4.0）\n- `pnpm --filter @ricenote/tests test` → **0**：`# tests 317 / # pass 317 / # fail 0`（72 suites）\n- 附加自检：`node --check admin/picker.js` → 0；用 vue 运行时编译器编译 picker 模板成功（`TEMPLATE_COMPILE_OK`）；`read_lints` 对改动的 3 个文件 0 诊断。\n无一条失败，也没有改动别人文件来掩盖问题。",
+    "timestamp": "2026-10-12T03:03:46.027Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774247059-dauwe1",
+    "from": "pages-fields",
+    "to": "team-lead",
+    "type": "message",
+    "content": "pages 插件「主题声明的内容自定义字段」已完成。只改了 plugins/official/pages/**。\n\n## 改动文件（行数）\n- 新增 `migrations/0002_page_fields.sql`（13 行）：`ALTER TABLE rn_pages ADD COLUMN fields JSON NULL AFTER template;`，注释风格照 posts/0003；历史行保持 NULL。\n- `src/repository.ts`（289 行，≤300）：PageRow/COLUMNS/insert/update 增加 fields；`toPageSummary(row, fields?)` / `toPageDetail(row, fields?)` 返回 `PageSummary/Detail & { fields }`（shared 的 DTO 不含该列，在插件内扩展类型，未改 packages/**）。\n- `src/runtime.ts`（148 行）：新增 `decodeStoredFields`（解析失败降级 `{}` + 回调告警）、`readContentFields`（解析 + 按声明过滤，供 ViewModel 与后台复用）；`PageContentViewModel.fields`。\n- `src/service.ts`（251 行）：`PageSavePayload extends PageSaveRequest { fields?: unknown }`；保存时 `assertContentFieldValues(await runtime.theme.contentFields(), payload.fields)`；list/detail 返回过滤后的 fields。\n- `src/pages.ts`（62 行）：请求期 `await runtime.theme.contentFields()` 后传给同步的 `toPageContentViewModel`。\n- `src/admin.ts`（133 行）：只显式取出 `fields`（原样透传，不预校验、不整包透传 body），校验交给 service；列表/详情注释说明过滤在 service。\n- `README.md`（+23/-1）：新增「内容自定义字段（主题侧）」小节，并更新迁移清单与渲染变量说明。\n\n## 字段读写关键决策\n1. **落库表示**：归一化后为空 → 写 NULL（与历史行/未填写语义一致；读取侧统一归一化为 `{}`），不用 `'{}'` 占位。\n2. **未声明键拒绝保存**：走 shared 的 `assertContentFieldValues`（fail-closed，400），未自行实现校验。\n3. **读取双重过滤**：`pickDeclaredContentFields(当前主题声明, 库中 JSON)`；解析失败降级 `{}` 并 `logger.warn`（不让脏数据把页面渲染成 500）。\n4. **未提交 fields ≠ 空值**：请求体没带 `fields` 键时，更新**不动该列**、保留既有值；带了（含 null/`{featuredImage:''}`）才按校验结果覆盖。原因：插件自带的后台界面 `admin/main.js` 目前没有内容字段控件、提交时不带 `fields`，若无条件覆盖，一次普通编辑就会清空已填字段。**这属于超出交付清单的防御性决策，请知悉。**\n5. **模板可达性**：默认主题 `themes/default/templates/page.njk` 同时兼容 `content.fields` 与 `page.fields`（Core 会把 `data` 铺开进 `page.*`）。我把同一个过滤后对象同时挂在 ViewModel（`content.fields`，与 posts 的 `post.fields` 对齐）和 data 顶层，两种写法都能读到，且不重复解析。`fields` 始终是对象，模板无需判空。\n6. 未改 manifest version（测试断言官方插件版本/目录，且迁移按文件名增量应用），未引入任何新依赖，未动 `admin/main.js`。\n\n## 验收命令真实结果\n- `pnpm --filter @ricenote/plugin-pages build` → 退出码 **0**\n- `pnpm build` → 退出码 **0**（注：第一次跑时失败于 `plugins/official/posts/src/service.ts: Property 'fields' does not exist on type 'PostSaveRequest'`，属 posts-fields 的在途改动；我已把绕过方式（插件内 `extends PostSaveRequest` 加可选字段，不改 shared）同步给该队友，收到反馈后复跑已 0）\n- `pnpm validate` → 退出码 **0**（插件清单 12/12、主题 2/2、官方目录 11/11）\n- `pnpm --filter @ricenote/tests test` → 退出码 **0**，**317/317 pass，fail 0**（两次复跑均为此结果）\n\n## 待你决策的一点\n插件自带后台界面（`admin/main.js`）仍未渲染内容字段控件，目前字段值只能通过管理 API（POST/PUT `/api/admin/pages` 带 `fields`）写入；若需要编辑页能填写特色图片等，需要另开一条 UI 任务（涉及从 `/api/admin/content-fields` 拉声明并生成控件）。我按交付清单没有动它。",
+    "timestamp": "2026-10-12T03:04:07.059Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774279695-52jwbn",
+    "from": "posts-fields",
+    "to": "team-lead",
+    "type": "message",
+    "content": "文章插件「主题声明的内容自定义字段」已完成，四条验收命令真实退出码全为 0。只改了 plugins/official/posts/**。\n\n## 改动/新增文件（行数）\n- migrations/0004_post_fields.sql（新增，15 行）：ALTER TABLE rn_posts ADD COLUMN `fields` JSON NULL AFTER template；照 0003 注释风格。\n- src/repository.ts（482 行，本次 +约65）\n- src/service.ts（404 行，本次 +约30）\n- src/runtime.ts（269 行，本次 +约45）\n- src/admin.ts（270 行，本次 +约70）\n- src/pages.ts（212 行，本次 +约15）\n- src/search-source.ts（89 行，仅给两个仓库调用补 logger 实参）\n- README.md（新增「内容自定义字段（1.5.0 新增）」小节 + migrations 列表加 0004）\n\n（注：repository.ts / service.ts 在我改动前就已 >300 行，未做无关重构，只做增量。）\n\n## 关键决策\n1) 存储形态：`fields` JSON 可空列；写入时把归一化后的键值对 `JSON.stringify`，**空对象写 NULL 而非 '{}'**（与\"未声明/未填写\"同义，且历史行 NULL 语义一致，避免同一语义两种存储形态）。\n2) 解析与降级：解析放在 repository 读取路径（parseFields/mapRow）。兼容驱动把 JSON 列回成字符串或已解析对象；解析失败降级 `{}` 并 `logger.warn`。因 repository 不持有 logger，给行返回函数加了可选末参 `logger?: PluginLogger`，由 service/pages/search-source 传入 `runtime.logger`（这也是本次唯一\"多签名\"改动）。\n3) 校验时机：service.buildSaveInput 中 `assertContentFieldValues(await theme.contentFields(), payload.fields)`。未声明键、类型不符、越界一律抛 VALIDATION_FAILED(400)，**拒绝保存而非静默丢弃**；core.theme 不可用时按\"无声明\"fail-closed。归一化结果 `fields` 交给 repository 的 insert/update。\n4) ViewModel 拿声明：runtime 新增 `loadContentFields(runtime)`（每请求 `tryUse(CORE_THEME).contentFields()`，**不缓存**）；pages.ts 三个处理器各自 `await loadContentFields(runtime)` 后作为 `options.fields` 传给 `toPostViewModel/toPostViewModels`（这两个本就是 async）。ViewModel 内用 `pickDeclaredContentFields(options.fields, row.fields)`，`PostViewModel.fields` 始终存在（无声明为 `{}`）。无任何缓存，换主题即刻生效。\n5) admin：创建/更新**逐项提取** body（toSavePayload），不整块透传；列表/详情用 `pickDeclaredContentFields` 过滤后返回；`/posts/:postId/status` 回传\"按声明过滤后\"的字段，既保住作者填写值，又避免换主题后失效旧键被判未声明而 400。\n\n## 需要你知晓的一处契约缺口\n`@ricenote/shared` 的 `PostSaveRequest` / `PostSummary` / `PostDetail` **目前都没有 `fields` 字段**，而约束要求我不动 packages/**。因此插件内以交叉类型承载（`PostSavePayload = PostSaveRequest & { fields?: unknown }`、`PostSummaryWithFields` / `PostDetailWithFields`），admin 读取时做 cast；service 仍保持对外 `content.posts@1` 契约不变（返回对象运行时多带 `fields`，类型上不暴露）。若宿主侧后续把 `fields` 补进这些 DTO，可平滑删掉这些本地类型。\n\n## 验收真实结果\n- `pnpm --filter @ricenote/plugin-posts build` → EXIT=0\n- `pnpm build` → EXIT=0\n- `pnpm validate` → EXIT=0（插件 12/12、主题 2/2、官方插件 11/11）\n- `pnpm --filter @ricenote/tests test` → EXIT=0，**pass 317 / fail 0**（与基线一致；集成测试走真实 MySQL，迁移 0004 被实际应用，insert/update 的 `fields` 列读写路径已被覆盖）",
+    "timestamp": "2026-10-12T03:04:39.695Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774285422-ej91io",
+    "from": "sdk-slots",
+    "to": "team-lead",
+    "type": "message",
+    "content": "补充/修正一条交付（media-picker 实测反馈，我已在 SDK 侧修复）：\n\n问题：我原先给 `defineAdminContribution` 的文档示例写\"setup(props) 可直接读到 context 字段\"，但实现里没有 props 声明入口 —— Vue 的 setFullProps（runtime-core.cjs.js:5050）对**未声明**的字段写进 `ctx.attrs`，`setup` 第一个参数是空的 props。示例不成立。\n\n修复（仅动 packages/admin-sdk/src/extension/contribution.ts，57 → 63 行）：\n- `AdminContributionOptions` 新增 `props?: ComponentPropsOptions`，spread 进 defineComponent；\n- 注释改为\"要读 `setup(props)` 必须在 `props` 里声明（零构建写法 `props: ['value','onPick']`），否则走 `ctx.attrs`\"，示例同步更新。\n- PluginSlot 侧不变（仍 `v-bind=\"context\"`）：已声明字段落 props、未声明落 attrs，两条通路都指向同一份 context，向后兼容。\n\n复验：`pnpm --filter @ricenote/admin-sdk build` → exitCode 0（vite 1606 modules ✓ + vue-tsc 无输出）；read_lints 0。未重跑全量 `pnpm build`（改动仅此一个文件的类型/注释，构建链已验证），需要的话我可以再跑一遍。\n\n另需你知晓的既有内核约束（非我文件范围，media-picker 报告）：packages/core/src/extensions/registry.ts:180 会拒绝在 `replaceable: false` 的扩展点上注册任何 `replace` 贡献（含声明者自身），所以扩展点若不可替换就不应再放 replace 贡献 —— 文档/扩展点设计层面可能要提醒。",
+    "timestamp": "2026-10-12T03:04:45.422Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774343564-lcmo1h",
+    "from": "media-picker",
+    "to": "team-lead",
+    "type": "message",
+    "content": "两处调整已完成并复核，三条命令重跑全绿。收尾。\n\n## 1. `replaceable: false`（按你的内核修正改回）\n- `plugins/official/media/manifest.json`：`rice.media.picker` 的 `\"replaceable\": false`，`mode: \"replace\"` 保持 `./admin/picker.js` / order 0 / permission media.manage 不变；capabilities 仍含 `extensions:declare` + `extensions:contribute`。\n- 我确认了你的内核改动已落地：`packages/core/src/extensions/registry.ts:180-193` 现在是 `mode === 'replace' && !declaration.replaceable && pluginId !== declaration.providerId`，注释也写明了理由 —— 提供方自己的 replace 不再被拦。\n- `README.md` 的那段说明已改成：「`replaceable: false` 约束的是**第三方插件**；提供方自己的 `replace` 不受该开关限制（面板就是该扩展点的默认内容本身，否则语义失真），判据见 registry.ts 的贡献校验」。\n\n## 2. `props: ['onPick']`（保留双读，注释已对齐）\n- `admin/picker.js`：`defineAdminContribution({ name, props: ['onPick'], setup(props, context) { … } })`。\n- 保留 `ctx.attrs` 兜底，注释改为：声明后 Vue 才会把 context 的 `onPick` 解析进 setup 第一个参数；`attrs` 仅兜底兼容\"未声明 props 的旧式宿主\"。注释与实现一致，不再是之前那段\"因为生成组件没声明 props\"的旧解释。\n- 我复核了 `contribution.ts`：`props?: ComponentPropsOptions` 已透传给 `defineComponent`（第 62 行 `...(options.props ? { props: options.props } : {})`），数组写法 `['onPick']` 合法。\n\n## 文件行数（当前）\n- `plugins/official/media/admin/picker.js`：**288 行**（≤300）\n- `plugins/official/media/manifest.json`：83 行\n- `plugins/official/media/README.md`：+34 行小节\n- `packages/shared/manifests/plugin-catalog.json`：`rice.media` capabilities +2（未再变动）\n\n## 验收（重跑后真实退出码）\n- `pnpm build` → **0**（含你改动的 core / admin-sdk 一起重建，19 个项目全 Done）\n- `pnpm validate` → **0**：插件 **12/12**、主题 **2/2**、官方插件目录 **11/11**（appVersion 0.4.0）\n- `pnpm --filter @ricenote/tests test` → **0**：`# tests 317 / # pass 317 / # fail 0`（72 suites）\n- 附加自检：`node --check admin/picker.js` → 0；Vue 运行时编译器编译模板 → `TEMPLATE_COMPILE_OK true`；`read_lints` 3 个文件 0 诊断。\n\n你补的\"提供方自身 replace 不受 replaceable:false 影响\"集成用例我没有可覆盖的测试目录权限（tests/** 不在我的改动范围内），需要我配合提供最小可复现形态（声明 replaceable:false 的插件 + 自己 replace 贡献 → 期望注册成功且 `effective()` 返回该条）随时说。",
+    "timestamp": "2026-10-12T03:05:43.564Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774349501-tsbc3h",
+    "from": "sdk-slots",
+    "to": "team-lead",
+    "type": "message",
+    "content": "一个可能被漏掉的覆盖缺口，供你决定是否开任务（不需要我回帖给任何人）：\n\nposts-fields 已确认其交付是**后端**（迁移 `0004_post_fields.sql`、repository/service/runtime/admin API/pages/README），**没有**改 `plugins/official/posts/admin/main.js`（后台编辑界面）。也就是说「内容自定义字段」目前：\n- 存储/接口 ✅（posts-fields）\n- DTO 类型 ⚠️ 未收进 shared（posts-fields 用本地交叉类型绕过，双方确认不动）\n- **后台编辑界面 ❌ 无归属**：目前没有任何任务让谁去改 posts 的 admin 界面把字段渲染出来\n\n这块正好是我的 SDK 的目标消费者场景：提供方在编辑页写 `<PluginSlot name=\"rice.posts.editor.body\" :context=\"{ value, onChange }\">默认文本域</PluginSlot>`，贡献方写 `defineAdminContribution({ props: ['value','onChange'], setup, template })`。SDK 侧能力已就绪并通过构建（`PluginSlot` / `useAdminExtensions` / `defineAdminContribution`，含 props 声明入口）。\n\n如果这块要补，建议明确归属（posts 插件目录 或 单独一个 UI 任务），并注意：贡献组件**必须显式 `props` 声明**，否则字段会落到 `ctx.attrs`（Vue setFullProps 行为）。我这边不主动扩范围，等你派单。",
+    "timestamp": "2026-10-12T03:05:49.501Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774445008-pnmkv7",
+    "from": "sdk-slots",
+    "to": "team-lead",
+    "type": "message",
+    "content": "需要你裁决一处**归属/事实冲突**：\n\n你让 posts-fields 在做 posts `admin/editor.js` 时「用 admin-sdk 的 `packages/admin-sdk/src/content/ContentFields.vue`」，但**该文件在仓库中不存在**：\n- `packages/admin-sdk/src/` 下无 `content/` 目录；\n- 全仓大小写敏感 grep `ContentFields` → 0 命中（命中的都是 `ContentFieldDto` / `content-fields` 这另外两个字符串）；\n- 我收到的任务清单只有 `extension/{use-extensions.ts,PluginSlot.vue,contribution.ts,index.ts}` + index.ts/browser-entry.ts 出口 + `SDK_COMPONENTS` 注册，**没有这一项**，我也没建过。\n\n可能是：a) 你原本想派给我但漏进任务清单；b) 派给了 editor-enhance 或别的队友；c) 记错了组件名。请你确认归属，我不擅自扩范围（我改了也属\"改别人文件\"性质）。\n\n若确认由我做（在 `packages/admin-sdk/**` 权限内），我按下面契约实现并同步 posts-fields，**但需要你明确点头**：\n- props `{ fields: ContentFieldDto[], modelValue: Record<string, unknown>, disabled? }`\n- emits `update:modelValue`（v-model，值形状与 `PostSaveRequest.fields` 一致）\n- 内部 `api.get<ContentFieldsDto>('/content-fields')` 自取声明；控件映射 text/url/image/color→Input、textarea→Textarea、boolean→Switch、number→Input[number]、select→Select、`stringList` 需内联列表编辑器（SDK 无现成件）\n- 同时提供全局注册（`SDK_COMPONENTS`）+ 命名导出\n- 验收：`pnpm --filter @ricenote/admin-sdk build` = 0\n\n在你确认前，我已让 posts-fields **先用自定义渲染回退跑通编辑页**，不要被阻塞。\n\n另：当前全量 `pnpm build` 因 pages 的三条 TS 错误失败（已知在途），我的 admin-sdk 单独构建仍为 0。",
+    "timestamp": "2026-10-12T03:07:25.008Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774452682-tb24jp",
+    "from": "media-picker",
+    "to": "team-lead",
+    "type": "message",
+    "content": "收到，已按\"故障隔离\"处理：没碰 `plugins/official/pages/**`，也没改任何别人的文件。实测数据如下（供你判断现状）：\n\n1. **故障范围已核实**：全量 `pnpm build` → exitCode **1**，报错**恰好只有你列的三条**，全部在 pages：\n   - `plugins/official/pages build: src/admin.ts(68,9) error TS2322` / `(85,9) error TS2322`（`PageSavePayload` 不可赋给 `PageSaveRequest`）\n   - `plugins/official/pages build: src/service.ts(52,18) error TS2430`（`PageSavePayload` 错误地 extends `PageSaveRequest`）\n   其余全部 `build: Done`（packages/shared、plugin-sdk、theme-sdk、admin-sdk、core、hello、authorization、comments、identity、**media**、navigation…）；pnpm 是 fail-fast，所以 `apps/admin` / `apps/server` 这轮没被调度，不是它们出错。\n\n2. **我的交付与故障无关，单独验证仍全绿**：\n   - `pnpm --filter @ricenote/plugin-media build` → **0**\n   - `pnpm validate` → **0**（插件 **12/12**、主题 **2/2**、官方插件目录 **11/11**，appVersion 0.4.0）—— validate 只读清单与源码，不受 pages 的 TS 报错影响\n   - `pnpm --filter @ricenote/tests test` → **0**（`# tests 317 / # pass 317 / # fail 0`，72 suites）—— 测试走的是已产出的 dist，pages 的 in-flight 改动暂未影响\n\n3. 我的工作已收尾、无待办：`rice.media.picker` 扩展点 + `admin/picker.js`（288 行）+ README + catalog 能力同步，`replaceable: false`（依赖你在 registry.ts 的提供方豁免）、`props: ['onPick']`（依赖 sdk-slots 的 SDK 改动）两处修正都已落地并复核。\n\npages 修好后如需我重跑全量 build 确认一次，说一声即可 —— 我不会主动去动他的文件。",
+    "timestamp": "2026-10-12T03:07:32.682Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774475661-54r0we",
+    "from": "media-picker",
+    "to": "team-lead",
+    "type": "message",
+    "content": "收到，保持待命（不退出、不再改动文件，等你实测反馈）。为了让你浏览器实测时对照，先把面板**当前确切行为**列清楚 —— 其中第 3 条是你可能想改的那一点：\n\n1. **入参/回调**：`props: ['onPick']` 已声明；回调形参名严格是 `onPick({ url, fileName, mimeType, size })`，`url` 是**相对地址**（形如 `/media/12`，与媒体库页面一致，不是绝对 URL）。所以消费者若要把图片语法写成 `![](…)`，按需自行拼 `window.location.origin`。\n2. **无 `onPick` 时**：整条底栏（含「插入」）不渲染，浏览/搜索/上传照常，不报错、不抛异常。\n3. **上传后的行为（重点）**：上传成功 → `toast.success` → **自动切到「从媒体库选择」页签 + 把新文件设为选中项（高亮）**，但**不会自动调用 onPick** —— 仍需用户点一次「插入」才回填。这是我按\"选中后回调\"的实现，属于安全选择（避免手滑上传即被插入）。若你在实测里期望\"上传完直接回填图片语法\"（一次点击完成），告诉我，我把上传成功分支改成 `insert()` 直接走回调，约 3 行改动，其余不变。\n4. **对话框归属**：面板**不管**外层 Dialog，也不关它 —— 容器与\"选中后关闭对话框\"由消费者在 `onPick` 里自己做。\n5. **权限不足**：贡献声明了 `permission: media.manage`，服务端直接**不下发**这条贡献 → 消费者渲染自己的默认内容（降级为填链接），不会出现\"打不开的面板\"或报错弹窗；面板内部不做任何权限判断。\n6. **请求失败**：一律 `useToast` 报错（列表/上传），不静默；体积超限与扩展名不符的文案由服务端回传（含真实上限），前端不另写规则。\n7. **replace 生效**：`mode: replace` 生效时消费者的默认内容**不渲染**（`PluginSlot.vue:163` 的 `v-if=\"!replaced\"`），所以消费者只要给默认内容即可，不必额外判断\"面板在不在\"。\n\n实测若出现契约问题，把现象（或控制台报错）直接发我，我只改 `plugins/official/media/**` 范围内的文件。",
+    "timestamp": "2026-10-12T03:07:55.661Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774486343-04as92",
+    "from": "sdk-slots",
+    "to": "team-lead",
+    "type": "message",
+    "content": "两件事，一件已做、一件需要你一句话确认。\n\n【已做】锚点名统一。SDK 里唯一的旧示例在 `PluginSlot.vue` 头注释，已改成锁死的契约名：\n`<PluginSlot name=\"rice.posts.editorBody\" :context=\"{ kind, value, onChange, onPreview }\">默认文本域</PluginSlot>`，并在注释里写明 `rice.posts.*` / `rice.pages.*` 的 listActions / editorToolbar / editorBody 是跨插件锁死契约、不要自创名字。\n全仓 `packages/admin-sdk/src` 已无 `rice.posts.editor.body` 等旧写法（grep 仅命中该处，已改）。\n复验：`pnpm --filter @ricenote/admin-sdk build` → exitCode 0。\n\n【需要你确认】`ContentFields.vue` **仍然不存在**（我上一条已说明：admin-sdk 无 `content/` 目录，全仓大小写敏感 grep `ContentFields` = 0）。但你说编辑页「消费**你做的** `ContentFields.vue`」，同时又让我「不用扩范围」。两者对不上，请给一句 **go / no-go**：\n\n- **go**：我在 `packages/admin-sdk/src/content/ContentFields.vue` 实现（在我权限内），契约用我提过的\n  props `{ fields: ContentFieldDto[], modelValue: Record<string, unknown>, disabled? }` + emit `update:modelValue`（v-model），内部 `api.get<ContentFieldsDto>('/content-fields')` 自取声明，9 种 type 控件映射（`stringList` 内联实现），并进 `SDK_COMPONENTS` 全局注册 + 命名导出。预计 1 轮内交付 + 构建 0。\n- **no-go**：那请把它的依赖从 posts-fields / pages-fields 的编辑页里去掉（或明确他们自行渲染），否则两个队友会等一个不存在的东西；我已让 posts-fields 先用自定义渲染回退，未阻塞。\n\n在此期间其他方面我保持待命。另：全量 `pnpm build` 仍应为 pages 三条 TS 错误所阻（已知在途），与我无关。",
+    "timestamp": "2026-10-12T03:08:06.343Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774552234-yy0601",
+    "from": "media-picker",
+    "to": "team-lead",
+    "type": "message",
+    "content": "待命中，无改动。为让你实测第 5 条（权限不足降级）时能直接对上现象，我把服务端过滤的实际判据确认了一遍（`apps/server/src/http/admin/extensions-routes.ts:21-76`，后端没有任何改动，只是读数）：\n\n- 端点：`GET /api/admin/extensions`，返回 `{ data: { points, contributions } }`；\n- 判据 `allowed(permission)`：`permission === undefined` 放行；用户权限含 `*`（超管）时 `permissions === undefined` 全部放行；否则必须包含 `media.manage`（第 26-28、60 行）；\n- **注意一个细节**：`points`（扩展点列表）**不按权限过滤**，被权限过滤掉的只是 `contributions`。所以无 `media.manage` 的用户，实测看到的现象应是：`points` 里**仍有** `rice.media.picker`，但 `contributions` **为空** → `<PluginSlot>` 的 `replaced` 为 false → 渲染消费者的默认内容。若你的断言是\"扩展点也不该出现\"，那与实现不符（当前设计如此），需要产品口径确认，我这边不擅自改。\n- 另外一条会同样表现为\"贡献为空\"的条件：贡献方插件未启动（`k.plugins.isStarted(consumerId)`，第 45 行）—— 即媒体库被停用时也是同一条降级路径，现象与权限不足一致，实测时可一并验。\n\n我这边行为不变（上传后仍需点「插入」），继续待命。",
+    "timestamp": "2026-10-12T03:09:12.234Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774602904-4mnh5o",
+    "from": "sdk-slots",
+    "to": "team-lead",
+    "type": "message",
+    "content": "`ContentFields.vue` 已按定稿契约交付完毕。\n\n【文件与行数】\n- 新增 `packages/admin-sdk/src/content/ContentFields.vue`（259）\n- 新增 `packages/admin-sdk/src/content/use-content-fields.ts`（87）\n- 新增 `packages/admin-sdk/src/content/index.ts`（12）\n- 改 `packages/admin-sdk/src/index.ts`（+1：`export * from './content/index.js'`）\n- 改 `packages/admin-sdk/src/admin-page.ts`（+2：import + 注册进 `SDK_COMPONENTS`）\n\n【最终 props / emits】\n- props：`fields?: ContentFieldDto[]`（可选覆盖）、`modelValue: Record<string, unknown>`（必填）、`disabled?: boolean`\n- emits：`update:modelValue`（v-model）\n- 取声明：默认自取 `GET /api/admin/content-fields`，模块级缓存一次、失败只 `console.warn` 一次并渲染空（与 `use-extensions` 同口径）；`fields` prop 可覆盖。\n\n【全局组件名】`ContentFields`（模板直接 `<ContentFields v-model=\"...\" />`），同时 `@ricenote/admin-sdk` 与 `/admin-sdk/v1/ricenote-admin.js` 均命名导出。\n\n【行为按你的三点要求】\n- 控件映射：text/url/image/color→Input、textarea→Textarea、boolean→Switch、number→Input[number]（min/max 透传）、select→Select(声明 options)、stringList→胶囊增删；image/url 右侧缩略图，破图 `@error` 退回占位图标、不撑破布局；color 色块+文本；label/description/placeholder 均展示。\n- 只透传 `maxLength`/`min`/`max`，**无客户端合法性裁判**（服务端 `assertContentFieldValues` 唯一裁判）；空串/空数组不删除、原样提交。\n- **无声明时什么都不渲染**（根 `v-if=\"declared.length > 0\"`），编辑页据此整块隐藏。\n\n【验收真实退出码】\n- `pnpm --filter @ricenote/admin-sdk build` → **exitCode 0**（vite 1610 modules ✓ + vue-tsc 无输出）\n- `read_lints`（content/**、index.ts、admin-page.ts）→ **0 诊断**\n- 全量 `pnpm build`：**未跑** —— 按你的说明仍应为 pages 三条 TS 错误所阻；我可等 pages 修好后跑，或你要我现在跑一次并把结果按\"仅 pages 三条\"口径判定，也可以。\n\n【通知】已把定稿契约直接同步给 posts-fields 与 pages-fields，并要求 posts-fields 收尾时删掉临时自定义渲染、改用组件（pages-fields 是首次联系，已给完整用法）。",
+    "timestamp": "2026-10-12T03:10:02.904Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774651344-71xl8x",
+    "from": "sdk-slots",
+    "to": "team-lead",
+    "type": "message",
+    "content": "补充（紧接上一条）：我刚跑了全量 `pnpm build`，**exitCode 0**，20 个项目全部 `build: Done`，输出里已无 `error TS` —— 说明 pages 那三条 TS 错误已经被修掉了（我这边没碰 `plugins/official/pages/**`）。\n\n覆盖到的关键项：`packages/admin-sdk build: Done`、`plugins/official/editor-enhance build: Done`（新的 editor-enhance 插件已在构建范围内）、`plugins/official/posts/pages/media build: Done`、`apps/admin`、`apps/server` 均 Done。\n\n所以两项验收现在都是 0：\n- `pnpm --filter @ricenote/admin-sdk build` → exitCode 0\n- `pnpm build` → exitCode 0\n\n我的交付（`extension/**` + `content/ContentFields.vue` 等）无阻塞、无待办；继续待命。",
+    "timestamp": "2026-10-12T03:10:51.344Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774667803-h2fzl3",
+    "from": "media-picker",
+    "to": "team-lead",
+    "type": "message",
+    "content": "故障解除后我按你第 1 条重跑了全量，结果有**一处新的红灯**，且不是 pages（pages 已恢复）：\n\n- `pnpm build` → **0**（整条链路都过了，`apps/admin`、`apps/server` 这次都被调度并 Done）\n- `pnpm --filter @ricenote/tests test` → **0**：`# tests 329 / # pass 329 / # fail 0`（76 suites，已包含 ext-tests 新增的用例）\n- `pnpm validate` → **1**：**插件清单 12/13 通过**；唯一失败项是\n  ```\n  plugins\\official\\posts\n    /admin/pages/posts.editor  后台界面入口不存在：./admin/editor.js\n  ```\n  主题 2/2 ✓、官方插件目录 **12/12** ✓（目录条目数也从 11 涨到 12，应是把新插件收进去了）。\n  这看起来是 posts-fields 在途改动：清单先声明了 `posts.editor` 页面（`entry: ./admin/editor.js`），文件还没落盘。**我没有碰 `plugins/official/posts/**`**，报给你去派。\n\n补充一个观察供你对基线时参考：同一条命令我在几分钟内跑了两次，插件计数在变（先 10/13 三条错误、后 12/13 一条错误），说明有队友正在同时改清单 —— 你跑基线前最好确认大家停手，否则计数会漂。另外命中我视野的一点：`rice.media`（含我新增的 `extensionPoints`/`contributions` 与 catalog 能力同步）在两次运行里都**不在失败列表**内。\n\n我的交付状态不变：`admin/picker.js` 288 行、`manifest.json`（`replaceable: false` + 自身 `mode: replace`）、README、catalog `rice.media` 一条；继续待命等你实测。",
+    "timestamp": "2026-10-12T03:11:07.803Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774698371-omumh3",
+    "from": "sdk-slots",
+    "to": "team-lead",
+    "type": "message",
+    "content": "你的 GO 与我的交付回报错开了 —— **`ContentFields.vue` 已在上一轮完成并同步给 posts-fields / pages-fields**，无需重复派单。收件箱里应已有我的交付报告，这里只补一句最终状态：\n\n- 文件：`content/ContentFields.vue`（260 行，刚补了\"破图提示\"的 `title`）、`content/use-content-fields.ts`（87）、`content/index.ts`（12）；改 `index.ts`、`admin-page.ts`（注册进 `SDK_COMPONENTS`）。\n- 契约定稿与你的要求逐条对齐：props `{ fields?, modelValue, disabled? }`、emits `['update:modelValue']`、默认自取 `/content-fields`（模块级缓存 + 失败只 warn 一次 + 空）、9 类型映射、`stringList` 内联、`image`/`url` 缩略图破图退占位（现有 `title` 文字提示且不撑破布局）、`color` 色块+文本、`number` 透传 min/max、`select` 用声明 options、label/description/placeholder 全展示、仅透传约束不做客户端裁判、**无声明不渲染**、命名导出 + 全局组件名 `ContentFields`。\n- 已要求 posts-fields 收尾删掉临时自定义渲染；pages-fields 已收到完整用法。\n- 验收：`pnpm --filter @ricenote/admin-sdk build` = **0**、`read_lints` = **0**、全量 `pnpm build` = **0**（我这边刚复跑，与你\"故障解除\"一致）。\n\n浏览器实测如发现 `ContentFields` / `PluginSlot` 的缺口（props 不够用、某形态不渲染、回退异常），直接找我，我随时改。",
+    "timestamp": "2026-10-12T03:11:38.371Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774841257-84776p",
+    "from": "docs-017",
+    "to": "team-lead",
+    "type": "message",
+    "content": "docs-017 文档任务完成。仅改动 `docs/**` 与 `CHANGELOG.md`，未碰任何代码/测试/插件/清单。\n\n## 新增/修改文件\n1. 新增 `docs/adr/ADR-017-named-extension-points.md`（背景/三作用域/替换语义与提供方例外/render 兼容策略/server abort vs render 降级/后台下发与 SDK/能力门面/失败隔离与校验/内容字段/被否决方案）。\n2. `docs/plugin-api/v1.md`：新增 §18「命名扩展点」（§18.1 三作用域 payload 形状、§18.2 声明、§18.3 贡献、§18.4 `ctx.extensions` 门面含 `apply.onError` 语义、§18.5 替换裁决与提供方例外、§18.6 命名与校验、§18.7 调试清单、§18.8 六个锚点 + `rice.media.picker`）。已核对没有与既有 §17 编号冲突。\n3. `docs/theme-api/v1.md`：§6 插槽处加一句指向统一模型 + ADR-017 链接（不复述）；新增 §14「内容自定义字段」（声明形态/类型/fail-closed 写入/按声明过滤读取/模板读取的 `post.fields` 与页面 `content.fields`/`page.fields` 两种变量名/默认主题真实样例）；§13 表补 `contentFields` 清单字段行与多语言文案行。\n4. `docs/adr/README.md`：索引加 ADR-017 一行 + 版本概述补一段（已接受）。\n5. `docs/architecture/hooks-inventory.md`：§0 加「命名扩展点」面；新增 §1.1 admin 锚点清单（提供方/消费者/可替换，并注明尚无具名 server 扩展点）；§2.4 加 `/extensions` 与 `/content-fields`；§4.1 `core.theme@1` 加 `contentFields`；§8 加 `extensions:declare` / `extensions:contribute` 两个能力（并说明 `slots:register` 是别名）。\n6. `CHANGELOG.md`：在 `[Unreleased]` 下补 Added（命名扩展点 + 内容自定义字段）、Changed、Fixed 三节（照既有分节风格）。\n\n## 写进文档的关键结论\n- **Fixed 1｜提供方自身 replace 不受 `replaceable: false` 约束**：判据是 `mode==='replace' && !replaceable && consumer!==provider`（`registry.ts`）。否则 `false` 会被逼成\"任何插件都能替换我的面板\"，语义失真；活样例 `rice.media.picker`（媒体库自己用 `mode:\"replace\"` 贡献面板）。\n- **Fixed 2｜贡献组件必须在 `defineAdminContribution({ props: [...] })` 里显式声明 context**：宿主 `h(component, context)` 传值，Vue 只把组件声明过的字段填进 `setup(props)`，未声明者落 `ctx.attrs` → `setup(props)` 静默拿到 `undefined`（\"点了没反应且无报错\"）。已在 plugin-api §18.7 与 CHANGELOG Fixed 单列。\n- **server abort vs render 降级**：server 是**保存前钩子**，静默放行未验证数据比报错更危险（事后无法区分\"没跑钩子\"与\"跑了但跳过\"），故默认 `abort`；render 是**展示位**，报错只会毁掉整页，故降级为空片段。两者刻意相反。\n- render 兼容：`SlotRegistry` 退化为注册表门面，`slot()`、九个标准插槽、`acme.reading-time` 零改动（已核对 `plugin-sdk/src/slots.ts` 与 reading-time 的 `ctx.slots.register`）。\n- 内容字段：写入 fail-closed（未声明键拒绝保存，非静默丢弃）、空值不落库、读取按当前主题声明过滤（换主题旧值保留但不展示）；存储 `rn_posts.fields` / `rn_pages.fields`。\n\n## 引用到的 validate 真实计数（以最终一次为准）\n`pnpm validate` 结果：**插件清单 13/13 通过、主题清单 2/2 通过、官方插件目录 12/12 通过（appVersion 0.4.0）**。\n（首次运行时为 9/13，是因 posts/pages 的 `admin/editor.js` 与 editor-enhance 的构建产物尚未就绪，属于队友在途；现已全绿。）\n\n## 如实报告的一处实现差异（未改代码）\n- `onPreview` 的返回类型两个插件不一致：`rice.posts.*` 声明为 `Promise<string>`，`rice.pages.*` 声明为 `() => Promise<void>`。文档已按各自 manifest 的真实声明分别描述（未统一、未臆造）。\n- 其余锚点 context（`kind` / `value` / `onChange`）与 media picker 的 `onPick({url,fileName,mimeType,size})`、权限 `media.manage` 均与 `plugins/official/{posts,pages,media}/manifest.json` 一致。\n\n无阻塞项。若需要我据最终 validate 数字回填某处计数，告诉我具体位置即可。",
+    "timestamp": "2026-10-12T03:14:01.257Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774881308-ya3ead",
+    "from": "docs-017",
+    "to": "team-lead",
+    "type": "message",
+    "content": "已按你的要求把「`points` 不按权限过滤、`contributions` 才按启用态+权限过滤」写进文档，并已核对实现一致（`apps/server/src/http/admin/extensions-routes.ts`：`points` 仅按提供方 `isStarted` 过滤、无权限过滤；`contributions` 逐条做 `isStarted` + `permission` 判断）。\n\n落点：\n1. `docs/plugin-api/v1.md` §18.7「如何调试为什么没生效」——开头加一段「接口过滤不对称（刻意设计）」+ 你给的三行诊断表（既无 point 也无 contribution / 有 point 无 contribution / 两者都有），并明确写出：**\"贡献方插件未启动\"与\"权限不足\"走同一处判据，可见现象完全一致（都表现为消费者渲染默认内容），这是可回退契约的一部分，不是两种故障**；同时补了\"安全上无额外代价（需登录会话、声明不含 payload 与数据）\"。原编号排查项保留，第 2 条补了\"与贡献方未启动现象一致\"的交叉引用。\n2. `docs/adr/ADR-017-named-extension-points.md` 决策 7——把三重过滤明确为\"针对贡献\"，并补一句\"声明刻意不按权限过滤\"及其诊断价值，保持与 plugin-api 口径一致。\n\n另外同步：你提到的 `ContentFields.vue`（sdk-slots 负责）与编辑页临时渲染收尾删除，属于实现侧，我未在文档里引用该组件名（避免写进尚未定稿的组件契约）；theme-api §14.4 只描述了「后台经 `GET /api/admin/content-fields` 取得字段元数据并生成控件」这一稳定事实。如需我在 theme-api/plugin-api 里点名 `ContentFields.vue` 作为共享组件，待它落地后告诉我即可。两处改动 lint 均无告警。",
+    "timestamp": "2026-10-12T03:14:41.308Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774889466-zvhvkc",
+    "from": "posts-fields",
+    "to": "team-lead",
+    "type": "message",
+    "content": "editor-pages（posts 侧）已完成，并顺手清掉了上一轮的本地交叉类型。仅改 plugins/official/posts/**（外加你授权的 plugin-catalog.json 一行版本）。\n\n## 0. 收口上一轮的契约缺口\n`packages/shared` 的 `PostSummary` / `PostDetail` / `PostSaveRequest` 现已带 `fields`，我据此：\n- 删除 `PostSavePayload` / `PostSummaryWithFields` / `PostDetailWithFields` 与 admin 里所有 cast，直接用共享类型；\n- 按 DTO 注释新增的语义实现了「**省略 fields = 不改动已存值**」：`save()` 更新时若 payload 无 `fields` 键，沿用库中现有值（`service.ts` save 内一行 + 注释）；显式传 `{}` 才清空；\n- 状态端点 `/posts/:postId/status` 因此改为**省略 fields**（缺省即不改动），比\"过滤后回传\"更安全，也不会在换主题后因旧键触发 400。\n\n## 1. 服务端预览接口\n`POST /api/admin/posts/preview`（权限 `post.write`，body `{ content }`，返回 `{ data: { html } }`）。\n复用点：抽出 `service.ts` 的 `renderPostHtml(runtime, content)` = `renderMarkdown()` + `runtime.html.sanitize().value`，**保存/发布与预览共用同一函数**（原来 inline 在 buildSaveInput 里的那两行已改为调用它）。\n\n## 2. manifest / 版本\n- `capabilities` 加 `\"extensions:declare\"`（只声明不贡献）；\n- `extensionPoints` 三点（名字一字不差）：`rice.posts.listActions`、`rice.posts.editorToolbar`、`rice.posts.editorBody`，均 `scope: admin`、`replaceable: true`，含 props 说明；\n- `admin.pages` 加 `{ id: posts.editor, path: /posts/editor, permission: post.write, entry: ./admin/editor.js, hidden: true }`；\n- 版本 1.5.0 → **1.6.0**：manifest / package.json / plugin-catalog.json 三处同步；**catalog 的 capabilities 也补了 `extensions:declare`**——`validateCatalog` 会双向比对，漏了它 validate 必挂。\n\n## 3. 三个锚点 context 的最终字段名\n- `rice.posts.listActions`：`kind`（='post'）\n- `rice.posts.editorToolbar`：`kind`、`value`、`onChange`、`onPreview`\n- `rice.posts.editorBody`：`kind`、`value`、`onChange`、`onPreview`\n其中 `value` = 当前 Markdown 字符串；`onChange(next)` 更新正文；`onPreview()` 返回 `Promise<string>`（服务端渲染并消毒后的 HTML）。\n\n## 4. 后台界面\n- `admin/main.js`（223 行）：新建按钮包进 `<PluginSlot name=\"rice.posts.listActions\">` 默认内容；新建→`router.push('/posts/editor')`、行内编辑→`router.push('/posts/editor?id='+id)`；**删除对话框编辑路径**（editorOpen/editingId/form/save/toggleTerm/terms/statusSelectOptions 等全部移除，无死代码）。\n- `admin/editor.js`（新增，390 行）：左栏元信息卡 + 内容字段区，右栏正文容器（`min-h-[420px]`，lg 下按视口撑满）内含两个锚点；默认 textarea；顶栏 取消/创建|保存 + 顶栏下方一行错误；未保存离开用 **ConfirmDialog**（`onBeforeRouteLeave` 返回 Promise 拦截，不用 window.confirm）；`preview()` 打 `/posts/preview`。\n\n## ⚠️ 一处与我无关但影响\"按你说的做\"的点\n你让我「用 admin-sdk 的内容字段组件（看 `packages/admin-sdk/src/content/ContentFields.vue`）」，但**该组件在当前工作区不存在**（admin-sdk 无 `content/` 目录，全仓 grep ContentFields 为 0 命中；只有宿主侧 `GET /api/admin/content-fields` 与 `ContentFieldDto`）。admin-sdk 不在我的授权范围，我已私信 sdk-slots 询问其是否交付、以及 props/事件名与导出方式（全局注册 or 命名导出）。\n**当前实现**：editor.js 的内容字段区改为按 `ContentFieldDto` 用 SDK 基础组件内联渲染（boolean→Switch、select→Select、number→Input[type=number]、textarea/stringList→Textarea、其余→Input），声明来自 `GET /api/admin/content-fields`，值放 `fields` 对象随保存提交。功能等价。**若 sdk-slots 交付 `ContentFields.vue`，我可一处替换为该组件**（并顺带缩短 editor.js）。请知悉。\n\n## 5. README\n新增「后台命名扩展点（1.6.0）」与「独立编辑页（1.6.0）」小节（三点名字/context 字段/回退契约），并在管理 API 表补 `/posts/preview`、同步 version/capabilities/migrations。\n\n## 验收（真实退出码）\n- `pnpm --filter @ricenote/plugin-posts build` → **0**\n- `pnpm build`（全仓）→ **0**\n- `pnpm validate` → **0**（插件 13/13、主题 2/2、官方目录 12/12）\n- `pnpm --filter @ricenote/tests test` → **0，pass 360 / fail 0**\n\n补记（如实说明）：首次跑 tests 出现过一次 `setup-flow.test.ts`（\"离线端到端\"，11 fail / 47 cancelled），但**同套件单独复跑子用例全 ok、整表复跑 360/360 全绿**——判断为与并发队友跑测试/构建时的共享本地 registry/临时资源竞争，非我的改动所致（该套件不涉及 posts 的 fields/预览）。若你再遇到请以复跑为准。",
+    "timestamp": "2026-10-12T03:14:49.466Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791774947609-7l9q88",
+    "from": "docs-017",
+    "to": "team-lead",
+    "type": "message",
+    "content": "`ContentFields` 说明已落两处（只动文档，未跑 validate），并已按实现核对（`packages/admin-sdk/src/content/ContentFields.vue`：props/emits 与你说的一致；`declared.length > 0` 才渲染；无客户端校验，仅透传 min/max/maxLength；已注册进 `SDK_COMPONENTS`）。\n\n落点：\n1. `docs/plugin-api/v1.md`：\n   - §16.3 要点 2 的\"组件已全局注册\"清单加入 `<ContentFields>`；\n   - 新增 §16.9「内容字段控件 `ContentFields`（本轮新增）」，三句事实：① 渲染当前主题声明的内容字段（声明由宿主 `GET /api/admin/content-fields` 下发、组件内部已缓存）；② 契约 `props { fields?: ContentFieldDto[]; modelValue; disabled? }` + `emits ['update:modelValue']`，`v-model` 绑内容插件的 `fields`，`fields` 为可选覆盖、一般不传；③ 声明为空时不渲染任何东西（宿主据此整块隐藏），且不做客户端合法性校验（服务端 `assertContentFieldValues` 是唯一裁判）。末尾指向 theme-api §14。\n2. `docs/theme-api/v1.md` §14.4：在既有段落末尾加一句交叉引用，指向 `docs/plugin-api/v1.md` §16.9，避免同一段事实写两处。\n\n两文件 lint 均无告警；未重跑 validate（仅文档改动）。",
+    "timestamp": "2026-10-12T03:15:47.609Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791775049638-juhhk3",
+    "from": "posts-fields",
+    "to": "team-lead",
+    "type": "message",
+    "content": "收尾完成：已删掉 editor.js 里的临时自定义字段渲染，改用 sdk-slots 交付的共享全局组件 `ContentFields`。\n\n具体：\n- `admin/editor.js`（390 → **307 行**）：内容字段区改为 `<ContentFields v-model=\"fields\" :disabled=\"saving\" />`（全局组件，无需 import）；删除了 `fieldDefs/themeId/loadFields/setField/onNumberInput/listText/onListInput` 及那一段 `v-for` 控件映射，**无两套实现残留**（已 grep 确认 0 命中）。\n- `fields` 改用 `ref({})`：因为 `ContentFields` 的 `v-model` 是\"整体不可变替换\"（写回浅拷贝），只有 ref 才能让模板绑定与脏检查闭包指向同一份最新值；保存时 `fields: { ...fields.value }` 显式提交。\n- 无字段声明时组件自身不渲染，故不再包 Card，避免出现空框。\n- 复核：admin-sdk 的 `ContentFields` 确实已进 `SDK_COMPONENTS`（admin-page.ts:145，全局注册），组件文件与 `use-content-fields.ts` 均在位。\n\n最新验收（真实退出码）：\n- `pnpm --filter @ricenote/plugin-posts build` → 0\n- `pnpm build`（全仓，pages 已修复）→ **0**\n- `pnpm validate` → **0**（插件 13/13、主题 2/2、官方目录 12/12；posts 的 version/capabilities 已与 catalog 同步）\n- `pnpm --filter @ricenote/tests test` → **0，pass 378 / fail 0**（`node --check admin/editor.js` 也通过）\n\n如实补记：中间有一次 `fail 0 / cancelled 39 / exit 1`，紧接着复跑即 378/378 全绿——与之前一样是并发跑测试时的共享资源（测试库/本地 registry）竞争，非代码问题。浏览器实测如有现象随时找我。",
+    "timestamp": "2026-10-12T03:17:29.638Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791775064539-p6hxuj",
+    "from": "ext-tests",
+    "to": "team-lead",
+    "type": "message",
+    "content": "## 交付：命名扩展点单元测试（只动 tests/unit/**）\n\n因为「单文件 ≤ 300 行」的约束，交付了 **5 个文件**（你点名的那 3 个 + 拆出来的 2 个），共 **43 个用例，全绿**：\n\n| 文件 | 行数 | 用例 |\n|---|---|---|\n| tests/unit/extension-registry.test.ts | 261 | 12 |\n| tests/unit/admin-contributions.test.ts | 252 | 7 |\n| tests/unit/manifest-and-content-fields.test.ts（清单 Schema 部分） | 193 | 10 |\n| tests/unit/content-fields-values.test.ts（值校验 + 本地化 DTO + defineAdminContribution，从上一文件拆出） | 243 | 13 |\n| tests/unit/extension-static-validate.test.ts（静态校验，从 admin-contributions 拆出） | 153 | 1 |\n\n覆盖了要求的每一项：声明/贡献/生效集合、order 降序、replace 裁决（有 replace 时 append 不生效、order 最大者胜、同 order 取 consumerId 并告警）、未声明点只告警不拒绝、零残留（disposer 回收后 list()/effective()/ownedBy 皆空）、apply() 的 abort/skip 异常隔离、admin URL 换算（含子目录与 style）、产物缺失/无 render 导出只跳过该条、能力未声明 FORBIDDEN、hidden、清单 Schema（未知 scope/mode、入口白名单、props 缺说明、contentFields 未知类型/缺 label/select 缺 options/字段名非法）、值校验 fail-closed、pickDeclaredContentFields、resolveContentFields 中英各一遍、defineAdminContribution 的 props 契约。\n\n## 三条最有价值的断言\n1. **replaceable 回归（tests/unit/extension-registry.test.ts:140）**：`replaceable:false` 的点上，**提供方自己** `mode:'replace'` 被接受且生效集合就是它（`['own-default-panel']`）；**第三方** replace 抛 `RN_VALIDATION_FAILED` / status 400 / `details.providerId === 'rice.media'` / message 含「不可替换」，且**不留残留**（`contributionsOwnedBy('rice.third') === []`）；同点第三方 `append` 仍允许 —— 明确锁住「replaceable 只约束别人，且不误伤追加」。\n2. **replace 裁决压制高 order 追加（同文件 replace 裁决组）**：append order=100 在有 replace 时也不生效，胜出者是 order 最大的 replace —— 防「order 写大点就能盖住默认面板」的误判。\n3. **未声明字段报错而非静默丢弃（tests/unit/content-fields-values.test.ts:46）**：未声明键给 `additionalProperties` 问题且已声明键照常落值；空串/空数组不落结果；`false`/`0` 是有效值 —— 这三条决定模板 `{% if %}` 语义，最容易在重构中退化。\n\n## 必须如实报告（实现与描述不符 / 无法按描述断言）\n1. **hidden 内核侧有缺口（潜在，未改实现）**：`registerDeclaredAdminPages`（packages/core/src/plugins/admin-pages.ts:153-163）构造菜单项时**没有带上 `hidden`**；而 `PluginManager.declaredAdminPages()`（manager.ts:730）带了。`/menu`（apps/server/src/http/admin/system-routes.ts:146-154）优先返回已注册项并过滤掉同路径的 declared 项 → **已启动插件**的隐藏页缺 `hidden`，后台侧栏过滤 `available !== false && hidden !== true`（apps/admin/src/stores/menu.ts:60）拦不住它，隐藏页会出现在侧栏。目前仓库里还没有插件声明 `hidden`，所以是潜在缺口而非已暴露故障。我在 admin-contributions.test.ts:237-250 按**当前实际行为**断言（`items[0].hidden === undefined`）并写清注释：修复后该断言会失败，正好提醒同步。需要谁改内核请指定。\n2. **「不进侧栏」无法在单测里直接断言**：apps/admin 的 menu store 加载不起来（`@ricenote/admin-sdk` 的 index 引 `.vue`，tsx 报 `Unknown file extension \".vue\"`）。所以我只锁内核侧可导出的两条事实：`resolveAdminPages` 保留 `hidden` 并算出入口 URL（深链可解析）；隐藏页照样注册进菜单（路由/刷新不受影响）。\n3. **作用域入口白名单只在静态校验里**：admin→`./admin/`、render/server→`./dist/` 的判定与「同点多个 replace 且 order 相同」冲突，**只存在于 apps/server/src/cli/validate.ts 的 validateExtensions**（ajv 只认 `./admin|x/dist/*.js` 前缀）。该包 **dist 落后于源码**（dist/cli/validate.js 里没有这些规则），所以我按源码 URL 动态导入 `validateProject`（与既有 tests/unit/setup-cli.test.ts 的跨包源码导入思路一致），未新增依赖；这条测试用临时插件目录真跑了一遍，并带「干净样本不误报」的对照。\n4. 补充口径（按实现实测，未假设）：`apply()` 默认 abort 抛 `RN_VALIDATION_FAILED`(500, message 含「执行失败」)，`onError:'skip'` 记 warn 并沿用上一版 payload；render 侧「单组件异常降级为空片段」在 SlotRegistry，不在本注册表，未覆盖。\n\n## 验收（真实退出码）\n- `cd c:/dev/ricenote/tests; node --import tsx --test unit/extension-registry.test.ts unit/admin-contributions.test.ts unit/manifest-and-content-fields.test.ts unit/content-fields-values.test.ts unit/extension-static-validate.test.ts` → **EXIT=0，43 tests / 43 pass / 0 fail**\n- `cd c:/dev/ricenote/tests; node --import tsx --test unit/*.test.ts` → **EXIT=0，253/253 pass**（单元基线 210 → +43）\n- `cd c:/dev/ricenote; pnpm --filter @ricenote/tests test`（全量）→ **EXIT=1，tests 378 / pass 364 / fail 14 / cancelled 0**。14 个失败**全部在 tests/integration**，与本次改动无关，根因是集成测试库缺表：`POST /api/admin/session` 返回 500 `RN_INTERNAL`，日志 `Table 'ricenote_test_http.rn_audit_logs' doesn't exist`；首页渲染 `rice.posts` 报 `Table 'ricenote_test*.rn_posts' ... doesn't exist`（我首次运行同一套还有 `rn_plugins` 缺表导致 107 个用例 cancelled，说明这个环境的 `ricenote_test*` 库从未完整迁移）。失败用例：http-surface 2 个（「登录后 /api/admin/me 返回角色与权限」「写操作缺少 CSRF 头被拒绝」）+ 站点信息与插件设置（HTTP 面）3 个 + 待生效标记与软重启 2 个 + 页面 HTTP 闭环 3 个 + 插件自带界面的托管 4 个。按你的要求未动它们任何文件；如需我在本地给 `ricenote_test*` 跑一次迁移再复测，请授权（会写数据库）。\n- 另注：tests 包 `typecheck` 本来就红（13 个既有 TS 错误：integration/*、unit/backup-service|plugin-installer|zip-guard 的 adm-zip 类型、unit/setup-cli 的跨 rootDir 导入），我这 5 个新文件**未新增任何 typecheck 错误**（日志中无我的文件名），ReadLints 也是 0 诊断。\n",
+    "timestamp": "2026-10-12T03:17:44.539Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791775082853-suifpt",
+    "from": "pages-fields",
+    "to": "team-lead",
+    "type": "message",
+    "content": "editor-pages（pages 侧）完成，四条验收全绿。另外**修掉了一处真实的跨插件契约不一致**（见第 3 点，重要）。\n\n## 1. 共享类型收口（按你的要求）\n本地交叉类型/断言全部删除，直接用共享 DTO：\n- 删掉 `PageSavePayload`（service.save / prepareWrite 现在就是 `PageSaveRequest`）、删除 `PageSummaryWithFields` / `PageDetailWithFields`（repository 映射返回 `PageSummary` / `PageDetail`）；\n- `admin.ts#readPayload` 返回 `PageSaveRequest`，只在 `fields` 一处保留一个窄桥接 `raw.fields as Record<string, unknown>`（请求体是 `unknown`，结构合法性由 `assertContentFieldValues` 在运行时判定，注释已写明为什么不做预校验）。\n\n## 2. 新增预览接口（服务端）\n`POST /api/admin/pages/preview`，权限 `page.manage`，请求体 `{ content }`，返回 `{ data: { html } }`；复用点：`service.ts` 新导出 `renderPreviewHtml(runtime, content)`（marked 渲染 → `runtime.html.sanitize`），并**让 `prepareWrite` 也改调它**，因此保存与预览是同一份实现，不存在两套方言。由 `index.ts` 通过 `deps.preview` 注入给 admin 路由。正文长度上限复用导出的 `MAX_CONTENT`（保存/预览同一口径）。\n\n## 3. 三个锚点的最终 context 字段名（已与 editor-enhance 对齐）\n| 扩展点 | kind | value | onChange | onPreview |\n| --- | --- | --- | --- | --- |\n| `rice.pages.listActions` | ✅ 唯一字段 | — | — | — |\n| `rice.pages.editorToolbar` | ✅ | ✅ | ✅ `(markdown:string)=>void` | ✅ `()=>Promise<string>` |\n| `rice.pages.editorBody` | ✅ | ✅ | ✅ | ✅ |\n\n**契约修正（重要）**：`editor-enhance` 的实现是 `previewHtml.value = await props.onPreview()`（toolbar.js 与 editor.js 都如此），即期望返回**已消毒的 HTML**；我最初按\"void + 编辑页自己弹窗\"实现，会导致它的预览面板白屏。已改为 `onPreview = renderPreview`（`Promise<string>`，失败上抛由展示方处理），编辑页默认工具栏按钮自用时再包一层 Toast+Dialog。manifest 的 props 文档与 README 已同步为 `Promise<string>`。**如果 editor-enhance 的负责人打算改自己那边，请拦住——现在两边一致了。**\n\n## 4. 清单\n- `manifest.json`：`version 1.3.0`、capabilities 加 `extensions:declare`、三个 `extensionPoints`（scope admin / replaceable true / props 文档齐全）、`admin.pages` 加隐藏页 `{ id: pages.editor, path: /pages/editor, permission: page.manage, entry: ./admin/editor.js, hidden: true }`；\n- `package.json` 版本同步 1.3.0；\n- `packages/shared/manifests/plugin-catalog.json` 的 rice.pages 条目版本 1.3.0 + capabilities 加 `extensions:declare`（catalog 能力是双向差集比较，不加会直接 validate 失败）。\n\n## 5. 后台界面\n- `admin/main.js`（335→190 行）：只留列表/筛选；「新建页面」包进 `<PluginSlot name=\"rice.pages.listActions\" :context=\"{ kind: 'page' }\">` 作为默认按钮；新建/编辑改 `router.push('/pages/editor' | '/pages/editor?id=<id>')`；**对话框编辑路径整体删除**（form/resetForm/save/templateOptions/loadTemplates/STATUS_OPTIONS 等死代码一并删掉，不留残枝）。\n- `admin/editor.js`（新增，462 行，零构建）：`useRoute().query.id` 决定新建/编辑，编辑时 `GET /pages/:id` 回填（详情已带过滤后的 `fields`）；左栏元信息卡片 + 内容字段区；右栏 `min-h-[420px]` 正文区，内含 `editorToolbar`（默认：「Markdown 正文」+「预览」）与 `editorBody`（默认 textarea）两个锚点；顶栏「取消 / 创建|保存」+ 失败原因一行；未保存离开保护用 `ConfirmDialog` + `onBeforeRouteLeave`（取消按钮与侧栏/后退都拦，不用 window.confirm）；预览用 `Dialog` + `v-html`（服务端已消毒）。\n- 内容字段控件：按 `ContentFieldDto.type` 就地渲染（text/textarea/color/url/image → Input/Textarea，number → Input type=number 且转数值/空即删键，boolean → Switch，select → Select 带「（未选择）」，stringList → 每行一项的 Textarea），空值直接 `delete` 键，因此\"没填\"不会被写进 `fields`。\n\n## 6. 两点需要你拍板/知悉\n1. **`packages/admin-sdk/src/content/ContentFields.vue` 并不存在**（全仓 `ContentFields*` 搜索为 0，admin-sdk 也没有 `content/` 目录，`index.ts` 无该出口）。为不依赖不存在的出口（否则运行期白屏），我把控件内联在编辑页。若 sdk-slots 计划提供该组件，替换起来只是把那段 `Field` 循环换成组件调用。\n2. `image` 类型目前是文本输入（可填 URL / 媒体库路径），**未接 `rice.media.picker`**（会让编辑页依赖媒体库与 media.manage 权限）。需要「从媒体库选择」的话是一个独立小项。另外 SEO 标题/描述我保留在元信息卡片（原对话框有，删掉算功能回归）。\n\n## 7. 验收（真实退出码）\n- `pnpm --filter @ricenote/plugin-pages build` → **0**\n- `pnpm build` → **0**\n- `pnpm validate` → **0**（插件清单 13/13、主题 2/2、官方插件目录 12/12）\n- `pnpm --filter @ricenote/tests test` → **0**，**378/378 pass / fail 0**（单独复跑 `v030-features` 39/39、新加的 `extension-points` 18/18 也全绿）\n\n关于中途两次\"失败\"，都是环境而非代码，如实说明：① 队友与我并发跑同一套测试时，多个集成测试的 `DROP/CREATE DATABASE` 互相踩到 `Can't create database ... database exists`，整套 suite 的 before 钩子全挂；② `setup-flow` 的 before 钩子 `rmSync(storage/tmp-setup-flow)` 撞上 IDE 的 safe-delete 批量删除守卫（>500 文件阈值）抛 `SAFE_DELETE_BULK_CONFIRM_REQUIRED`，导致该 suite 的用例 ENOENT。两者与 pages 改动无关，串行复跑即全绿。",
+    "timestamp": "2026-10-12T03:18:02.853Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791775113373-ol9eqc",
+    "from": "posts-fields",
+    "to": "team-lead",
+    "type": "message",
+    "content": "共享组件替换**已在上一轮完成**（我们消息交叉了），本轮按要求重跑三项，退出码如下：\n\n- `pnpm build` → **BUILD=0**\n- `pnpm validate` → **VALIDATE=0**\n- `pnpm --filter @ricenote/tests test` → **TESTS=0**（`# tests 378 / # pass 378 / # fail 0 / # cancelled 0`）\n\n当前 editor.js 内容字段区已是一行 `<ContentFields v-model=\"fields\" :disabled=\"saving\" />`（全局组件、不再自拉声明、无声明不渲染），内联那份已删除（grep `fieldDefs|setField|listText|onNumberInput|onListInput` 0 命中），无两套实现。posts 侧无其他待办。",
+    "timestamp": "2026-10-12T03:18:33.373Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791775192067-1czri2",
+    "from": "ext-tests",
+    "to": "team-lead",
+    "type": "message",
+    "content": "收到三条通知。pages 的 TS 错误我完全没碰（我的改动只在 tests/unit/**）。红灯解除后我把之前受限的验证补跑了，结果如下（真实退出码）：\n\n**1. 全量测试已全绿（且我上次报告的环境性失败也消失了）**\n`cd c:/dev/ricenote; pnpm --filter @ricenote/tests test` → **EXIT=0，tests 378 / suites 91 / pass 378 / fail 0 / cancelled 0**。\n对比：我上一轮同一命令是 EXIT=1、378/364/14 fail，根因是 `ricenote_test*` 库缺表（`rn_audit_logs` / `rn_posts` / `rn_plugins` 不存在 → `POST /api/admin/session` 500 RN_INTERNAL → 后续需要登录的 HTTP 用例连锁 401/500）。现在同样的命令 0 失败，说明测试库已迁移到位；我没有动过 tests/integration/**。\n\n**2. 单元测试**\n`node --import tsx --test unit/*.test.ts` → **EXIT=0，253/253**；我新增的 5 个文件 43 用例全绿（extension-registry 12、admin-contributions 7、manifest-and-content-fields 10、content-fields-values 13、extension-static-validate 1）。\n\n**3. hidden 缺口已闭环，但有一个短暂的假红窗口值得记下**\n- 修复已落地：`packages/core/src/plugins/admin-pages.ts:167` 与编译产物 `packages/core/dist/plugins/admin-pages.js:119` 都带上了 `...(page.hidden ? { hidden: true } : {})`；\n- 我这边 `tests/unit/admin-contributions.test.ts` 的断言已被改成 `assert.equal(items[0]?.hidden, true)`（注释也改成了\"曾经锁缺陷\"的口径），现在 **7/7 通过**；\n- **注意**：我第一次复跑时它红了（`actual undefined / expected true`）——那时 `packages/core/src` 的修复已经在，但 **core 的 `dist` 还没重建**，测试走的是旧产物。所以如果谁在\"改完 src、还没 build\"的窗口里跑测试，会看到这条假红；先 `pnpm build` 即可。这正好印证了\"改工作区包要先 build\"这条环境的坑。\n\n**4. 与 ContentFields.vue 相关的部分对我无影响**\n我的 admin-sdk 断言只动态导入 `packages/admin-sdk/src/extension/contribution.ts`（`defineAdminContribution` 的 props 契约），sdk-slots 新建的 `src/content/**` 不在这条路径上；当前仍绿。等它定稿后我可以补一条\"贡献组件与 ContentFields 协同\"的断言，你说需要就派。\n\n没有任何阻塞，可以继续给我派活（例如给 `ContentFields.vue`、`/api/admin/content-fields`、`/api/admin/extensions` 的解析补单测）。",
+    "timestamp": "2026-10-12T03:19:52.067Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791775225800-lz7m7e",
+    "from": "ext-tests",
+    "to": "team-lead",
+    "type": "message",
+    "content": "收到，我这条线就此停手，不再改任何文件，也不会去碰 `ricenote_test*` 库。\n\n接受你的并发结论，并更正我上一条的措辞：我说\"库已迁移到位\"是**过度解读**——我只有\"同一命令先 14 fail、后 0 fail\"这一个观察，无法区分\"迁移完成\"和\"这次没被别的进程踩\"。两个能支持你判断的旁证：\n1. 我第一次跑全量时，4 个库（`ricenote_test`、`_http`、`_m4`、`_v030`）是**同一轮里一起**报缺 `rn_plugins`，且 107 个用例整批 cancelled —— 更像\"库被 DROP 后重建但没迁移完\"，而不是某一批用例的局部问题；\n2. 仓库里确实留着 `storage/tmp-setup-flow-*`、`storage/tmp-setup-flow-52356|62220|64420` 这类**固定名字**的临时目录残留，与你说的\"固定库名 + 固定目录在并发下互踩\"完全吻合。\n\n补充一条对最终顺序验收有用的提醒：跑测试前先 `pnpm --filter @ricenote/core build`（或全量 build）。我复验时就撞到过一次假红——`packages/core/src` 的 hidden 修复已落地，但 `dist` 没重建，测试走旧产物报 `undefined !== true`；build 后立刻恢复。顺序执行时把\"构建\"真正放在\"测试\"之前就不会踩。\n\n我这边的稳定口径：`node --import tsx --test unit/*.test.ts` → 253/253（不依赖数据库、不受并发影响），5 个新文件 43 用例在其中。有需要我配合的最终验收随时叫我。",
+    "timestamp": "2026-10-12T03:20:25.800Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791775256700-0b27pu",
+    "from": "ext-tests",
+    "to": "team-lead",
+    "type": "message",
+    "content": "收到，保持待命，不动任何文件。\n\n接受你的合并归因（并发踩库 + 库确实没迁移到位，两层叠加），我已把自己那句\"库已迁移到位\"的过度解读纠正掉，并把这轮的教训落到项目记忆里：以后遇到 `RN_INTERNAL` + 缺表，**先看库的迁移状态，再谈并发**；另外记下了\"测试走 dist，src 改了没 build 会假红\"。这两条以后新会话直接可见，不用再让谁重新踩一遍。\n\n浏览器实测若暴露注册表/裁决层的问题，把这几项发我就够我直接写用例：涉事的扩展点名 + scope、提供方/消费方插件 ID、期望的生效集合 vs 实际生效集合（或报错码/文案）、以及是否与 `replaceable`/`mode`/`order` 有关。像 `replaceable: false` 这类裁决，我可以在注册表层写一个不依赖数据库与浏览器的复现，跑得比实测快。",
+    "timestamp": "2026-10-12T03:20:56.700Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791775324896-zwclk2",
+    "from": "ext-integration",
+    "to": "team-lead",
+    "type": "message",
+    "content": "任务完成：扩展点 + 内容自定义字段端到端集成测试。\n\n## 新增文件与用例数\n- `tests/integration/extension-points.test.ts`（主，**300 行**，满足 ≤300）——**18 个用例 / 6 个 suite**。\n- `tests/integration/ext-harness.ts`（辅助 fixture，129 行，文件名不含 `.test.ts`，不会被测试脚本当用例跑）：真实内核 + Fastify + 双会话装置（admin / contributor）。\n- 未改 `packages/**`、`apps/**`、`plugins/**`、`themes/**`、`tests/unit/**` 及其它测试文件；未新增依赖。\n\n## 接口过滤三态怎么断言（样本：rice.media.picker）\n`GET /api/admin/extensions` 返回 `{points, contributions}`。三态用同一扩展点、两条不同过滤轴区分：\n- **正常态**：admin（权限 `*`）会话 → `points` 含 `{name:'rice.media.picker', provider:'rice.media'}`，且 `contributions` 含 `{point:'rice.media.picker', pluginId:'rice.media', entryUrl:'/plugin-admin/rice.media/picker.js'}` → 「两者都有」。\n- **权限不足态**：新建用户默认 contributor 角色（先断言 `/api/admin/me` 的 permissions **不含** `media.manage`）→ `points` **仍**含 rice.media.picker，但 `contributions` **不含** → 「有 point、无 contribution」。注释写明：points 只按\"提供方是否启动\"过滤、contributions 才按权限过滤。\n- **提供方未启用态**：`kernel.plugins.disable('rice.media')` 后 → point 与 contribution 都不含，并 `assertNoLeaks()` → 「既无 point 也无 contribution」。\n另有 editor-enhance 作为贡献方在\"零残留\"里验证\"贡献方未启用→有 point 无 contribution\"。\n\n## 内容字段端到端（文章与页面各一遍）\n- 激活 `rice.default` 后 `GET /api/admin/content-fields` → `themeId='rice.default'`、fields 含 `featuredImage`(type=image)。\n- **文章**：`POST /api/admin/posts` body.fields.featuredImage=URL → 201；`GET /api/admin/posts/:id` 的 `fields` 深等于 `{featuredImage:URL}`；`GET /post/:slug` HTML 含 `df-article__feature` 且含该 URL。\n- **页面**：同上走 `POST /api/admin/pages` → `GET /api/admin/pages/:id` → `GET /page/:slug`，断言一致。\n- **400 拒绝（非静默丢弃）**：文章与页面各 `POST fields:{notDeclared:'x'}` → 400，body 匹配 `RN_VALIDATION_FAILED` 且含 `notDeclared`。\n- **为空不渲染**：不带 fields 的已发布文章 → 前台 HTML **不含** `df-article__feature`。\n- **换主题后旧键不展示**：切 `rice.minimal`（未声明该字段）→ content-fields 的 fields 为空数组；帖子/页面后台详情 `fields` 深等于 `{}`；再切回 `rice.default` 旧值仍在 → 证明是\"读取按声明过滤\"而非删数据。\n\n## server 钩子 abort / skip 断言\n直接对 `kernel.extensions.apply()` 注册 scope:'server' 的合成钩子：\n- **串行**：order 2/1/3 → 执行顺序 `['first','second','third']`（升序）且 payload.steps 一致。\n- **abort**（默认）：中间钩子抛错 → `assert.rejects(..., /扩展点 exttest\\.server\\.abort 的钩子/)`，且 seen 只到 `['ok']`（后续钩子未执行，上抛给调用方）。\n- **skip**：`{onError:'skip'}` → resolve，`result.steps` 深等于 `['first','last']`（失败钩子被跳过，后续基于上一版 payload 继续）。\n\n## render 兼容（回归）\n`slots.ownedBy('acme.reading-time')===['post.beforeContent']` 且与 `extensions.contributionsOwnedBy(...,'render')` 相等；`slots.render` 片段含 `data-acme-reading-time`；HTTP 文章页仍含该标记且无 `rn-slot:` 残留。\n\n## 零残留覆盖层级\n用内核级 `disable()` + 注册表断言：editor-enhance 停用后其贡献清空、但 posts 的声明仍在、接口不再下发其 contribution；reading-time 停用后插槽贡献清空、门面渲染为 `''`；两次 `assertNoLeaks()` 通过。**未**触达\"冷启动后 rn_plugins 不再启用\"的持久层（那由 setup/bootstrap 覆盖）。\n\n## 三条命令真实退出码\n1. `cd tests; node --import tsx --test integration/extension-points.test.ts` → `# tests 18 / pass 18 / fail 0`，**EXIT=0**。\n2. `cd tests; node --import tsx --test integration/setup-flow.test.ts` → **EXIT=0**（单独跑通过）。\n3. `cd ricenote; pnpm --filter @ricenote/tests test` → `# tests 378 / pass 378 / fail 0`，**PNPM_EXIT=0**（全绿）。\n\n## 与本次无关的失败（如实说明，未改他人文件）\n全量首轮曾出现 `setup-flow.test.ts` 的「必需插件无法被绕过：只请求 posts 也装上 identity 与 authorization」「.env 写入声明式清单与兼容的 seed 列表」及 suite 22 失败，根因是沙箱的 node-safe-delete shim 拦截 setup-flow `after`/`before` 对 `storage/tmp-setup-flow` 的批量 `rmSync`（`SAFE_DELETE_BULK_CONFIRM_REQUIRED, count:792, threshold:500`），属环境性/时序性；单独跑 setup-flow EXIT=0，其后全量运行均 378/378 全绿。与我的测试文件无关。\n\n（另外该文件在 git 里显示为 ` M tests/integration/setup-flow.test.ts`，非我改动。）",
+    "timestamp": "2026-10-12T03:22:04.896Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791775972092-bovubt",
+    "from": "pages-fields",
+    "to": "team-lead",
+    "type": "message",
+    "content": "三件事都已处理完（第 1 件在你发消息前已落地，第 2、3 件刚做完）。\n\n## 1. 本地类型已删（`PageSavePayload`）\n早前就已删除 `PageSavePayload`，直接用共享 `PageSaveRequest`（`admin.ts#readPayload` 也返回它）；repository 的 `PageSummaryWithFields/PageDetailWithFields` 一并删掉，改用共享 `PageSummary/PageDetail`。这也解释了为什么你后来看到 \"pnpm build 恢复 0\"。\n\n## 2. 内容字段区改用共享组件（临时渲染已删除，没有两套实现）\n`admin/editor.js` 现在就是：\n```html\n<ContentFields v-model=\"fields\" :disabled=\"saving\" />\n```\n- 删掉了我之前内联的一切：`contentFields` 取数（`GET /content-fields`）、`loadContentFields`、`textValue/setText/numberValue/setNumber/optionValue/setOption/boolValue/setBool/listValue/setList/optionsFor` 全部移除，也不再自己判断\"有无字段\"（组件自身在无声明时不渲染）；\n- `fields` 用 `ref({})` 承载（组件是**整体不可变替换**，与文章编辑页同一处理），保存时 `fields: { ...fields.value }`；\n- 其余元信息（标题/别名/状态/页面模板/排序/SEO）保持原样。\n\n## 3. `onPreview` 统一为 `Promise<string>`，且不再自己弹框\n**如实说明**：我最初的实现确实是\"编辑页自己弹预览 Dialog，`onPreview` 返回 void\"（并且在默认工具栏里放了一个「预览」按钮）。已按你的口径全部改掉：\n- `admin/editor.js`：`preview()` 现在只 `POST /pages/preview` 并 **return html**，不弹框、不吞异常（失败上抛给展示方）；\n- 同时删掉了页面内的预览 `<Dialog>`、`previewOpen/previewHtml/previewing` 状态与默认工具栏的「预览」按钮 —— 否则与编辑增强的 Dialog 会叠成两个；\n- `manifest.json`：`editorToolbar` / `editorBody` 的 `onPreview` 说明已是 `() => Promise<string>`（返回**已消毒**的 HTML）；顺带把 `editorToolbar` 的\"默认内容\"说明改成**无**（工具栏默认不渲染任何内容，已与实现一致）；\n- `README.md`：扩展点表与「独立编辑页」小节同步（`onPreview` 返回 HTML、**展示交给消费方**；内容字段区写明用共享组件）。\n\n顺带说明一致性收益：现在 pages 的编辑页与 posts 的编辑页结构完全对齐（同一个 `ContentFields`、同一个 `snapshot/dirty` + 确认对话框式未保存保护、同样的锚点 context、textarea 默认样式与 `lg:w-[22rem]` 布局），编辑增强那份\"一个工具栏文件服务两页\"的代码不需要任何 kind 分支。\n\n## 验收（真实退出码）\n- `pnpm --filter @ricenote/plugin-pages build` → **0**\n- `pnpm build` → **0**（无 error TS / ERR_PNPM）\n- `pnpm validate` → **0**（插件 13/13、主题 2/2、官方目录 12/12 全绿，没弄红）\n- 附加自查：`node --check admin/editor.js` → 0、manifest JSON 解析通过\n\n**测试这次没跑成**：我发起 `pnpm --filter @ricenote/tests test` 时被你取消了（我没有重试）。说明一下影响面：本轮只改了 `admin/editor.js`（浏览器端零构建文件）、manifest 的描述文案与 README，**没有动 `src/**` 服务端代码**，因此与那 378 个用例无交集；上一轮的全量结果是 **378/378 pass / exit 0**。你需要我在方便的时候补跑一次就说一声。",
+    "timestamp": "2026-10-12T03:32:52.092Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791776035119-da2cdl",
+    "from": "pages-fields",
+    "to": "team-lead",
+    "type": "message",
+    "content": "第 3 点我上一轮已经做完了（消息可能交错），现在磁盘上就是这个状态，可直接核对：\n\n- `plugins/official/pages/admin/editor.js:78` → `const fields = ref({});`（含\"不可变整体替换，故用 ref\"的注释）\n- `editor.js:284` → `<ContentFields v-model=\"fields\" :disabled=\"saving\" />`（裸用，**没有包 Card**，无声明时靠组件自身不渲染）\n- 内联实现已全部删除：`v-for=\"field\"` 循环、`GET /content-fields` 取数、`textValue/setText/numberValue/setNumber/optionValue/setOption/boolValue/setBool/listValue/setList/optionsFor` 一个不剩（与 `posts/admin/editor.js:280` 写法一致）\n- 顺带：预览 Dialog 与默认工具栏的「预览」按钮也已删掉，`preview()` 只返回 HTML\n\n三条命令刚重跑（真实退出码）：\n- `pnpm build` → **0**\n- `pnpm validate` → **0**（插件 13/13、主题 2/2、官方目录 12/12）\n- `pnpm --filter @ricenote/tests test` → **0**，**378/378 pass / fail 0 / skipped 0**（这次没有被环境问题打断）\n\n1、2 两点收到，按你的口径保持现状：`onPreview` 统一为 `Promise<string>` 且不动 `editor-enhance` 那侧；`image`/`url` 保持\"单行输入 + 缩略图\"（由共享组件提供，我这边不再自定义），SEO 字段保留在元信息卡片。我这边 pages 侧没有待办了，随时可接下一步。",
+    "timestamp": "2026-10-12T03:33:55.119Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791776047154-6w17da",
+    "from": "pages-fields",
+    "to": "team-lead",
+    "type": "message",
+    "content": "收到，**已停手**：`plugins/official/pages/**` 与 catalog 那条我现在不再写任何文件，方便你跑最终顺序验收（build → validate → test，无并发）。\n\n当前 pages 侧的自查基线（供你对照）：`pnpm build` 0、`pnpm validate` 0（13/13、2/2、12/12）、`pnpm --filter @ricenote/tests test` 0（378/378）。你浏览器实测那五步里若出现任何属于 pages 的现象（编辑页字段回填、`/pages/preview` 的 HTML 与前台是否一致、停用编辑增强后 textarea 回退、未保存离开保护），直接发我，我随时接。",
+    "timestamp": "2026-10-12T03:34:07.154Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791776141443-3bxd5j",
+    "from": "editor-enhance",
+    "to": "team-lead",
+    "type": "message",
+    "content": "「编辑增强」插件交付完成（新增目录 plugins/official/editor-enhance/** + catalog 一条），未动任何其它文件。\n\n## 1. 新增文件清单（行数）\n- manifest.json 64 / package.json 48 / tsconfig.json 8 / src/index.ts 23 / README.md 85\n- admin/bridge.js 51 / admin/editor.js 300 / admin/editor.css 177 / admin/toolbar.js 147 / admin/list-action.js 66\n\n## 2. 六条贡献（scope 全 admin，order 全 10）\n| 点位 | mode | entry | style |\n| --- | --- | --- | --- |\n| rice.posts.listActions | replace | ./admin/list-action.js | — |\n| rice.pages.listActions | replace | ./admin/list-action.js | — |\n| rice.posts.editorToolbar | append | ./admin/toolbar.js | — |\n| rice.pages.editorToolbar | append | ./admin/toolbar.js | — |\n| rice.posts.editorBody | replace | ./admin/editor.js | ./admin/editor.css |\n| rice.pages.editorBody | replace | ./admin/editor.js | ./admin/editor.css |\n未声明后台 pages、未声明 extensionPoints、capabilities 仅 [\"extensions:contribute\"]。全部贡献都显式声明了 props: ['kind','value','onChange','onPreview']。\n未给贡献声明 permission：posts/pages 的创建权限点名称我无法确认，猜错会让按钮对所有人消失；需要的话你给我准确权限点，我再补。\n\n## 3. Toast UI：未能 vendor，走降级（已按预案处理）\n`Invoke-WebRequest` 与 `curl` 访问 jsDelivr 均失败（schannel/TLS 握手失败），`admin/vendor/**` 未能落盘。因此 editor.js 运行在**第 2 条路径：textarea + 右栏实时预览**（预览走 props.onPreview() 服务端渲染管线，内容与前台一致）。\n但加载器已就位且是\"能力自动升级\"式：editor.js 用模块级 Promise 注入一次 `./vendor/toastui-editor.min.css` + `toastui-editor-all.min.js` 再取 `window.toastui.Editor`；**把 3.2.2 的两个文件放进 admin/vendor/ 后无需改代码即自动切到 Toast UI**（initialEditType:'markdown'、previewStyle:'vertical'、hideModeSwitch:true、height:'100%'、工具栏已裁剪）。注入失败会 console.warn 一次并缓存，不反复重试、不冒泡到渲染层。README 已写明来源/版本/许可证（MIT，保留 banner、不改写）与降级说明。未新增任何依赖（package.json dependencies 为空）。\n⚠️ 现状副作用：vendor 缺失时每次进入编辑页会各产生一次 vendor 的 404 请求（然后降级）。若你不想看到这噪声，我可以把加载器摘掉。\n\n## 4. bridge.js 如何让工具栏插到光标处\n三个贡献同属一个插件目录、由同一托管 URL 加载，ESM 模块实例天然共享，故用**模块级变量**（setActiveEditor / getActiveEditor / insertAtCursor / clearActiveEditor）而非 window 全局。\n- editor.js 在 onMounted 同步注册 handle，onBeforeUnmount 用 `clearActiveEditor(handle)` **按句柄比对**清空（防切换文章时旧实例 unmount 晚于新实例 mount 而误清新桥）；\n- handle.insertAtCursor：Toast UI 路径调 `editor.insertText()`；textarea 路径按 selectionStart/End 改写 text.value，nextTick 后 focus + setSelectionRange 还原光标；\n- toolbar.js 先试桥，成功即\"光标处\"；桥为空（正文贡献被停用/未挂载）降级为 `props.onChange(value + '\\n' + 语法)`，并用 toast 明确告知\"已追加到正文末尾\"（返回值区分 'cursor'/'appended'/false，注释已标注这是降级）。\n\n## 5. 验收命令与真实退出码\n- `pnpm build` → **0**（apps/admin ✓ built、apps/server Done；editor-enhance/dist/index.js 已产出）\n- `pnpm validate` → **0**：`插件清单 13/13 通过`、`主题清单 2/2`、`官方插件目录 12/12 通过（appVersion 0.4.0）` —— 与预期一致（插件 12→13、目录 11→12）。说明 posts/pages 侧的点位声明已落地（validate 的\"扩展点未声明\"没触发）。\n- `pnpm --filter @ricenote/tests test` → **0**：`# tests 378 / suites 91 / pass 378 / fail 0`。补充：中途一次运行的 3 个失败全部来自环境与在途改动（Unknown database 'ricenote_test_http'、fetch failed、以及当时会波动的 admin-contributions 断言），待其它队友落地后复跑已 0；单独跑 tests/unit/admin-contributions.test.ts 也是 8/8 通过。\n- `node --check` 四个后台 js（bridge/editor/toolbar/list-action）→ **全部 exit 0**。editor.js 首次写完 352 行，已按要求压到 **300 行**（≤300）。\n\n## 6. 计数断言改动\n**没有**改动任何测试里的数字字面量 —— 现有断言（plugin-catalog.test.ts 的 view.length === plugins.length、清单完整性等）都是动态推导，新增插件后自然通过。\n\n## 7. 一处与任务书不一致，需你确认\n任务书让我从 SDK `import { router }`，但 `packages/admin-sdk` 并没有导出 `router`（browser-entry 只 `export * from 'vue-router'`，无 router 单例）。缺名 ESM import 会直接让贡献模块加载失败，所以我用了 SDK 既有的 `navigate()`（apps/admin/src/main.ts 已 setHostContext 注入 router.push），效果等价。若 sdk-slots 那边确实在新增 `router` 导出，告诉我我再切过去。\n\n## 8. 其它实现要点\n- 草稿：localStorage 键 `editor-enhance:draft:post|page`，800ms 防抖，状态栏显示\"草稿已自动保存 hh:mm\"；**恢复条件仅当 props.value 为空**（含纯空白），局限已写进代码注释与 README；卸载前 flush 待写草稿。\n- 底栏：字数（不含空白）+ 总行数；未显示光标行列（textarea 路径无可信来源，按\"不编造数据\"处理）。\n- 视觉：只用 .ee-* 类，Toast UI 覆盖全部限定在 .ee-editor 作用域，未改宿主全局类名；1px 边框/无阴影/无毛玻璃/等宽编辑区/中间 1px 分隔线/窄屏（≤900px，JS matchMedia 与 CSS 同断点）折为标签页。\n- list-action：Icon plus + 文案 + `Ctrl/⌘ + Alt + N` 提示，键盘监听在 onBeforeUnmount 解绑；跳 /posts/editor | /pages/editor（按 props.kind）。\n- 所有异步失败均走 useToast 或 console.warn，不抛到渲染层。",
+    "timestamp": "2026-10-12T03:35:41.443Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791776274521-kfmzxm",
+    "from": "editor-enhance",
+    "to": "team-lead",
+    "type": "message",
+    "content": "确认 + 已按新契约微调，全部复验通过。\n\n## 1. onPreview 健壮性：已实现（不是\"本来就有\"）\ntoolbar.js 的 openPreview 按你要求改成**先取后弹**：\n```js\nconst html = await props.onPreview();\nif (typeof html !== 'string' || html.trim() === '') return; // 安静降级：不报错、不弹空框\npreviewHtml.value = html; previewOpen.value = true;\n```\n- 非空字符串 → 用自己的 Dialog 展示；\n- `undefined`/空串/非字符串 → **什么都不做**（Dialog 的 open 从未置 true，所以不会闪一个空框）；同时按钮加了 `:loading` 防连点；\n- 只有 `onPreview` 不是函数时才 toast「当前编辑页未提供预览能力」（这是\"提供方缺失\"，不同于\"返回形态不同\"）。\neditor.js 的正文预览栏（常驻、没有对话框可关）也加了同样的空值防护：`previewHtml = typeof html === 'string' ? html : ''`，匹配上你说的\"第三提供方返回形态不同时安静降级\"。\n> 你没有让我为兼容 `void` 加的分支我本来也没加，所以没有需要删除的额外分支；这次是**新增**了 undefined/空串降级。\n\n## 2. 媒体契约五点逐条对照（已确认）\n1. **相对地址原样用**：`imageMarkdown(picked.url, picked.fileName)` 直接拼进 `![](…)`，代码与注释里都明确写了\"绝不拼 origin/前缀，换域名端口后仍正确\"；\n2. **自己关对话框**：收尾（插入 + `imageOpen = false`）都在我的 `onPicked` 里做；\n3. **不做\"上传即插入\"**：我没有监听上传结果，只有 `onPick` 才触发插入；\n4. **默认内容只写一行链接 + 提示**：不做\"面板在不在\"的判断（判断交给 PluginSlot 的 replace 语义）；\n5. **面板失败不兜底**：面板内部请求失败由它自己 toast，我这边只对\"我自己的插入结果\"（成功/降级追加/写不进去）给提示。\n形参严格 `onPick({ url, fileName, mimeType, size })`。\n\n## 3. 一处我主动做的小改动，请你确认是否同意\n媒体库以 **replace** 贡献该面板，此时 `<PluginSlot>` 不渲染默认内容，面板有自己的「插入」按钮；但我 Dialog 底栏原本还有一个\"直接填链接\"的「插入」，点它只会提示\"请先填写地址\"（因为输入框根本没渲染）。所以我用 SDK 既有的 `useAdminExtensions().effectiveFor('rice.media.picker')` 算了个 `pickerAvailable`，**面板接管时隐藏底栏那个按钮**，只留「取消」。\n- 若你认为消费方不该去感知贡献的存在（哪怕只用公开 API），我可以退回\"两个按钮并存\"的朴素写法 —— 但我倾向保留，否则会出现一个必然失败的按钮。\n\n## 4. ContentFields.vue 那件事与我无关（说明一下，免得空等）\n我不在编辑页里渲染内容字段 —— 我的插件只碰 `listActions` / `editorToolbar` / `editorBody` 三个点位，字段区是 posts-fields / pages-fields 的编辑页职责，我这边没有临时自定义渲染需要收尾。\n\n## 5. 复验结果（刚跑，全绿）\n- `pnpm validate` → **0**（插件 13/13、主题 2/2、官方目录 12/12，appVersion 0.4.0）\n- `pnpm --filter @ricenote/tests test` → **0**（tests 378 / suites 91 / pass 378 / fail 0，没有 `not ok`）\n- `node --check` 四个后台 js（bridge / editor / toolbar / list-action）→ **全部 0**\n- 文件规模：editor.js **300 行**（正好卡在 ≤300）、toolbar.js 211、editor.css 209、list-action.js 77、bridge.js 56；lint 0 条。\n（pages 那三条 TS 错误我按你的指示完全没有触碰；`plugins/official/pages/**` 未改动。）",
+    "timestamp": "2026-10-12T03:37:54.521Z",
+    "read": true
+  },
+  {
+    "id": "msg-1791776389431-ef8hbk",
+    "from": "editor-enhance",
+    "to": "team-lead",
+    "type": "message",
+    "content": "收到，文件已冻结，不再改动。给你浏览器实测的预期现象，方便你归因（任一条不符就直接发我）：\n\n1. **插入图片是否落到光标处**：先把光标放正文中间再插图。符合预期 = 语法出现在**光标处**、toast 是「已插入 xxx文件名」。若语法跑到文末且 toast 是「编辑器未接管正文，图片语法已追加到正文末尾」，说明桥为空（正文贡献没生效或没挂上），这是降级信号而不是\"插入位置写错\"。\n2. **停用回退**：扩展中心停用「编辑增强」后 → 正文变普通多行文本域（不是空白）、工具栏两个按钮消失、新建按钮回到默认样式。若正文变空白，那是宿主 replace 裁决的问题，归 posts/pages 侧，不是本插件。\n3. **草稿**：输入后停顿 >800ms，底栏右侧出现「草稿已自动保存 hh:mm」；重开编辑页时**只有正文为空**才会恢复草稿（编辑既有文章永不覆盖）。卸载前会 flush 一次待写草稿。\n4. **vendor 404 是预期的**：首次进编辑页控制台会有各 1 条 vendor 的 404（CSS/JS）+ 1 条 `[editor-enhance] Toast UI 不可用，已降级为文本域 + 预览` warn，只出现一次、之后不再重试。放回两个文件后这两条会消失、界面自动变 Toast UI。\n5. **插入图片对话框的底栏**：媒体库生效时只有「取消」（面板自带「插入」）；媒体库未装/无权限时才有「插入」按钮 + 一行链接输入框。这就是我上一条里那个待你点头的 `pickerAvailable` 改动 —— 若你想退回\"两个按钮并存\"，一句话即可，我改回去；否则保持现状不动。\n\n另：`onPreview` 若某提供方返回 `undefined`/空串，我这边是**完全静默**（不弹框、不报错、不 toast），所以实测时如果点「前台预览」没任何反应，先确认是不是落到了这个分支，而不是按钮坏了。",
+    "timestamp": "2026-10-12T03:39:49.431Z",
+    "read": true
+  },
+  {
+    "id": "resp-1791777479161-h4ujdr",
+    "from": "sdk-slots",
+    "to": "team-lead",
+    "type": "shutdown_response",
+    "content": "{\"type\":\"shutdown_response\",\"request_id\":\"shutdown-1791777477491\",\"approve\":true,\"reason\":\"Auto-acknowledged by team-member runtime\",\"from\":\"sdk-slots\",\"timestamp\":\"2026-10-12T03:57:59.161Z\"}",
+    "timestamp": "2026-10-12T03:57:59.161Z",
+    "read": true
+  },
+  {
+    "id": "resp-1791777479166-qlgrkd",
+    "from": "posts-fields",
+    "to": "team-lead",
+    "type": "shutdown_response",
+    "content": "{\"type\":\"shutdown_response\",\"request_id\":\"shutdown-1791777478254\",\"approve\":true,\"reason\":\"Auto-acknowledged by team-member runtime\",\"from\":\"posts-fields\",\"timestamp\":\"2026-10-12T03:57:59.166Z\"}",
+    "timestamp": "2026-10-12T03:57:59.166Z",
+    "read": true
+  },
+  {
+    "id": "resp-1791777479166-7tg26r",
+    "from": "pages-fields",
+    "to": "team-lead",
+    "type": "shutdown_response",
+    "content": "{\"type\":\"shutdown_response\",\"request_id\":\"shutdown-1791777478491\",\"approve\":true,\"reason\":\"Auto-acknowledged by team-member runtime\",\"from\":\"pages-fields\",\"timestamp\":\"2026-10-12T03:57:59.166Z\"}",
+    "timestamp": "2026-10-12T03:57:59.166Z",
+    "read": true
+  },
+  {
+    "id": "resp-1791777481063-d1p4dq",
+    "from": "editor-enhance",
+    "to": "team-lead",
+    "type": "shutdown_response",
+    "content": "{\"type\":\"shutdown_response\",\"request_id\":\"shutdown-1791777480462\",\"approve\":true,\"reason\":\"Auto-acknowledged by team-member runtime\",\"from\":\"editor-enhance\",\"timestamp\":\"2026-10-12T03:58:01.063Z\"}",
+    "timestamp": "2026-10-12T03:58:01.063Z",
+    "read": true
+  },
+  {
+    "id": "resp-1791777481063-3kqy6j",
+    "from": "ext-tests",
+    "to": "team-lead",
+    "type": "shutdown_response",
+    "content": "{\"type\":\"shutdown_response\",\"request_id\":\"shutdown-1791777479588\",\"approve\":true,\"reason\":\"Auto-acknowledged by team-member runtime\",\"from\":\"ext-tests\",\"timestamp\":\"2026-10-12T03:58:01.063Z\"}",
+    "timestamp": "2026-10-12T03:58:01.063Z",
+    "read": true
+  },
+  {
+    "id": "resp-1791777481063-k6lynx",
+    "from": "docs-017",
+    "to": "team-lead",
+    "type": "shutdown_response",
+    "content": "{\"type\":\"shutdown_response\",\"request_id\":\"shutdown-1791777480968\",\"approve\":true,\"reason\":\"Auto-acknowledged by team-member runtime\",\"from\":\"docs-017\",\"timestamp\":\"2026-10-12T03:58:01.063Z\"}",
+    "timestamp": "2026-10-12T03:58:01.063Z",
+    "read": true
+  },
+  {
+    "id": "resp-1791777481063-cbzuco",
+    "from": "media-picker",
+    "to": "team-lead",
+    "type": "shutdown_response",
+    "content": "{\"type\":\"shutdown_response\",\"request_id\":\"shutdown-1791777479120\",\"approve\":true,\"reason\":\"Auto-acknowledged by team-member runtime\",\"from\":\"media-picker\",\"timestamp\":\"2026-10-12T03:58:01.063Z\"}",
+    "timestamp": "2026-10-12T03:58:01.063Z",
+    "read": true
+  },
+  {
+    "id": "resp-1791777483066-9foygp",
+    "from": "ext-integration",
+    "to": "team-lead",
+    "type": "shutdown_response",
+    "content": "{\"type\":\"shutdown_response\",\"request_id\":\"shutdown-1791777481467\",\"approve\":true,\"reason\":\"Auto-acknowledged by team-member runtime\",\"from\":\"ext-integration\",\"timestamp\":\"2026-10-12T03:58:03.066Z\"}",
+    "timestamp": "2026-10-12T03:58:03.066Z",
+    "read": true
   }
 ]

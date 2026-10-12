@@ -3,7 +3,7 @@
   "id": "rice.pages",
   "name": "页面",
   "description": "独立页面：创建「关于我们」「联系方式」等固定内容页，支持自定义地址、状态、排序与页面模板选择。页面可作为导航项来源被 rice.navigation 引用。",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -17,7 +17,8 @@
     "routes:admin",
     "events:publish",
     "events:subscribe",
-    "slots:register"
+    "slots:register",
+    "extensions:declare"
   ],
   "migrations": "./migrations",
   "admin": {
@@ -30,9 +31,79 @@
         "order": 15,
         "permission": "page.view",
         "entry": "./admin/main.js"
+      },
+      {
+        "id": "pages.editor",
+        "label": "页面编辑",
+        "path": "/pages/editor",
+        "permission": "page.manage",
+        "entry": "./admin/editor.js",
+        "hidden": true
       }
     ]
   },
+  "extensionPoints": [
+    {
+      "name": "rice.pages.listActions",
+      "scope": "admin",
+      "replaceable": true,
+      "description": "页面列表页的操作按钮区：追加列表级动作，或用 replace 整体接管（例如换成「批量新建」入口）。",
+      "props": [
+        {
+          "name": "kind",
+          "description": "内容类型标识，恒为 page；贡献者据此与文章侧复用同一份界面代码。"
+        }
+      ]
+    },
+    {
+      "name": "rice.pages.editorToolbar",
+      "scope": "admin",
+      "replaceable": true,
+      "description": "页面编辑器的正文工具栏（字数统计、格式开关、预览入口等）；默认不渲染任何内容（工具栏为空），因此编辑增强等插件被停用时不影响正文编辑。",
+      "props": [
+        {
+          "name": "kind",
+          "description": "内容类型标识，恒为 page。"
+        },
+        {
+          "name": "value",
+          "description": "当前正文（Markdown 原文），随输入实时更新。"
+        },
+        {
+          "name": "onChange",
+          "description": "改写正文的回调：(markdown: string) => void。"
+        },
+        {
+          "name": "onPreview",
+          "description": "请求服务端渲染预览：() => Promise<string>，返回**已消毒**的 HTML；贡献者无需知道接口地址。"
+        }
+      ]
+    },
+    {
+      "name": "rice.pages.editorBody",
+      "scope": "admin",
+      "replaceable": true,
+      "description": "页面编辑器的正文输入区；默认是多行文本域，富文本/可视化编辑器用 replace 接管。",
+      "props": [
+        {
+          "name": "kind",
+          "description": "内容类型标识，恒为 page。"
+        },
+        {
+          "name": "value",
+          "description": "当前正文（Markdown 原文），随输入实时更新。"
+        },
+        {
+          "name": "onChange",
+          "description": "改写正文的回调：(markdown: string) => void。"
+        },
+        {
+          "name": "onPreview",
+          "description": "请求服务端渲染预览：() => Promise<string>，返回**已消毒**的 HTML；贡献者无需知道接口地址。"
+        }
+      ]
+    }
+  ],
   "settingsSchema": {
     "general": {
       "label": { "zh-CN": "通用", "en": "General" },

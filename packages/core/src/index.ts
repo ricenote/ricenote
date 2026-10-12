@@ -52,6 +52,14 @@ export {
   type ExtensionDeclarationRecord,
   type ExtensionPointSummary
 } from './extensions/registry.js';
+export { registerDeclaredExtensions } from './extensions/contributions.js';
+export {
+  hasContentFields,
+  resolveContentFields,
+  validateContentFieldValues,
+  assertContentFieldValues,
+  pickDeclaredContentFields
+} from './extensions/content-fields.js';
 export { HtmlCache, type HtmlCacheOptions, type HtmlCacheStats } from './render/cache.js';
 export { ThemeRenderer, type RenderInput, type RenderOutput, type ThemeRendererDeps } from './render/renderer.js';
 export { buildTemplateContext, buildPagination, viewerFromRequest, type TemplateContext } from './render/context.js';

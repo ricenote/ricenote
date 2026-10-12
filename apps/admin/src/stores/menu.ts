@@ -55,7 +55,10 @@ export function useAdminMenu(): AdminMenuApi {
   return {
     items,
     loaded,
-    visibleItems: computed(() => items.value.filter((item) => item.available !== false)),
+    // 隐藏页面（如由列表页跳转进入的独立编辑页）不进侧栏，但仍留在 pluginPages 里注册路由
+    visibleItems: computed(() =>
+      items.value.filter((item) => item.available !== false && item.hidden !== true)
+    ),
     pluginPages: computed(() => items.value.filter((item) => Boolean(item.entryUrl))),
     findByPath: (path: string) => items.value.find((item) => item.path === path),
     load,

@@ -27,7 +27,14 @@ import * as tar from 'tar';
 import mysql from 'mysql2/promise';
 
 const ROOT = path.resolve(process.cwd(), '..');
-const TEST_DB = 'ricenote_setup_flow';
+/**
+ * 测试库名**必须按进程隔离**：本测试会 `DROP DATABASE` 再建库，
+ * 若用固定名字，两个测试进程（或与队友并发的构建/测试）同时跑时，
+ * 后启动的那个会把前一个正在用的库直接删掉 —— 表现为随机的
+ * "表不存在 / 连接被关闭"，而单独复跑又全绿。这类"复跑才好"的失败
+ * 最难排查，所以从命名上根除，而不是靠"别并发跑"的约定。
+ */
+const TEST_DB = `ricenote_setup_flow_${process.pid}`;
 const DB = { host: '127.0.0.1', port: 3306, user: 'root', password: 'cc80212562' };
 const BASE_ENV = { ...process.env };
 
@@ -199,8 +206,21 @@ describe('ricenote setup：离线端到端（本地 registry + 真实 CLI）', (
      * `node_modules` 的 —— 放在系统临时目录里就找不到宿主，插件会启动失败。
      * 真实部署同样是"插件在项目根内"，所以这也更贴近事实。
      */
-    rootDir = path.join(ROOT, 'storage', 'tmp-setup-flow');
-    rmSync(rootDir, { recursive: true, force: true });
+    /*
+     * 按进程隔离：固定目录会让并发运行互相覆盖 .env、plugins/ 与 themes/。
+     *
+     * 清理**必须容错**：演练目录里有成千上万个文件（插件产物 + npm 暂存），
+     * 某些环境对"批量删除"会弹确认或直接拒绝（safe-delete 守卫），一旦 rmSync 抛错
+     * 就会让 before 钩子整体失败、所有用例变成 ENOENT —— 那是环境噪声，
+     * 不该伪装成产品缺陷。删不掉就换一个没人用过的新目录继续跑。
+     */
+    const baseDir = path.join(ROOT, 'storage', `tmp-setup-flow-${process.pid}`);
+    try {
+      rmSync(baseDir, { recursive: true, force: true });
+      rootDir = baseDir;
+    } catch {
+      rootDir = `${baseDir}-${Date.now().toString(36)}`;
+    }
     mkdirSync(rootDir, { recursive: true });
 
     // 主题是内核启动的硬前提：全新部署要先放一个可用主题进去
@@ -245,7 +265,18 @@ describe('ricenote setup：离线端到端（本地 registry + 真实 CLI）', (
 
   after(async () => {
     await new Promise<void>((resolve) => registry?.server.close(() => resolve()));
-    rmSync(rootDir, { recursive: true, force: true });
+    /*
+     * 清理同样容错：删不掉（批量删除守卫、文件被占用）只是留了个临时目录，
+     * 不该把已经通过的用例判成失败 —— 那种"红"会让人去查根本不存在的产品问题。
+     * 库的清理不能省：它按进程命名，留着会一直堆积。
+     */
+    try {
+      rmSync(rootDir, { recursive: true, force: true });
+    } catch (error) {
+      console.warn(
+        `[setup-flow] 演练目录清理失败（不影响测试结论）：${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
     const conn = await mysql.createConnection(DB);
     await conn.query(`DROP DATABASE IF EXISTS \`${TEST_DB}\``);

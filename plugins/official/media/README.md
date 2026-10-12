@@ -13,7 +13,8 @@
 | entry | `./dist/index.js` |
 | provides | `media.library@1` |
 | requires | 无 |
-| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:admin`、`routes:public`、`media:store` |
+| capabilities | `database:own`、`services:provide`、`services:consume`、`routes:admin`、`routes:public`、`media:store`、`extensions:declare`、`extensions:contribute` |
+| 扩展点 | `rice.media.picker`（admin，贡献 `./admin/picker.js`） |
 | migrations | `0001_media.sql` |
 | 数据表 | `rn_media` |
 
@@ -53,6 +54,40 @@ SVG 额外加 `Content-Security-Policy: default-src 'none'; …; sandbox`，
 ### 事件 / 插槽
 
 无。
+
+### 媒体选择器扩展点（`rice.media.picker`）
+
+其他插件想在自己的界面里"选一张图 / 上传一个文件"，不必自己写上传与列表 ——
+渲染媒体库提供的面板即可（面板自带「上传新文件 / 从媒体库选择」两个页签，
+上传与校验规则与媒体库页面完全相同）：
+
+```html
+<PluginSlot name="rice.media.picker" :context="{ onPick }">
+  <!-- 默认内容 = 媒体库不可用时的降级路径：一行直接填地址，功能不缺失 -->
+  <Input v-model="form.cover" placeholder="图片地址，例如 /media/12" />
+</PluginSlot>
+```
+
+```js
+function onPick({ url, fileName, mimeType, size }) {
+  form.cover = url;
+}
+```
+
+- **契约**：唯一入参 `onPick({ url, fileName, mimeType, size })`。
+  不传 `onPick`（例如放在只读预览里）时面板**隐藏「插入」按钮**，不会报错；
+- **替换语义**：媒体库用 `mode: replace`（`order: 0`，`permission: media.manage`）贡献该面板 ——
+  媒体库启用时用完整面板替换消费者的默认内容；**媒体库被停用 / 卸载时贡献随之消失，
+  消费者渲染默认内容**。因此消费者**必须**给出"直接填链接"的降级路径；
+- **权限**：贡献声明了 `permission: media.manage`，服务端按当前用户权限过滤；
+  无权限的用户收不到贡献，看到的就是默认内容；
+- **容器由消费者提供**：面板不带外层对话框与标题，视觉沿用后台语言
+  （1px 细边框、无阴影、无毛玻璃）。
+
+> `replaceable: false` 约束的是**第三方插件**：别的插件不能用 `replace` 接管这个面板。
+> **提供方自己的 `replace` 不受该开关限制** —— 媒体库的面板就是该扩展点的"默认内容"本身，
+> 若把自己也算进去，`false` 会被逼成"谁都能替换我的面板"，语义反而失真
+> （判据见 `packages/core/src/extensions/registry.ts` 的贡献校验）。
 
 ### 后台界面
 

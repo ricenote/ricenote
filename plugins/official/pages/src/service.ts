@@ -8,6 +8,7 @@
 import {
   ErrorCode,
   RiceNoteError,
+  assertContentFieldValues,
   normalizeSlug,
   slugify,
   type ContentPagesService,
@@ -15,8 +16,7 @@ import {
   type PageListQuery,
   type PageQueryResult,
   type PageSaveRequest,
-  type PageStatus,
-  type PageSummary
+  type PageStatus
 } from '@ricenote/shared';
 import { markdownToPlainText, renderMarkdown } from './markdown.js';
 import {
@@ -34,11 +34,12 @@ import {
   updatePage,
   type PageWriteInput
 } from './repository.js';
-import { resolveTemplateKey, type PagesRuntime } from './runtime.js';
+import { readContentFields, resolveTemplateKey, type PagesRuntime } from './runtime.js';
 
 const VALID_STATUS: PageStatus[] = ['draft', 'published'];
 const MAX_TITLE = 255;
-const MAX_CONTENT = 500_000;
+/** 正文长度上限（保存与预览共用，避免"预览能过、保存 500"的分裂口径）。 */
+export const MAX_CONTENT = 500_000;
 /** `navItems()` 单次返回的页面数上限（内存保护，非用户可见配置）。 */
 const MAX_NAV_ITEMS = 500;
 
@@ -57,6 +58,17 @@ export interface PagesServiceDeps {
   emit: (event: string, payload: Record<string, unknown>) => Promise<void>;
 }
 
+/**
+ * 渲染预览 HTML：与保存/发布**完全同一条管线**（Markdown 渲染 → 消毒）。
+ *
+ * 单独导出是为了让后台上传编辑器复用它，而不是再写一套 —— 编辑器自带的预览
+ * 与前台渲染有差异时，作者会怀疑"保存后变了样"，这类问题最难排查。
+ */
+export async function renderPreviewHtml(runtime: PagesRuntime, content: string): Promise<string> {
+  const rendered = await renderMarkdown(content);
+  return runtime.html.sanitize(rendered).value;
+}
+
 export function createPagesService(deps: PagesServiceDeps): ContentPagesService {
   const { runtime } = deps;
   const { db, siteId } = runtime;
@@ -67,7 +79,7 @@ export function createPagesService(deps: PagesServiceDeps): ContentPagesService 
         page: input.page,
         pageSize: input.pageSize || runtime.listPageSize
       });
-      return { items: result.items.map(toPageSummary), total: result.total };
+      return { items: result.items.map((row) => toPageSummary(row)), total: result.total };
     },
 
     async findPublishedBySlug(slug): Promise<PageDetail | undefined> {
@@ -91,12 +103,19 @@ export function createPagesService(deps: PagesServiceDeps): ContentPagesService 
         ...query,
         pageSize: query.pageSize ?? runtime.listPageSize
       });
-      return { items: result.items.map(toPageSummary), total: result.total };
+      // 内容字段按**当前主题声明**过滤：换主题后旧键仍在库里，但不再出现在后台响应里
+      const declared = await runtime.theme.contentFields();
+      return {
+        items: result.items.map((row) => toPageSummary(row, readContentFields(runtime, row, declared))),
+        total: result.total
+      };
     },
 
     async findForAdmin(id): Promise<PageDetail | undefined> {
       const row = await findPageById(db, id);
-      return row ? toPageDetail(row) : undefined;
+      if (!row) return undefined;
+      const declared = await runtime.theme.contentFields();
+      return toPageDetail(row, readContentFields(runtime, row, declared));
     },
 
     async save(input: { id?: number; authorId?: number; payload: PageSaveRequest }) {
@@ -166,8 +185,18 @@ async function prepareWrite(
   // 模板键必须命中当前主题声明，否则拒绝保存（避免静默回退到 fallback）
   const template = await resolveTemplateKey(runtime, payload.template);
 
-  const rendered = await renderMarkdown(content);
-  const sanitized = runtime.html.sanitize(rendered);
+  /*
+   * 内容自定义字段的声明同样来自主题（与 pageTemplates 共用同一个 `core.theme@1` 句柄）：
+   * - 提交了就**必须**通过声明白名单，未声明的键 / 类型不符 / 越界一律拒绝保存（fail-closed）；
+   * - 未提交（旧版后台界面不含字段控件）时不传，更新时保留既有值，避免普通编辑清空字段。
+   */
+  const fields =
+    payload.fields === undefined
+      ? undefined
+      : assertContentFieldValues(await runtime.theme.contentFields(), payload.fields);
+
+  // 与预览接口同一条管线：渲染 → 消毒（消毒失败即拒绝写入）
+  const contentHtml = await renderPreviewHtml(runtime, content);
 
   const sortOrder = Number.isFinite(Number(payload.sortOrder))
     ? Math.trunc(Number(payload.sortOrder))
@@ -179,9 +208,10 @@ async function prepareWrite(
     title,
     slug,
     content,
-    contentHtml: sanitized.value,
+    contentHtml,
     status,
     template,
+    ...(fields ? { fields } : {}),
     sortOrder,
     ...(payload.seoTitle ? { seoTitle: String(payload.seoTitle).slice(0, MAX_TITLE) } : {}),
     ...(seoDescription ? { seoDescription: seoDescription.slice(0, 500) } : {}),

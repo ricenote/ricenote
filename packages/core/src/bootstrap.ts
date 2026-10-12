@@ -249,6 +249,8 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       settings: async () =>
         (await themeManager.resolveSettings(await themeManager.getActive())).values,
       pageTemplates: () => themeManager.activePageTemplates(),
+      // 内容自定义字段：声明在主题清单里，由宿主统一交给内容插件（文章/页面共用）
+      contentFields: async () => (await themeManager.getActive()).manifest.contentFields ?? {},
       invalidate: (tags: string[]) => cache.invalidateTags(tags),
       clearCache: () => cache.clear()
     };

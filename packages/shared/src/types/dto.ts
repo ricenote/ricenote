@@ -213,6 +213,82 @@ export interface AdminMenuItem {
    * 而不是撞一个接口 404 或悄悄跳回仪表盘。
    */
   available?: boolean;
+  /**
+   * 为 `true` 时**只注册路由、不进侧栏**。
+   *
+   * 用于由列表页跳转进入的页面（如文章/页面的独立编辑页）：
+   * 路由与深链照常可用，只是不占侧栏位置。
+   */
+  hidden?: boolean;
+}
+
+/* --------------------------- 命名扩展点（后台下发） --------------------------- */
+
+/** 一个可被后台渲染的扩展点（提供方声明 + 是否可替换）。 */
+export interface AdminExtensionPointDto {
+  name: string;
+  /** 声明者插件 ID；Core 预置的标准渲染插槽为 `core`。 */
+  provider: string;
+  description?: string;
+  replaceable: boolean;
+  props?: { name: string; description: string }[];
+}
+
+/**
+ * 一条后台作用域的贡献。
+ *
+ * `entryUrl` / `styleUrl` 由**服务端**换算并把关（`/plugin-admin/<pluginId>/…`），
+ * 前端不自行拼接路径 —— 与插件后台页面的托管口径保持一致。
+ */
+export interface AdminExtensionContributionDto {
+  point: string;
+  /** 贡献方插件 ID。 */
+  pluginId: string;
+  mode: 'append' | 'replace';
+  order: number;
+  entryUrl: string;
+  styleUrl?: string;
+  label?: string;
+}
+
+/**
+ * `GET /api/admin/extensions` 的载荷。
+ *
+ * 服务端已按"插件启用且启动成功 + admin 作用域 + 当前用户权限"过滤，
+ * 前端只负责渲染，不承担安全判断。
+ */
+export interface AdminExtensionsDto {
+  points: AdminExtensionPointDto[];
+  contributions: AdminExtensionContributionDto[];
+}
+
+/* --------------------------- 内容自定义字段（后台下发） --------------------------- */
+
+/**
+ * 一个内容自定义字段的后台视图（文案已按站点语言解析）。
+ *
+ * 文章与页面共用同一份声明，因此两个编辑页都用这个形状渲染控件。
+ * 刻意**不带默认值**：未填写的字段不会写进数据，模板用 `{% if %}` 判断即可，
+ * 从而避免"空字符串覆盖了主题想表达的缺省"这类隐形问题。
+ */
+export interface ContentFieldDto {
+  key: string;
+  type: 'text' | 'textarea' | 'color' | 'boolean' | 'number' | 'select' | 'image' | 'url' | 'stringList';
+  label: string;
+  description?: string;
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+  min?: number;
+  max?: number;
+  maxLength?: number;
+  maxItems?: number;
+}
+
+/** `GET /api/admin/content-fields` 的载荷：当前启用主题声明的字段集。 */
+export interface ContentFieldsDto {
+  /** 声明来源主题 ID（换主题后字段集会变化，界面据此解释原因）。 */
+  themeId?: string;
+  fields: ContentFieldDto[];
 }
 
 /* ----------------------------- 主题 ----------------------------- */
@@ -371,6 +447,13 @@ export interface PostSummary {
    * 为空表示使用主题中 `templates.post` 对应的默认模板。
    */
   template?: string;
+  /**
+   * 主题声明的**内容自定义字段**值（已按当前启用主题的声明过滤）。
+   *
+   * 键集合随主题变化：换主题后旧键仍留在库里，但不会再出现在这里 ——
+   * 模板只该看到"当前主题声明过"的字段，否则模板会读到与自己无关的脏数据。
+   */
+  fields?: Record<string, unknown>;
   terms: TermSummary[];
   publishedAt?: string;
   updatedAt: string;
@@ -396,6 +479,12 @@ export interface PostSaveRequest {
   /** 渲染模板键（主题 `pageTemplates` 声明）；null/undefined 表示使用默认文章模板。 */
   template?: string | null;
   termIds?: number[];
+  /**
+   * 内容自定义字段。键必须来自当前主题的声明，否则**整体拒绝保存**
+   * （静默丢弃会让作者以为"填了却没生效"）；**省略整个键表示不改动**已存值，
+   * 这样不渲染字段控件的旧界面不会在普通编辑时清空作者已填的内容。
+   */
+  fields?: Record<string, unknown>;
   seoTitle?: string;
   seoDescription?: string;
 }
@@ -422,6 +511,8 @@ export interface PageSummary {
    * 为空表示使用主题中 `templates.page` 对应的默认模板。
    */
   template?: string;
+  /** 主题声明的内容自定义字段值（已按当前启用主题的声明过滤）。 */
+  fields?: Record<string, unknown>;
   /** 排序权重，数值越小越靠前。 */
   sortOrder: number;
   seoTitle?: string;
@@ -446,6 +537,8 @@ export interface PageSaveRequest {
   /** 页面模板键；传 null/undefined 表示使用主题默认页面模板。 */
   template?: string | null;
   sortOrder?: number;
+  /** 内容自定义字段（口径同文章：未声明键拒绝保存；省略表示不改动已存值）。 */
+  fields?: Record<string, unknown>;
   seoTitle?: string;
   seoDescription?: string;
 }

@@ -12,6 +12,8 @@ export interface PageRow {
   content_html: string;
   status: string;
   template: string | null;
+  /** 内容自定义字段的 JSON 列：驱动可能返回 JSON 字符串或已解析对象。 */
+  fields: string | Record<string, unknown> | null;
   sort_order: number;
   seo_title: string | null;
   seo_description: string | null;
@@ -21,7 +23,7 @@ export interface PageRow {
   published_at: Date | string | null;
 }
 
-const COLUMNS = `id, site_id, title, slug, content, content_html, status, template, sort_order,
+const COLUMNS = `id, site_id, title, slug, content, content_html, status, template, fields, sort_order,
   seo_title, seo_description, created_by, created_at, updated_at, published_at`;
 
 function toIso(value: Date | string | null | undefined): string {
@@ -34,7 +36,13 @@ function toOptionalIso(value: Date | string | null): string | undefined {
   return toIso(value);
 }
 
-export function toPageSummary(row: PageRow): PageSummary {
+/** 内容字段的落库表示：空对象写 NULL（= 未填写，与历史行一致；读取侧统一归一化为 `{}`）。 */
+function toFieldsJson(fields: Record<string, unknown> | undefined): string | null {
+  return fields && Object.keys(fields).length > 0 ? JSON.stringify(fields) : null;
+}
+
+/** 把数据库行映射为列表项；`fields` 由调用方传入（已按当前主题声明过滤）。 */
+export function toPageSummary(row: PageRow, fields?: Record<string, unknown>): PageSummary {
   const publishedAt = toOptionalIso(row.published_at);
   return {
     id: row.id,
@@ -42,6 +50,7 @@ export function toPageSummary(row: PageRow): PageSummary {
     slug: row.slug,
     status: row.status as PageStatus,
     ...(row.template ? { template: row.template } : {}),
+    ...(fields ? { fields } : {}),
     sortOrder: Number(row.sort_order),
     ...(row.seo_title ? { seoTitle: row.seo_title } : {}),
     ...(row.seo_description ? { seoDescription: row.seo_description } : {}),
@@ -51,9 +60,9 @@ export function toPageSummary(row: PageRow): PageSummary {
   };
 }
 
-export function toPageDetail(row: PageRow): PageDetail {
+export function toPageDetail(row: PageRow, fields?: Record<string, unknown>): PageDetail {
   return {
-    ...toPageSummary(row),
+    ...toPageSummary(row, fields),
     content: row.content,
     html: row.content_html
   };
@@ -67,6 +76,13 @@ export interface PageWriteInput {
   contentHtml: string;
   status: PageStatus;
   template: string | null;
+  /**
+   * 内容字段值（已按主题声明校验并归一化）。
+   *
+   * 省略表示"本次写入不涉及内容字段"：更新时保留既有值、插入时写 NULL。
+   * 旧版后台界面不含内容字段控件，若无条件覆盖，一次普通编辑就会清空已填写的字段。
+   */
+  fields?: Record<string, unknown>;
   sortOrder: number;
   seoTitle?: string;
   seoDescription?: string;
@@ -76,9 +92,9 @@ export interface PageWriteInput {
 export async function insertPage(db: PluginDatabase, input: PageWriteInput): Promise<number> {
   const result = await db.execute(
     `INSERT INTO rn_pages
-       (site_id, title, slug, content, content_html, status, template, sort_order,
+       (site_id, title, slug, content, content_html, status, template, fields, sort_order,
         seo_title, seo_description, created_by, created_at, updated_at, published_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, ?, NOW(), NOW(), ?)`,
     [
       input.siteId,
       input.title,
@@ -87,6 +103,7 @@ export async function insertPage(db: PluginDatabase, input: PageWriteInput): Pro
       input.contentHtml,
       input.status,
       input.template,
+      toFieldsJson(input.fields),
       input.sortOrder,
       input.seoTitle ?? null,
       input.seoDescription ?? null,
@@ -107,28 +124,26 @@ export async function updatePage(
    * 使用 COALESCE 保留既有值，避免反复编辑导致发布时间漂移；
    * 由发布退回草稿时保留原发布时间（再次发布不重置）。
    */
+  // fields 可选：未提交时**不动该列**（旧版后台界面没有内容字段控件，
+  // 无条件覆盖会让一次普通编辑清空已填写的字段）。
+  const setFields = input.fields === undefined ? '' : ', fields = CAST(? AS JSON)';
+  const params: unknown[] = [
+    input.title, input.slug, input.content, input.contentHtml, input.status, input.template,
+    input.sortOrder, input.seoTitle ?? null, input.seoDescription ?? null
+  ];
+  if (input.fields !== undefined) params.push(toFieldsJson(input.fields));
+  params.push(input.status, id);
+
   const result = await db.execute(
     `UPDATE rn_pages SET
-       title = ?, slug = ?, content = ?, content_html = ?, status = ?, template = ?,
-       sort_order = ?, seo_title = ?, seo_description = ?, updated_at = NOW(),
-       published_at = CASE
-         WHEN ? = 'published' THEN COALESCE(published_at, NOW())
-         ELSE published_at
-       END
-     WHERE id = ?`,
-    [
-      input.title,
-      input.slug,
-      input.content,
-      input.contentHtml,
-      input.status,
-      input.template,
-      input.sortOrder,
-      input.seoTitle ?? null,
-      input.seoDescription ?? null,
-      input.status,
-      id
-    ]
+      title = ?, slug = ?, content = ?, content_html = ?, status = ?, template = ?,
+      sort_order = ?, seo_title = ?, seo_description = ?${setFields}, updated_at = NOW(),
+      published_at = CASE
+        WHEN ? = 'published' THEN COALESCE(published_at, NOW())
+        ELSE published_at
+      END
+    WHERE id = ?`,
+    params
   );
   return result.affectedRows > 0;
 }
@@ -157,8 +172,8 @@ export async function findPublishedBySlug(
 ): Promise<PageRow | undefined> {
   const rows = await db.query<PageRow>(
     `SELECT ${COLUMNS} FROM rn_pages
-      WHERE site_id = ? AND slug = ? AND status = 'published'
-      LIMIT 1`,
+     WHERE site_id = ? AND slug = ? AND status = 'published'
+     LIMIT 1`,
     [siteId, slug]
   );
   return rows[0];
@@ -203,8 +218,8 @@ export async function listPages(
   );
   const items = await db.query<PageRow>(
     `SELECT ${COLUMNS} FROM rn_pages WHERE ${where}
-      ORDER BY sort_order ASC, updated_at DESC
-      LIMIT ? OFFSET ?`,
+     ORDER BY sort_order ASC, updated_at DESC
+     LIMIT ? OFFSET ?`,
     [...params, pageSize, (page - 1) * pageSize]
   );
 
@@ -224,9 +239,9 @@ export async function listPublished(
   );
   const items = await db.query<PageRow>(
     `SELECT ${COLUMNS} FROM rn_pages
-      WHERE site_id = ? AND status = 'published'
-      ORDER BY sort_order ASC, title ASC
-      LIMIT ? OFFSET ?`,
+     WHERE site_id = ? AND status = 'published'
+     ORDER BY sort_order ASC, title ASC
+     LIMIT ? OFFSET ?`,
     [siteId, pageSize, (page - 1) * pageSize]
   );
   return { items, total: Number(totalRows[0]?.total ?? 0) };
@@ -240,9 +255,9 @@ export async function listNav(
 ): Promise<Array<{ id: number; title: string; slug: string }>> {
   return db.query<{ id: number; title: string; slug: string }>(
     `SELECT id, title, slug FROM rn_pages
-      WHERE site_id = ? AND status = 'published'
-      ORDER BY sort_order ASC, title ASC
-      LIMIT ?`,
+     WHERE site_id = ? AND status = 'published'
+     ORDER BY sort_order ASC, title ASC
+     LIMIT ?`,
     [siteId, Math.max(1, Math.min(limit, 500))]
   );
 }

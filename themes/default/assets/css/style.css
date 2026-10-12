@@ -231,7 +231,12 @@ img {
   color: var(--df-ink-soft);
 }
 
-.df-article__cover {
+/*
+  版式主图：媒体库封面与主题声明的「特色图片」共用同一套观感。
+  两者都是"内容顶部的大图"，分别写样式只会随改动漂移。
+*/
+.df-article__cover,
+.df-article__feature {
   width: 100%;
   border-radius: var(--df-radius);
   border: 1px solid var(--df-line);

@@ -26,7 +26,7 @@ import {
 import { registerAdminRoutes } from './admin.js';
 import { registerPublicPages } from './pages.js';
 import type { PagesRuntime } from './runtime.js';
-import { createPagesService } from './service.js';
+import { createPagesService, renderPreviewHtml } from './service.js';
 
 export default definePlugin({
   async start(ctx: PluginContext) {
@@ -68,7 +68,12 @@ export default definePlugin({
     });
 
     registerPublicPages(ctx, runtime);
-    registerAdminRoutes(ctx, { service, defaultPageSize: runtime.listPageSize });
+    registerAdminRoutes(ctx, {
+      service,
+      defaultPageSize: runtime.listPageSize,
+      // 预览与保存共用同一条渲染 + 消毒管线（见 service.renderPreviewHtml）
+      preview: (content) => renderPreviewHtml(runtime, content)
+    });
 
     /*
      * 后台菜单与界面来自 manifest.admin.pages（声明式）：

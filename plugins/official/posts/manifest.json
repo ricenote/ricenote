@@ -3,7 +3,7 @@
   "id": "rice.posts",
   "name": "文章",
   "description": "提供文章撰写、发布、归档与前台页面（首页、文章页、分类/标签归档），并向搜索插件注册可搜索数据源。",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",
@@ -20,7 +20,8 @@
     "routes:admin",
     "events:publish",
     "events:subscribe",
-    "slots:register"
+    "slots:register",
+    "extensions:declare"
   ],
   "migrations": "./migrations",
   "admin": {
@@ -33,9 +34,61 @@
         "order": 50,
         "permission": "post.view",
         "entry": "./admin/main.js"
+      },
+      {
+        "id": "posts.editor",
+        "label": "编辑文章",
+        "path": "/posts/editor",
+        "permission": "post.write",
+        "entry": "./admin/editor.js",
+        "hidden": true
       }
     ]
   },
+  "extensionPoints": [
+    {
+      "name": "rice.posts.listActions",
+      "scope": "admin",
+      "replaceable": true,
+      "description": "文章列表页右上角的操作区（默认内容是「新建文章」按钮）。停用所有贡献时行为与此前完全一致。",
+      "props": [
+        {
+          "name": "kind",
+          "description": "内容类型标识，固定为 'post'，便于同一贡献组件复用到其它内容类型。"
+        }
+      ]
+    },
+    {
+      "name": "rice.posts.editorToolbar",
+      "scope": "admin",
+      "replaceable": true,
+      "description": "文章编辑页正文上方的工具栏（默认无内容）。",
+      "props": [
+        { "name": "kind", "description": "内容类型标识，固定为 'post'。" },
+        { "name": "value", "description": "当前正文（Markdown）字符串，随编辑实时变化。" },
+        { "name": "onChange", "description": "更新正文的回调：接收新的 Markdown 字符串。" },
+        {
+          "name": "onPreview",
+          "description": "触发服务端预览的回调：返回渲染并消毒后的 HTML（Promise<string>）。"
+        }
+      ]
+    },
+    {
+      "name": "rice.posts.editorBody",
+      "scope": "admin",
+      "replaceable": true,
+      "description": "文章编辑页的正文编辑区（默认是多行文本域）。replace 贡献可接管正文编辑体验。",
+      "props": [
+        { "name": "kind", "description": "内容类型标识，固定为 'post'。" },
+        { "name": "value", "description": "当前正文（Markdown）字符串，随编辑实时变化。" },
+        { "name": "onChange", "description": "更新正文的回调：接收新的 Markdown 字符串。" },
+        {
+          "name": "onPreview",
+          "description": "触发服务端预览的回调：返回渲染并消毒后的 HTML（Promise<string>）。"
+        }
+      ]
+    }
+  ],
   "settingsSchema": {
     "general": {
       "label": { "zh-CN": "列表与摘要", "en": "Listings & excerpts" },

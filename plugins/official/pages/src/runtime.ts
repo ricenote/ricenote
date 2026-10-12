@@ -8,7 +8,9 @@
 
 import type { PluginDatabase, PluginLogger } from '@ricenote/plugin-sdk';
 import {
+  pickDeclaredContentFields,
   resolveContentTemplateKey,
+  type ContentFieldsSchema,
   type CoreHtmlService,
   type CoreThemeService
 } from '@ricenote/shared';
@@ -39,6 +41,12 @@ export interface PageContentViewModel {
   /** 已消毒并标记为受信任的正文 HTML。 */
   html: unknown;
   url: string;
+  /**
+   * 内容自定义字段的值（键由主题 `contentFields` 声明，例如 `featuredImage`）。
+   *
+   * 始终是对象（可能为空）：模板里写 `{{ page.fields.featuredImage }}` 无需判空。
+   */
+  fields: Record<string, unknown>;
   /** 命中的页面模板键（主题声明），未选择时省略。 */
   template?: string;
   publishedAt?: string;
@@ -50,11 +58,60 @@ function toIso(value: Date | string, fallback: string): string {
   return Number.isNaN(date.getTime()) ? fallback : date.toISOString();
 }
 
-/** 把数据库行映射为主题视图模型。 */
+/**
+ * 解析 `fields` JSON 列（驱动可能返回 JSON 字符串或已解析对象）。
+ *
+ * 内容字段只是"锦上添花"的数据：解析失败**不能**让整页渲染失败（500），
+ * 因此降级为空对象并留下 warn，便于排查脏数据。
+ */
+export function decodeStoredFields(
+  raw: unknown,
+  onInvalid: (message: string, meta: Record<string, unknown>) => void
+): Record<string, unknown> {
+  if (raw === null || raw === undefined) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>;
+  if (typeof raw !== 'string') {
+    onInvalid('页面内容字段格式非法，已按空值处理', { type: typeof raw });
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    onInvalid('页面内容字段不是对象，已按空值处理', { type: typeof parsed });
+  } catch (error) {
+    onInvalid('页面内容字段解析失败，已按空值处理', { error: String(error) });
+  }
+  return {};
+}
+
+/**
+ * 读取一行上的内容字段：解析 JSON 后按**当前主题声明**过滤。
+ *
+ * 过滤放在读取侧：换主题后旧键仍留在 JSON 里，但不再暴露给后台与模板。
+ */
+export function readContentFields(
+  runtime: Pick<PagesRuntime, 'logger'>,
+  row: PageRow,
+  declared: ContentFieldsSchema
+): Record<string, unknown> {
+  const stored = decodeStoredFields(row.fields, (message, meta) =>
+    runtime.logger.warn(message, { pageId: row.id, ...meta })
+  );
+  return pickDeclaredContentFields(declared, stored);
+}
+
+/**
+ * 把数据库行映射为主题视图模型。
+ *
+ * 本函数保持**同步**：主题声明的字段清单由调用方在请求期 `await` 后传入，
+ * 而不是在这里取 —— 声明会随主题切换而变，在构造器里缓存或做异步都会引入额外状态。
+ */
 export function toPageContentViewModel(
   runtime: PagesRuntime,
   row: PageRow,
-  options: { withHtml: boolean }
+  options: { withHtml: boolean; declaredFields: ContentFieldsSchema }
 ): PageContentViewModel {
   const updatedAt = toIso(row.updated_at, new Date().toISOString());
   const publishedAt = row.published_at ? toIso(row.published_at, updatedAt) : undefined;
@@ -65,6 +122,7 @@ export function toPageContentViewModel(
     slug: row.slug,
     html: runtime.html.markTrusted(options.withHtml ? row.content_html : ''),
     url: `/page/${row.slug}`,
+    fields: readContentFields(runtime, row, options.declaredFields),
     ...(row.template ? { template: row.template } : {}),
     ...(publishedAt ? { publishedAt } : {}),
     updatedAt

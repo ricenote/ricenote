@@ -11,7 +11,10 @@
 import type { PluginDatabase, PluginLogger } from '@ricenote/plugin-sdk';
 import {
   SERVICE_CONTRACTS,
+  pickDeclaredContentFields,
+  type ContentFieldsSchema,
   type CoreHtmlService,
+  type CoreThemeService,
   type IdentityUsersService,
   type MediaService,
   type TaxonomyInternalService,
@@ -54,6 +57,31 @@ export function usersOf(runtime: PostsRuntime): IdentityUsersService | undefined
   return runtime.services.tryUse<IdentityUsersService>('identity.users@1');
 }
 
+export function themeOf(runtime: PostsRuntime): CoreThemeService | undefined {
+  return runtime.services.tryUse<CoreThemeService>(SERVICE_CONTRACTS.CORE_THEME);
+}
+
+/**
+ * 请求期解析当前主题声明的「内容自定义字段」。
+ *
+ * 为什么每次都现取、**不做缓存**：字段集合随激活主题变化，若在插件 `start()`
+ * 里缓存一份，换主题后必须重启才生效，而且会读到过期的声明去校验/过滤字段。
+ * 与其余可选依赖一样在请求期解析，切主题立刻生效。读不到就按"无声明"处理（空对象），
+ * 渲染侧因此不会展示任何字段，而不是报错。
+ */
+export async function loadContentFields(runtime: PostsRuntime): Promise<ContentFieldsSchema> {
+  const theme = themeOf(runtime);
+  if (!theme) return {};
+  try {
+    return await theme.contentFields();
+  } catch (error) {
+    runtime.logger.warn('读取主题内容字段声明失败，已按“无字段”处理', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return {};
+  }
+}
+
 /* ------------------------------- 视图模型 ------------------------------- */
 
 /** 主题中的文章视图模型（对应 theme-sdk 的 PostContext）。 */
@@ -71,6 +99,13 @@ export interface PostViewModel {
   status: string;
   /** 命中的模板键（主题声明），未选择模板时省略。 */
   template?: string;
+  /**
+   * 主题声明的「内容自定义字段」值（模板用 `{{ post.fields.featuredImage }}` 取值）。
+   *
+   * 已按当前主题声明过滤：换主题后留在库里的旧键不会出现在这里。
+   * 无声明或未填写时为空对象，模板的 `{% if post.fields.x %}` 自然为假。
+   */
+  fields: Record<string, unknown>;
   terms: { id: number; name: string; slug: string; type: string }[];
 }
 
@@ -140,9 +175,22 @@ export async function loadTerms(runtime: PostsRuntime, postId: number): Promise<
 export async function toPostViewModel(
   runtime: PostsRuntime,
   row: PostRow,
-  options: { withHtml: boolean; terms?: TermSummary[]; authorName?: string }
+  options: {
+    withHtml: boolean;
+    terms?: TermSummary[];
+    authorName?: string;
+    /**
+     * 当前主题声明的字段集（由调用方 `await theme.contentFields()` 传入）。
+     *
+     * 为什么不在这里自行读取/缓存：本函数是同步语义的纯映射，若内部去取声明
+     * 要么被迫 async 化(OK) 要么引入缓存——缓存会在换主题后读到过期声明。
+     * 交由调用方在请求期传入，永远是当次请求的最新声明。
+     */
+    fields?: ContentFieldsSchema;
+  }
 ): Promise<PostViewModel> {
   const terms = options.terms ?? (await loadTerms(runtime, row.id));
+  const fields = pickDeclaredContentFields(options.fields, row.fields);
 
   let coverUrl: string | undefined;
   if (row.cover_media_id) {
@@ -173,6 +221,7 @@ export async function toPostViewModel(
     url: `/post/${row.slug}`,
     status: row.status,
     ...(row.template ? { template: row.template } : {}),
+    fields,
     terms: terms.map((term) => ({
       id: term.id,
       name: term.name,
@@ -186,13 +235,14 @@ export async function toPostViewModel(
 export async function toPostViewModels(
   runtime: PostsRuntime,
   rows: PostRow[],
-  options: { withHtml: boolean; authorNames?: Record<number, string> }
+  options: { withHtml: boolean; authorNames?: Record<number, string>; fields?: ContentFieldsSchema }
 ): Promise<PostViewModel[]> {
   const output: PostViewModel[] = [];
   for (const row of rows) {
     output.push(
       await toPostViewModel(runtime, row, {
         withHtml: options.withHtml,
+        fields: options.fields,
         ...(options.authorNames?.[row.author_id]
           ? { authorName: options.authorNames[row.author_id] }
           : {})

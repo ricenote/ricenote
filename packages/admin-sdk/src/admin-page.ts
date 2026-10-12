@@ -47,6 +47,8 @@ import Icon from './components/Icon.vue';
 import LoadingState from './components/LoadingState.vue';
 import Pagination from './components/Pagination.vue';
 import Tabs from './components/Tabs.vue';
+import ContentFields from './content/ContentFields.vue';
+import PluginSlot from './extension/PluginSlot.vue';
 
 /** SDK 版本：与 package.json 保持一致，供插件做能力探测与日志排查。 */
 export const SDK_VERSION = '0.1.0';
@@ -140,6 +142,7 @@ export const SDK_COMPONENTS: Record<string, Component> = {
   Button,
   Card,
   ConfirmDialog,
+  ContentFields,
   DataTable,
   Dialog,
   EmptyState,
@@ -149,6 +152,7 @@ export const SDK_COMPONENTS: Record<string, Component> = {
   Label,
   LoadingState,
   Pagination,
+  PluginSlot,
   Select,
   Switch,
   Tabs,

@@ -12,6 +12,16 @@
 {% block content %}
 <article class="df-article df-page">
   <h1 class="df-article__title">{% if content %}{{ content.title }}{% else %}{{ page.title }}{% endif %}</h1>
+  {#
+    特色图片：主题声明的内容自定义字段（页面与文章共用同一份声明）。
+    同时兼容 `content.fields` 与 `page.fields`：页面内容的 ViewModel 由 pages 插件提供，
+    模板不该假设字段只会挂在其中一个上（缺哪一个都不报错，nunjucks 对 undefined 宽容）。
+  #}
+  {% set featured = (content.fields.featuredImage if content else '') or (page.fields.featuredImage if page.fields else '') %}
+  {% if featured %}
+    <img class="df-article__feature" src="{{ featured }}" alt="{{ content.title if content else page.title }}" loading="eager">
+  {% endif %}
+
   {% if content and content.updatedAt %}
     <p class="df-article__meta">
       <time datetime="{{ content.updatedAt }}">更新于 {{ content.updatedAt | date('YYYY-MM-DD') }}</time>

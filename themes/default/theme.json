@@ -42,6 +42,18 @@
       }
     }
   },
+  "contentFields": {
+    "featuredImage": {
+      "type": "image",
+      "label": { "zh-CN": "特色图片", "en": "Featured image" },
+      "description": {
+        "zh-CN": "文章与页面共用；粘贴图片链接，留空则不展示",
+        "en": "Shared by articles and pages; paste an image URL, leave empty to hide"
+      },
+      "placeholder": { "zh-CN": "https://example.com/cover.jpg", "en": "https://example.com/cover.jpg" },
+      "maxLength": 500
+    }
+  },
   "requires": {
     "content.posts@1": "^1.0.0"
   },

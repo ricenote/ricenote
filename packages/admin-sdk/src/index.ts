@@ -12,6 +12,8 @@ export * from './composables/use-toast.js';
 export * from './composables/use-system-state.js';
 export * from './composables/use-async-data.js';
 export * from './admin-page.js';
+export * from './content/index.js';
+export * from './extension/index.js';
 export * from './icons.js';
 
 /* ------------------------------ UI 组件 ------------------------------ */
