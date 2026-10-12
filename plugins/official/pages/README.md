@@ -11,7 +11,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.pages` |
-| version | `1.3.0` |
+| version | `1.4.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.pages@1` |

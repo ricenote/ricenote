@@ -12,7 +12,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.editor-enhance` |
-| version | `1.0.0` |
+| version | `1.1.1` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js`（空实现，仅构建入口） |
 | capabilities | `extensions:contribute` |

@@ -32,7 +32,10 @@ const SEED = [
   'pages',
   'navigation',
   'search',
-  'seo'
+  'seo',
+  // 这两个插件提供公开路由（`/feed.xml`、`/links`）与 head.end 插槽，HTTP 层要真打一遍
+  'feed',
+  'friend-links'
 ];
 
 let kernel: RiceNoteKernel | undefined;
@@ -53,6 +56,9 @@ async function launch(): Promise<void> {
       seedPlugins: SEED
     }
   });
+
+  // SEED 里的插件必须全部启动成功（能力门漏声明、迁移失败都会在这里显形）
+  assert.equal((await kernel.health()).plugins.failed, 0, '不应有插件启动失败');
 
   // 这一步会因路由冲突而抛错 —— 正是我们要防的回归
   server = await startHttpServer(kernel, { trustProxy: false });

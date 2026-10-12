@@ -1,16 +1,16 @@
 {
   "name": "@ricenote/plugin-editor-enhance",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "RiceNote 编辑增强插件：文章与页面的 Markdown 编辑器、编辑工具栏与列表新建入口",
   "keywords": [
     "ricenote",
     "plugin"
   ],
-  "homepage": "https://github.com/ricenote/plugin-editor-enhance",
+  "homepage": "https://github.com/ricenote/editor-enhance",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ricenote/plugin-editor-enhance.git"
+    "url": "git+https://github.com/ricenote/editor-enhance.git"
   },
   "license": "MIT",
   "author": "RiceNote",

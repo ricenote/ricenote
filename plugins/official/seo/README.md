@@ -10,7 +10,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.seo` |
-| version | `1.0.0` |
+| version | `1.2.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | 无 |

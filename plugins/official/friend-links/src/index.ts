@@ -10,6 +10,9 @@
  *
  * 依赖方向：Core 的 `core.setup@1`（站点标识）与 `core.theme@1`（缓存失效）
  * 在 `start()` 中一次性取用，没有可选依赖。
+ *
+ * **不订阅任何事件**：本插件的能力面刻意保持最小（数据库 + 两个 Core 服务 + 两类路由），
+ * 一条启动统计日志不值得多换一个 `events:subscribe`。
  */
 
 import { definePlugin, type PluginContext } from '@ricenote/plugin-sdk';
@@ -49,23 +52,23 @@ export default definePlugin({
      * 因此这里不再调用 ctx.adminMenu.add，也不需要 admin:menu 能力。
      */
 
-    /* 状态统计放在"全部插件启动完成"之后，日志才反映真实数据 */
-    ctx.events.on('core.runtime.started.v1', () => {
-      void (async () => {
-        try {
-          const items = await service.listForAdmin();
-          ctx.logger.info('friend-links 插件已就绪', {
-            links: items.length,
-            enabled: items.filter((item) => item.enabled).length,
-            page: LINKS_PAGE_PATH
-          });
-        } catch (error) {
-          ctx.logger.warn('友链统计失败', {
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      })();
-    });
+    /*
+     * 启动统计直接在 `start()` 里记，**不订阅 `core.runtime.started.v1`**：
+     * 订阅事件需要 `events:subscribe` 能力，而这条日志并不依赖别的插件就绪 ——
+     * 迁移早于 `start()` 完成，这里读到的就是真实数据。
+     */
+    try {
+      const items = await service.listForAdmin();
+      ctx.logger.info('friend-links 插件已就绪', {
+        links: items.length,
+        enabled: items.filter((item) => item.enabled).length,
+        page: LINKS_PAGE_PATH
+      });
+    } catch (error) {
+      ctx.logger.warn('友链统计失败', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   },
 
   async stop(ctx) {

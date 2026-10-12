@@ -7,6 +7,31 @@
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-12
+
+> 补丁版本：修 `rice.friend-links`「装上就启动失败」的缺陷，并更正 `rice.editor-enhance` 的仓库地址。
+> 因为 `0.6.0` 与两个插件的 `1.1.0` 已经发布到 npm（同版本不能重发），这里按补丁递增：
+> 应用与四个 SDK `0.6.0` → `0.6.1`，`rice.friend-links` 与 `rice.editor-enhance` `1.1.0` → `1.1.1`。
+> 插件声明的宿主区间 `^0.6.0` **不变** —— `0.6.1` 仍落在 `>=0.6.0 <0.7.0` 之内，无需跟着升区间。
+
+### Fixed（能力门、README 版本号、插件仓库地址）
+
+- **`rice.friend-links` 装上就启动失败（`RN_FORBIDDEN`）**：`start()` 里订阅了 `core.runtime.started.v1`，
+  但清单只声明了 4 项能力、不含 `events:subscribe`，能力门在插件启动时直接拒绝（403），
+  于是这个插件的路由与后台菜单全部不可用。该订阅只是为了记一条启动统计日志，且本插件 README
+  明确写着"不订阅事件"，因此修法是**去掉订阅**（统计改在 `start()` 里直接记 —— 迁移早于 `start()`
+  完成，读到的同样是真实数据），而不是给它补 `events:subscribe`：能力面应当最小。
+  顺带审了一遍全部 13 个官方插件的"用了哪些能力门 vs 声明了哪些能力"，**只有这一个**漏声明。
+- **集成测试的 `seedPlugins` 补上 `feed` 与 `friend-links`**（`extension-points` 与 `http-surface`
+  两个套件）：此前它们的 `start()` 从未在测试里跑过，这正是上面那个运行时能力门问题没被拦住的原因。
+- **13 个官方插件 README 的 `| version |` 行同步**：`seo` / `search` / `navigation` 三处在 0.6.0
+  之前就已经过期，其余 10 个是 0.6.0 提升后未同步。
+- **`rice.editor-enhance` 的仓库地址更正**：目录与包元数据里写的是
+  `https://github.com/ricenote/plugin-editor-enhance`，但实际仓库是
+  `https://github.com/ricenote/editor-enhance`（其余 12 个插件都是 `plugin-*`，它是唯一的例外）。
+  现在 `plugin-catalog.json` 与 `package.json` 的 `homepage` / `repository` 都指向实际仓库，
+  与镜像仓库里已有的 git remote 一致（`plugin-repos/` 已重新生成）。
+
 ## [0.6.0] - 2026-10-12
 
 > **次版本**：应用版本 `0.5.4` → `0.6.0`，13 个官方插件的**宿主区间**随之跨到 `^0.6.0` 并各自升一个次版本。
@@ -980,7 +1005,8 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/ricenote/ricenote/releases/tag/v0.6.1
 [0.6.0]: https://github.com/ricenote/ricenote/releases/tag/v0.6.0
 [0.5.4]: https://github.com/ricenote/ricenote/releases/tag/v0.5.4
 [0.5.3]: https://github.com/ricenote/ricenote/releases/tag/v0.5.3

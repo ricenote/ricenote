@@ -17,7 +17,10 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..',
 /** 独立测试库：node:test 并行跑不同文件，库名必须与其它集成测试互不重叠。 */
 export const TEST_DB = 'ricenote_test_extpoints';
 export const SEED = [
-  'identity', 'authorization', 'posts', 'taxonomy', 'media', 'pages', 'reading-time', 'editor-enhance'
+  'identity', 'authorization', 'posts', 'taxonomy', 'media', 'pages', 'reading-time', 'editor-enhance',
+  // feed / friend-links 也进 SEED：它们的 start() 只在"装上即失败"这类运行时问题（能力门漏声明、
+  // 路由冲突、迁移失败）上暴露，不启它们就等于不测。
+  'feed', 'friend-links'
 ];
 
 export interface JsonResponse {
@@ -103,6 +106,14 @@ export async function bootExtHarness(): Promise<ExtHarness> {
     rootDir,
     overrides: { database: { name: TEST_DB }, http: { port: 0 }, logLevel: 'error', seedPlugins: SEED }
   });
+
+  /*
+   * SEED 里的插件必须全部启动成功。
+   * 少了这条断言，把插件加进 SEED 只是"加载了"：能力门漏声明（例如订阅了未声明的
+   * `events:subscribe`）、迁移失败、路由冲突都只会把插件标记为 failed，测试照样全绿。
+   */
+  assert.equal((await kernel.health()).plugins.failed, 0, '不应有插件启动失败');
+
   const server: RunningServer = await startHttpServer(kernel, { trustProxy: false });
   const origin = `http://127.0.0.1:${(server.app.server.address() as AddressInfo).port}`;
 

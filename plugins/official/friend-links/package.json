@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/plugin-friend-links",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "RiceNote 友情链接插件：友链管理与前台展示页面",
   "keywords": [

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "appVersion": "0.6.0",
+  "appVersion": "0.6.1",
   "plugins": [
     {
       "id": "rice.identity",
@@ -188,13 +188,13 @@
     {
       "id": "rice.editor-enhance",
       "npm": "@ricenote/plugin-editor-enhance",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "category": "optional",
       "label": "编辑增强",
       "description": "增强文章与页面的编辑体验：Markdown 双栏编辑器、编辑工具栏（预览、插入图片）与列表页「新建」入口。",
       "capabilities": ["extensions:contribute"],
       "requires": [],
-      "repository": "https://github.com/ricenote/plugin-editor-enhance",
+      "repository": "https://github.com/ricenote/editor-enhance",
       "license": "MIT"
     },
     {
@@ -212,7 +212,7 @@
     {
       "id": "rice.friend-links",
       "npm": "@ricenote/plugin-friend-links",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "category": "optional",
       "label": "友情链接",
       "description": "管理站点的友情链接，并为访客提供一个展示友链的页面。",

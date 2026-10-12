@@ -3,7 +3,7 @@
   "id": "rice.editor-enhance",
   "name": "编辑增强",
   "description": "增强文章与页面的编辑体验：Markdown 双栏编辑器、编辑工具栏（预览、插入图片）与列表页「新建」入口。",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",

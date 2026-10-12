@@ -10,7 +10,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.identity` |
-| version | `1.3.0` |
+| version | `1.4.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `identity.auth@1`、`identity.users@1` |

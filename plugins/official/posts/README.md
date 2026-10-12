@@ -8,7 +8,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.posts` |
-| version | `1.6.0` |
+| version | `1.7.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.posts@1` |
