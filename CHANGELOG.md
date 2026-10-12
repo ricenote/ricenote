@@ -7,7 +7,12 @@
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-10-12
+## [0.5.1] - 2026-10-12
+
+> 补丁版本：在 0.5.0 的基础上移除示例插件 `rice.hello`（官方插件集 12 → 11）、
+> 补上「升级已部署实例」文档，并修掉后台深链丢查询参数（会把"编辑文章"变成"重复新建"）。
+> **插件声明的宿主区间不需要跟着改**：它们写的是 `^0.5.0`（含 `>=0.5.0 <0.6.0`），补丁升级仍在其范围内 ——
+> 宿主处于 `0.x` 阶段时只有**次版本号**跃迁才会跨出区间，那才需要一起提升。
 
 第五个里程碑版本（在"插件平台化"之上补齐**可扩展性、编辑体验与部署可配置**）。三条主线：
 **命名扩展点**让插件之间能互相扩展界面与逻辑（三作用域统一模型、可替换语义，主题还能声明内容自定义字段）；
@@ -740,8 +745,8 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.5.0...HEAD
-[0.5.0]: https://github.com/ricenote/ricenote/releases/tag/v0.5.0
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/ricenote/ricenote/releases/tag/v0.5.1
 [0.4.0]: https://github.com/ricenote/ricenote/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ricenote/ricenote/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ricenote/ricenote/releases/tag/v0.2.0
