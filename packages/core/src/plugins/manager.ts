@@ -38,6 +38,7 @@ import type { ServiceRegistry } from '../services/registry.js';
 import type { EventBus } from '../events/bus.js';
 import type { RouterRegistry } from '../routing/registry.js';
 import type { SlotRegistry } from '../render/slots.js';
+import type { ExtensionRegistry } from '../extensions/registry.js';
 import type { AdminMenuRegistry } from './admin-menu.js';
 import { registerDeclaredAdminPages, resolveAdminPages } from './admin-pages.js';
 import { isOfficialPlugin } from './catalog.js';
@@ -76,6 +77,8 @@ export interface PluginManagerDeps {
   events: EventBus;
   router: RouterRegistry;
   slots: SlotRegistry;
+  /** 命名扩展点注册表（三个作用域共用；`slots` 是它的 render 作用域门面）。 */
+  extensions: ExtensionRegistry;
   adminMenu: AdminMenuRegistry;
   migrations: MigrationCoordinator;
   /**
@@ -314,6 +317,7 @@ export class PluginManager {
       events: this.deps.events,
       router: this.deps.router,
       slots: this.deps.slots,
+      extensions: this.deps.extensions,
       adminMenu: this.deps.adminMenu,
       site: () => this.siteInfo(),
       pluginSettings: settings,
@@ -457,7 +461,7 @@ export class PluginManager {
    * 校验**已停止**的插件没有在注册表中留下任何痕迹。
    *
    * 这是"低耦合、可独立启停"的核心可验证承诺：插件被禁用后，
-   * 它注册的路由、服务、Slot、后台菜单与事件订阅都必须不可见。
+   * 它注册的路由、服务、Slot、后台菜单、事件订阅与**扩展点声明/贡献**都必须不可见。
    * （仍在运行的插件自然持有注册项，因此不参与校验。）
    */
   assertNoLeaks(): void {
@@ -470,9 +474,13 @@ export class PluginManager {
         rawRoutes: routes.raw,
         adminRoutes: routes.admin,
         services: this.deps.services.ownedBy(pluginId),
+        // render 作用域的贡献由 slots 视角报告（同一个注册表，避免重复计数）
         slots: this.deps.slots.ownedBy(pluginId),
         menuItems: this.deps.adminMenu.ownedBy(pluginId),
-        events: this.deps.events.ownedBy(pluginId)
+        events: this.deps.events.ownedBy(pluginId),
+        extensionDeclarations: this.deps.extensions.declarationsOwnedBy(pluginId),
+        adminContributions: this.deps.extensions.contributionsOwnedBy(pluginId, 'admin'),
+        serverContributions: this.deps.extensions.contributionsOwnedBy(pluginId, 'server')
       };
 
       const count = Object.values(owned).reduce((total, list) => total + list.length, 0);

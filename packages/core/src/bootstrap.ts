@@ -37,6 +37,7 @@ import { EventBus } from './events/bus.js';
 import { InMemoryOutbox, type Outbox } from './events/outbox.js';
 import { RouterRegistry } from './routing/registry.js';
 import { SlotRegistry } from './render/slots.js';
+import { ExtensionRegistry } from './extensions/registry.js';
 import { HtmlCache } from './render/cache.js';
 import { ThemeRenderer } from './render/renderer.js';
 import { AdminMenuRegistry } from './plugins/admin-menu.js';
@@ -80,6 +81,8 @@ export interface RiceNoteKernel {
   outbox: Outbox;
   router: RouterRegistry;
   slots: SlotRegistry;
+  /** 命名扩展点注册表（后台扩展点下发与诊断接口读取它）。 */
+  extensions: ExtensionRegistry;
   adminMenu: AdminMenuRegistry;
   plugins: PluginManager;
   themeManager: ThemeManager;
@@ -164,7 +167,9 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
   const events = new EventBus(logger);
   const outbox = new InMemoryOutbox();
   const router = new RouterRegistry();
-  const slots = new SlotRegistry(logger);
+  // 扩展点注册表先于 slots 创建：slots 已退化为它的 render 作用域门面
+  const extensions = new ExtensionRegistry(logger);
+  const slots = new SlotRegistry(extensions, logger);
   const adminMenu = new AdminMenuRegistry();
   const cache = new HtmlCache({
     enabled: config.render.cacheEnabled,
@@ -313,6 +318,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       events,
       router,
       slots,
+      extensions,
       adminMenu,
       migrations,
       siteInfo,
@@ -449,6 +455,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<RiceNot
       outbox,
       router,
       slots,
+      extensions,
       adminMenu,
       plugins,
       themeManager,

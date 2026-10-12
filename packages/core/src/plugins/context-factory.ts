@@ -14,6 +14,9 @@ import type {
   AdminRouteSpec,
   Dispose,
   EventHandler,
+  ExtensionApplyOptions,
+  ExtensionContributeOptions,
+  ExtensionPointDeclaration,
   HttpRequestLike,
   PageRouteSpec,
   Plugin,
@@ -34,6 +37,7 @@ import type { ServiceRegistry } from '../services/registry.js';
 import type { EventBus } from '../events/bus.js';
 import type { RouterRegistry } from '../routing/registry.js';
 import type { SlotRegistry } from '../render/slots.js';
+import type { ExtensionRegistry } from '../extensions/registry.js';
 import type { AdminMenuRegistry } from './admin-menu.js';
 import type { LoadedPlugin } from './manifest.js';
 import { resolvePluginSettings } from './settings-schema.js';
@@ -44,6 +48,8 @@ export interface ContextFactoryDeps {
   events: EventBus;
   router: RouterRegistry;
   slots: SlotRegistry;
+  /** 命名扩展点注册表（三个作用域共用；`slots` 是它的 render 作用域门面）。 */
+  extensions: ExtensionRegistry;
   adminMenu: AdminMenuRegistry;
   /**
    * 读取**当前生效**的站点信息。
@@ -209,6 +215,36 @@ export function createPluginContext(
       },
       list() {
         return deps.slots.list();
+      }
+    },
+    extensions: {
+      declare(point: ExtensionPointDeclaration): Dispose {
+        if (!capabilities.has('extensions:declare')) {
+          throw forbidden(pluginId, 'extensions:declare', 'ctx.extensions.declare');
+        }
+        return track(deps.extensions.declare(pluginId, point));
+      },
+      contribute(
+        point: string,
+        payload: unknown,
+        options?: ExtensionContributeOptions
+      ): Dispose {
+        if (!capabilities.has('extensions:contribute')) {
+          throw forbidden(pluginId, 'extensions:contribute', 'ctx.extensions.contribute');
+        }
+        // 命令式贡献没有清单文件可审计，因此显式标注来源插件，便于后台与日志定位
+        return track(
+          deps.extensions.contribute(pluginId, point, payload, {
+            ...options,
+            scope: options?.scope ?? 'render'
+          })
+        );
+      },
+      apply<T>(point: string, payload: T, options?: ExtensionApplyOptions): Promise<T> {
+        return deps.extensions.apply(point, payload, options);
+      },
+      list() {
+        return deps.extensions.list();
       }
     },
     adminMenu: {

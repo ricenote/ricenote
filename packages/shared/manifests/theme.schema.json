@@ -66,6 +66,15 @@
     },
     "settings": {
       "$ref": "https://ricenote.dev/schemas/settings.schema.json#/definitions/settingsSchema"
+    },
+    "contentFields": {
+      "type": "object",
+      "description": "内容自定义字段：文章与页面共用同一份声明（例如 featuredImage 特色图片）。键为字段名，值为字段定义；字段类型与设置表单完全一致，后台据此生成控件。",
+      "maxProperties": 20,
+      "propertyNames": { "pattern": "^[a-z][A-Za-z0-9]{0,39}$" },
+      "additionalProperties": {
+        "$ref": "https://ricenote.dev/schemas/settings.schema.json#/definitions/settingField"
+      }
     }
   }
 }

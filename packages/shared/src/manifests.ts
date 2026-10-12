@@ -16,7 +16,56 @@ export type PluginCapability =
   | 'services:consume'
   | 'slots:register'
   | 'admin:menu'
-  | 'media:store';
+  | 'media:store'
+  /*
+   * 命名扩展点（v0.5.0）：
+   * - declare：声明自己的挂载点供别的插件接入；
+   * - contribute：向（自己的或别人的）扩展点贡献内容——**会执行贡献方代码**，
+   *   因此与"只读"能力分开授权。
+   * `slots:register` 继续作为 render 作用域贡献的别名能力，既有插件无需改动。
+   */
+  | 'extensions:declare'
+  | 'extensions:contribute';
+
+/* --------------------------- 命名扩展点（清单层） --------------------------- */
+
+/** 扩展点作用域：后台界面 / 站点渲染 / 服务端钩子。 */
+export type ExtensionScope = 'admin' | 'render' | 'server';
+
+/** 贡献模式：追加（默认）或替换（接管该扩展点）。 */
+export type ExtensionMode = 'append' | 'replace';
+
+/** 扩展点契约文档的一项（告诉贡献者会收到什么）。 */
+export interface ExtensionPointProp {
+  name: string;
+  description: string;
+}
+
+/**
+ * 提供方声明：本插件对外暴露哪些扩展点。
+ *
+ * 定义放在 shared 而不是 plugin-sdk：清单层与运行时层必须共用同一份形状，
+ * 否则两侧的字段会各自漂移（plugin-sdk 再导出它，插件作者依然只依赖 SDK）。
+ */
+export interface PluginExtensionPointDeclaration {
+  name: string;
+  scope: ExtensionScope;
+  replaceable?: boolean;
+  description?: string;
+  props?: ExtensionPointProp[];
+}
+
+/** 消费方声明：向某个扩展点贡献内容。 */
+export interface PluginExtensionContributionDeclaration {
+  point: string;
+  scope: ExtensionScope;
+  mode?: ExtensionMode;
+  order?: number;
+  entry: string;
+  style?: string;
+  permission?: string;
+  label?: string;
+}
 
 export interface PluginManifest {
   schemaVersion: 1;
@@ -58,6 +107,20 @@ export interface PluginManifest {
    * 托管 `<插件目录>/admin/**`、并把 `entry` 换算成前端可 import 的托管 URL。
    */
   admin?: PluginAdminManifest;
+  /**
+   * 对外暴露的扩展点（v0.5.0）：别的插件据此向本插件的界面/流程接入。
+   *
+   * 声明只描述"契约"（名字、作用域、可替换性、会传什么），
+   * 真正的挂载由插件自己的界面或流程决定。
+   */
+  extensionPoints?: PluginExtensionPointDeclaration[];
+  /**
+   * 向扩展点贡献内容（声明式）。
+   *
+   * 随插件启停自动生效、可被 `pnpm validate` 静态校验；
+   * 需要运行时动态判定时才改用 `ctx.extensions`。
+   */
+  contributions?: PluginExtensionContributionDeclaration[];
 }
 
 /** 插件自带后台界面中的一个页面。 */
@@ -82,6 +145,13 @@ export interface PluginAdminPageDeclaration {
    * （那会在控制台留下一串 404，看起来像故障）。
    */
   style?: string;
+  /**
+   * 为 `true` 时**只注册路由、不出现在侧栏**。
+   *
+   * 用于"由列表页跳转进入"的页面（如文章/页面的独立编辑页）：
+   * 路由仍会注册（深链可解析、可刷新），只是不占侧栏位置。
+   */
+  hidden?: boolean;
 }
 
 export interface PluginAdminManifest {
@@ -152,6 +222,14 @@ export interface ThemeSettingGroup {
  */
 export type SettingFieldSchema = ThemeSettingField;
 export type SettingGroupSchema = ThemeSettingGroup;
+/**
+ * 内容自定义字段的声明形状（v0.5.0）。
+ *
+ * **文章与页面共用同一份**：主题声明一次，两个编辑页都按它生成控件。
+ * 复用设置表单的字段定义（`SettingFieldSchema`），因此类型、范围、多语言文案
+ * 与校验逻辑都只有一份实现。
+ */
+export type ContentFieldsSchema = Record<string, SettingFieldSchema>;
 /** 分组键 → 分组定义。 */
 export type SettingsSchema = Record<string, SettingGroupSchema>;
 
@@ -190,6 +268,14 @@ export interface ThemeManifest {
   /** 主题依赖的插件能力契约。 */
   requires?: Record<string, string>;
   settings?: SettingsSchema;
+  /**
+   * 内容自定义字段（v0.5.0）：**文章与页面共用**的字段声明。
+   *
+   * 主题按自己的版式需要声明字段（例如特色图片），作者在文章/页面编辑页填写，
+   * 模板通过 `{{ post.fields.<key> }}` 读取。只声明键、不声明值；
+   * 未声明的键一律拒绝写入（防越权），读取时也按声明过滤（脏数据不进模板）。
+   */
+  contentFields?: ContentFieldsSchema;
 }
 
 /** 主题设置的有效值（扁平化后的字段名 → 值）。 */

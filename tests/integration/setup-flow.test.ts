@@ -280,10 +280,14 @@ describe('ricenote setup：离线端到端（本地 registry + 真实 CLI）', (
     for (const entry of catalog.plugins.filter((item) =>
       ['rice.identity', 'rice.authorization', 'rice.posts'].includes(item.id)
     )) {
-      assert.match(plugins, new RegExp(`${entry.npm.replace(/[/@.]/g, '\\$&')}@${entry.version}`));
+      assert.match(
+        plugins,
+        new RegExp(`${entry.npm.replace(/[/@.]/g, '\\$&')}@${entry.version}`),
+        `RICENOTE_PLUGINS 缺少 ${entry.npm}@${entry.version}\n--- 向导输出 ---\n${result.stdout}`
+      );
     }
     for (const short of ['identity', 'authorization', 'posts']) {
-      assert.match(seed, new RegExp(`(^|,)${short}(,|$)`));
+      assert.match(seed, new RegExp(`(^|,)${short}(,|$)`), `SEED 缺少 ${short}\n${result.stdout}`);
     }
   });
 

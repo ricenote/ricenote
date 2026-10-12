@@ -37,6 +37,20 @@ export {
   type AdminMenuItem,
   type AdminMenuRegistry
 } from './slots.js';
+export type {
+  ExtensionScope,
+  ExtensionMode,
+  ExtensionPointProp,
+  ExtensionPointDeclaration,
+  ExtensionContributionDeclaration,
+  ExtensionHookModule,
+  ExtensionHookContext,
+  ExtensionErrorPolicy,
+  ExtensionContributeOptions,
+  ExtensionApplyOptions,
+  ExtensionPointSummary,
+  ExtensionRegistryFacade
+} from './extensions.js';
 export type { SiteInfo, PluginConfigReader, PluginContext } from './context.js';
 export { definePlugin, type Plugin } from './plugin.js';
 

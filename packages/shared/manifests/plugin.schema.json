@@ -79,7 +79,9 @@
           "services:consume",
           "slots:register",
           "admin:menu",
-          "media:store"
+          "media:store",
+          "extensions:declare",
+          "extensions:contribute"
         ]
       },
       "uniqueItems": true
@@ -99,6 +101,86 @@
       "allOf": [
         { "$ref": "https://ricenote.dev/schemas/settings.schema.json#/definitions/settingsSchema" }
       ]
+    },
+    "extensionPoints": {
+      "type": "array",
+      "maxItems": 30,
+      "description": "本插件对外暴露的命名扩展点：别的插件据此向它的界面或流程接入（声明只描述契约，挂载点由插件自己的界面决定）。",
+      "items": {
+        "type": "object",
+        "required": ["name", "scope"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9]*(?:[.-][A-Za-z0-9]+)+$",
+            "maxLength": 160,
+            "description": "扩展点名，形如 rice.posts.list.actions。"
+          },
+          "scope": {
+            "enum": ["admin", "render", "server"],
+            "description": "admin 后台界面 / render 站点渲染 / server 服务端钩子。"
+          },
+          "replaceable": {
+            "type": "boolean",
+            "description": "是否允许 replace 贡献接管（缺省 true）。"
+          },
+          "description": { "type": "string", "maxLength": 300 },
+          "props": {
+            "type": "array",
+            "maxItems": 20,
+            "description": "契约文档：贡献者会收到哪些字段（admin 为组件 props 名）。",
+            "items": {
+              "type": "object",
+              "required": ["name", "description"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string", "maxLength": 60 },
+                "description": { "type": "string", "maxLength": 200 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "contributions": {
+      "type": "array",
+      "maxItems": 40,
+      "description": "声明式贡献：向扩展点贡献内容（admin 为浏览器模块、render 为 Slot 组件、server 为钩子模块）。随插件启停自动生效。",
+      "items": {
+        "type": "object",
+        "required": ["point", "scope", "entry"],
+        "additionalProperties": false,
+        "properties": {
+          "point": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9]*(?:[.-][A-Za-z0-9]+)+$",
+            "maxLength": 160
+          },
+          "scope": { "enum": ["admin", "render", "server"] },
+          "mode": {
+            "enum": ["append", "replace"],
+            "description": "replace 时默认内容与其他追加贡献都不再呈现（胜出者取 order 最大者）。"
+          },
+          "order": { "type": "number" },
+          "entry": {
+            "type": "string",
+            "pattern": "^\\./(admin|dist)/[A-Za-z0-9._/-]+\\.js$",
+            "description": "入口模块：admin 限 ./admin/*.js（浏览器 import）；render/server 限 ./dist/*.js（Node import）。"
+          },
+          "style": {
+            "type": "string",
+            "pattern": "^\\./admin/[A-Za-z0-9._/-]+\\.css$",
+            "description": "仅 admin：随贡献加载的样式文件。"
+          },
+          "permission": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "仅 admin：按当前用户权限过滤（不满足则不下发）。"
+          },
+          "label": { "type": "string", "maxLength": 80 }
+        }
+      }
     },
     "admin": {
       "type": "object",
@@ -151,6 +233,10 @@
                 "type": "string",
                 "pattern": "^\\./admin/[A-Za-z0-9._/-]+\\.css$",
                 "description": "可选：插件自带样式（相对插件目录），声明后由宿主动态注入；不声明则不加载。"
+              },
+              "hidden": {
+                "type": "boolean",
+                "description": "为 true 时只注册路由、不出现在侧栏。用于由列表页跳转进入的页面（如独立编辑页）：深链与刷新仍然可用。"
               }
             }
           }

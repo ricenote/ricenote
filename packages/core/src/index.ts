@@ -44,6 +44,14 @@ export { RouterRegistry, type RegisteredPageRoute, type RegisteredRawRoute, type
 export { buildPath, absoluteUrl, normalizePath, routeSignature } from './routing/url.js';
 
 export { SlotRegistry } from './render/slots.js';
+export {
+  ExtensionRegistry,
+  CORE_PROVIDER,
+  type AdminContributionMeta,
+  type ExtensionContributionRecord,
+  type ExtensionDeclarationRecord,
+  type ExtensionPointSummary
+} from './extensions/registry.js';
 export { HtmlCache, type HtmlCacheOptions, type HtmlCacheStats } from './render/cache.js';
 export { ThemeRenderer, type RenderInput, type RenderOutput, type ThemeRendererDeps } from './render/renderer.js';
 export { buildTemplateContext, buildPagination, viewerFromRequest, type TemplateContext } from './render/context.js';

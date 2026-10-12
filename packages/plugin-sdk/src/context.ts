@@ -6,6 +6,7 @@ import type { PluginDatabase } from './database.js';
 import type { RouteRegistryFacade } from './http.js';
 import type { ServiceRegistryFacade, EventBusFacade } from './services.js';
 import type { AdminMenuRegistry, SlotRegistryFacade } from './slots.js';
+import type { ExtensionRegistryFacade } from './extensions.js';
 
 /**
  * 插件可见的只读站点信息。
@@ -43,7 +44,15 @@ export interface PluginContext {
   readonly services: ServiceRegistryFacade;
   readonly events: EventBusFacade;
   readonly routes: RouteRegistryFacade;
+  /**
+   * 渲染期插槽（历史 API）。
+   *
+   * 等价于 `extensions.contribute(name, component, { scope: 'render' })`，
+   * 保留它是为了不打断既有插件（只声明 `slots:register` 的第三方插件无需修改）。
+   */
   readonly slots: SlotRegistryFacade;
+  /** 命名扩展点：声明自己的挂载点、向别人贡献、触发服务端钩子。 */
+  readonly extensions: ExtensionRegistryFacade;
   readonly adminMenu: AdminMenuRegistry;
   readonly site: SiteInfo;
 }

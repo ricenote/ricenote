@@ -10,10 +10,11 @@ import path from 'node:path';
 import {
   createManifestValidator,
   satisfiesRange,
+  type PluginManifest,
   type ThemeManifest,
   type ValidationIssue
 } from '@ricenote/shared';
-import { PLUGIN_API_VERSION } from '@ricenote/plugin-sdk';
+import { PLUGIN_API_VERSION, STANDARD_SLOTS } from '@ricenote/plugin-sdk';
 import { THEME_API_VERSION } from '@ricenote/theme-sdk';
 import { APP_VERSION, discoverPluginsFrom } from '@ricenote/core';
 import { validateCatalog, type CatalogValidation } from './validate-catalog.js';
@@ -157,6 +158,13 @@ export function validateProject(options: ValidateOptions): ValidationReport {
       }
     }
   }
+
+  /*
+   * 命名扩展点：跨插件唯一性、能力声明、入口白名单与 replace 冲突。
+   * 这些规则**必须**在部署前拦下 —— 运行期注册表刻意对"未声明的扩展点"只告警不拒绝
+   * （插件启停顺序不确定），因此拼写错误与冲突只能靠这里发现。
+   */
+  pluginApiIssues.push(...validateExtensions(discovery.plugins));
 
   const invalidPlugins = [...pluginIssues, ...pluginApiIssues];
   const themeResult = validateThemes(options.themesDir);
