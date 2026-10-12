@@ -7,7 +7,17 @@
 
 ## [Unreleased]
 
-插件安装从"上传压缩包"扩展为**三路来源 + 统一编排 + 任务队列**（ADR-015）。
+## [0.5.0] - 2026-10-12
+
+第五个里程碑版本（在"插件平台化"之上补齐**可扩展性、编辑体验与部署可配置**）。三条主线：
+**命名扩展点**让插件之间能互相扩展界面与逻辑（三作用域统一模型、可替换语义，主题还能声明内容自定义字段）；
+**独立内容编辑页**把写作体验交还给插件（可选官方插件「编辑增强」接入 Toast UI，提供 Markdown 双栏编辑、
+自动草稿与"与前台一致"的预览）；**安装向导可配置本进程监听端口**，并讲清反向代理的边界。
+同时修掉四处真实缺陷（详见下方 Fixed）：提供方自身的 `replace` 被 `replaceable: false` 误拒、
+贡献组件未声明 `props` 导致 context 静默读不到、标签重名 409 被当成普通错误、
+以及硬刷新带查询参数的编辑深链丢参数（会把"编辑"变成"重复新建"）。
+
+- 插件安装从"上传压缩包"扩展为**三路来源 + 统一编排 + 任务队列**（ADR-015）。
 
 ### Added（安装向导与官方插件 npm 分发，ADR-016）
 
@@ -712,7 +722,8 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ricenote/ricenote/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ricenote/ricenote/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ricenote/ricenote/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ricenote/ricenote/releases/tag/v0.2.0
