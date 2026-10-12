@@ -3,7 +3,7 @@
 主题决定站点的外观。RiceNote 的主题是**零构建**的：一个目录 + `theme.json` + Nunjucks 模板 + 可选静态资源，
 不需要打包工具、不需要 Node 依赖。
 
-> 想动手写主题？请看 [[主题包结构与契约|Development/Theme-API/Overview]]。
+> 想动手写主题？请看 [[主题包结构与契约|Theme-API-Overview]]。
 
 ---
 
@@ -187,7 +187,7 @@ themes/my-theme/
 
 ## 相关页面
 
-- [[主题包结构与契约|Development/Theme-API/Overview]]
-- [[模板变量与过滤器|Development/Theme-API/Template-Reference]]
-- [[挂载点清单|Development/Theme-API/Slots]]
+- [[主题包结构与契约|Theme-API-Overview]]
+- [[模板变量与过滤器|Theme-API-Template-Reference]]
+- [[挂载点清单|Theme-API-Slots]]
 - [[后台功能导览|Admin-Guide]]

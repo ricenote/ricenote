@@ -16,7 +16,7 @@ pnpm <脚本名> [参数]                     # 便捷形式（见下表）
 | `pnpm theme <...>` | `ricenote theme <...>` |
 | `pnpm build` / `pnpm build:all` / `pnpm typecheck` / `pnpm test` | 工作区构建与检查 |
 | `pnpm dev` / `pnpm dev:admin` / `pnpm start` | 开发与启动 |
-| `pnpm release:plugins` / `pnpm repos:plugins` | 插件发布与拆分仓库（见 [[维护与发布指南\|Development/Contributing]]） |
+| `pnpm release:plugins` / `pnpm repos:plugins` | 插件发布与拆分仓库（见 [[维护与发布指南\|Contributing]]） |
 
 顶层全局参数只有 `--root-dir=<路径>`（让命令在指定目录下工作，用于 CI 隔离与演练）。
 
@@ -124,6 +124,6 @@ pnpm plugin disable comments
 
 ## 相关页面
 
-- [[插件安装与更新|Plugins/Install-and-Update]]
+- [[插件安装与更新|Plugins-Install-and-Update]]
 - [[安装向导|Installation]]
 - [[故障排查|Troubleshooting]]

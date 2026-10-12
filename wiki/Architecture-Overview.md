@@ -44,7 +44,7 @@
 
 ## 2. 启动流程一览
 
-完整时序见 [[启动时序|Development/Architecture/Core-Bootstrap]]，这里只给骨架：
+完整时序见 [[启动时序|Architecture-Core-Bootstrap]]，这里只给骨架：
 
 ```
 loadConfig（含 JSON Schema 校验）
@@ -136,7 +136,7 @@ loadConfig（含 JSON Schema 校验）
 | 富文本 | 统一经 `sanitizeRichText` 消毒并标记 `TrustedHtml`，只有受信句柄在模板中不转义 |
 | 插件安装 | 三路来源 + 高风险确认 + 审计；能力白名单限制插件可用的 API |
 
-详见 [[安全控制面|Development/Architecture/Security]]。
+详见 [[安全控制面|Architecture-Security]]。
 
 ---
 
@@ -155,11 +155,11 @@ loadConfig（含 JSON Schema 校验）
 
 ## 7. 相关文档
 
-- [[启动时序|Development/Architecture/Core-Bootstrap]]
-- [[插件生命周期与依赖解析|Development/Architecture/Plugin-Lifecycle]]
-- [[渲染与缓存|Development/Architecture/Render-Pipeline]]
-- [[数据层与迁移|Development/Architecture/Data-and-Migrations]]
-- [[安全控制面|Development/Architecture/Security]]
-- [[命名扩展点注册表|Development/Architecture/Extension-Registry]]
+- [[启动时序|Architecture-Core-Bootstrap]]
+- [[插件生命周期与依赖解析|Architecture-Plugin-Lifecycle]]
+- [[渲染与缓存|Architecture-Render-Pipeline]]
+- [[数据层与迁移|Architecture-Data-and-Migrations]]
+- [[安全控制面|Architecture-Security]]
+- [[命名扩展点注册表|Architecture-Extension-Registry]]
 - 仓库文档：[架构总览](https://github.com/ricenote/ricenote/blob/main/docs/architecture/overview.md) ｜
   [ADR-001 模块化单体](https://github.com/ricenote/ricenote/blob/main/docs/adr/ADR-001-modular-monolith.md)

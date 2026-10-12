@@ -206,6 +206,6 @@ function clampInt(v: unknown, min: number, max: number, fallback: number) {
 
 ## 相关页面
 
-- [[manifest 逐字段参考|Development/Plugin-API/Manifest-Reference]]
-- [[主题设置与多语言|Development/Theme-API/Settings]]
+- [[manifest 逐字段参考|Plugin-API-Manifest-Reference]]
+- [[主题设置与多语言|Theme-API-Settings]]
 - [[后台功能导览|Admin-Guide]]

@@ -32,7 +32,7 @@
 - **默认勾选、可取消**：其余官方插件。
 - **不预装**：分类为 `example` 的示例插件。
 
-官方插件清单与用途见 [[官方插件一览|Plugins/Overview]]。
+官方插件清单与用途见 [[官方插件一览|Plugins-Overview]]。
 
 ---
 
@@ -131,5 +131,5 @@ pnpm start
 
 - [[快速开始|Getting-Started]]
 - [[环境变量参考|Configuration]]
-- [[插件安装与更新|Plugins/Install-and-Update]]
+- [[插件安装与更新|Plugins-Install-and-Update]]
 - [[故障排查|Troubleshooting]]

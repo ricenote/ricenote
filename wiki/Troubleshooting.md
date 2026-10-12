@@ -136,4 +136,4 @@
 - [[常见问题|FAQ]]
 - [[环境变量参考|Configuration]]
 - [[容器化部署与反向代理|Deployment]]
-- [[内核启动时序|Development/Architecture/Core-Bootstrap]]
+- [[内核启动时序|Architecture-Core-Bootstrap]]

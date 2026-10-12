@@ -29,7 +29,7 @@
 | `capabilities` | 字符串数组（枚举，见第 2 节），唯一 | | **能力白名单** |
 | `migrations` | 字符串，`^\./` | | 迁移目录，如 `./migrations` |
 | `settings` | 对象（任意键值） | | **旧写法**：键 → 默认值（仍支持，但默认值应迁到 `settingsSchema.default`） |
-| `settingsSchema` | 引用共享的 `settingsSchema` 定义 | | **声明式设置表单**（推荐，见 [[设置\|Development/Plugin-API/Settings]]） |
+| `settingsSchema` | 引用共享的 `settingsSchema` 定义 | | **声明式设置表单**（推荐，见 [[设置\|Plugin-API-Settings]]） |
 | `extensionPoints` | 数组，≤ 30 项 | | 声明自己提供的命名扩展点 |
 | `contributions` | 数组，≤ 40 项 | | 向扩展点贡献 |
 | `admin` | 对象，`required: ["pages"]` | | 后台页面声明 |
@@ -49,7 +49,7 @@ services:consume     slots:register       admin:menu
 media:store          extensions:declare   extensions:contribute
 ```
 
-每一项解锁的 API 见 [[起步|Development/Plugin-API/Getting-Started]] 第 3 节。
+每一项解锁的 API 见 [[起步|Plugin-API-Getting-Started]] 第 3 节。
 未声明的能力被调用时抛 `RN_FORBIDDEN`（403）。
 
 ---
@@ -200,7 +200,7 @@ if (!media) { /* 降级路径 */ }
   默认内容与所有 `append` 都不呈现；
 - 无 `replace` → 全部 `append`，按 `order` 降序。
 
-详见 [[命名扩展点注册表|Development/Architecture/Extension-Registry]]。
+详见 [[命名扩展点注册表|Architecture-Extension-Registry]]。
 
 ---
 
@@ -226,7 +226,7 @@ if (!media) { /* 降级路径 */ }
 ```
 
 字段类型共 9 种：`text` / `textarea` / `color` / `boolean` / `number` / `select` / `image` / `url` / `stringList`。
-逐类型约束、合并顺序与校验规则见 [[声明式设置表单|Development/Plugin-API/Settings]]。
+逐类型约束、合并顺序与校验规则见 [[声明式设置表单|Plugin-API-Settings]]。
 
 ---
 
@@ -314,7 +314,7 @@ pnpm validate      # 无需数据库，适合接入 CI
 
 ## 相关页面
 
-- [[PluginContext 逐方法参考|Development/Plugin-API/Context-Reference]]
-- [[声明式设置表单|Development/Plugin-API/Settings]]
-- [[插件自带后台界面|Development/Plugin-API/Admin-UI]]
-- [[插件生命周期与依赖解析|Development/Architecture/Plugin-Lifecycle]]
+- [[PluginContext 逐方法参考|Plugin-API-Context-Reference]]
+- [[声明式设置表单|Plugin-API-Settings]]
+- [[插件自带后台界面|Plugin-API-Admin-UI]]
+- [[插件生命周期与依赖解析|Architecture-Plugin-Lifecycle]]

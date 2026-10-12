@@ -100,7 +100,7 @@ ctx.db.table(name: string): string                     // 拼上 rn_ 前缀并�
 | 表名 | `table('posts')` → `rn_posts`；名称必须匹配 `/^[a-z][a-z0-9_]{0,60}$/`，否则抛 `RN_VALIDATION_FAILED` |
 | 事务 | 在事务内再次调用 `transaction()` 复用同一连接（正确的嵌套语义） |
 | 多语句 | 连接池开启 `multipleStatements: false`，单次 `query` 不能塞多条语句 |
-| 隔离 | 插件之间"不碰对方表"是**架构约定**；运行时强制的是 `rn_` 前缀与 `db` 能力门（见 [[数据层\|Development/Architecture/Data-and-Migrations]]） |
+| 隔离 | 插件之间"不碰对方表"是**架构约定**；运行时强制的是 `rn_` 前缀与 `db` 能力门（见 [[数据层\|Architecture-Data-and-Migrations]]） |
 
 **用 `table()` 而不是硬编码表名** —— 这样命名约束在任何时候都是生效的。
 
@@ -153,7 +153,7 @@ ctx.events.list(): { name: string; subscribers: number }[]
 | 清理 | 返回的 `Unsubscribe` 应存入 disposer；插件停止时 Core 也会兜底释放 |
 | `emit` 是异步 | 返回值是 `Promise<void>`，需要 `await` 才能保证订阅者已处理 |
 
-事件清单见 [[跨插件服务契约|Development/Plugin-API/Service-Contracts]] 的事件一节。
+事件清单见 [[跨插件服务契约|Plugin-API-Service-Contracts]] 的事件一节。
 
 ---
 
@@ -353,6 +353,6 @@ interface SiteInfo {
 
 ## 相关页面
 
-- [[manifest 逐字段参考|Development/Plugin-API/Manifest-Reference]]
-- [[跨插件服务契约|Development/Plugin-API/Service-Contracts]]
-- [[完整教程：从零写插件|Development/Plugin-API/Tutorial]]
+- [[manifest 逐字段参考|Plugin-API-Manifest-Reference]]
+- [[跨插件服务契约|Plugin-API-Service-Contracts]]
+- [[完整教程：从零写插件|Plugin-API-Tutorial]]

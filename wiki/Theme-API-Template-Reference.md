@@ -239,7 +239,7 @@ canonical URL、**规范化查询串**、模板名。因此换主题、改设置
 
 ## 相关页面
 
-- [[主题包结构与契约|Development/Theme-API/Overview]]
-- [[挂载点清单|Development/Theme-API/Slots]]
-- [[主题设置与多语言|Development/Theme-API/Settings]]
-- [[渲染与缓存|Development/Architecture/Render-Pipeline]]
+- [[主题包结构与契约|Theme-API-Overview]]
+- [[挂载点清单|Theme-API-Slots]]
+- [[主题设置与多语言|Theme-API-Settings]]
+- [[渲染与缓存|Architecture-Render-Pipeline]]

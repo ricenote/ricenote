@@ -154,7 +154,7 @@
 
 Vue 只会把组件**自己声明过**的字段填进 `setup(props)`，未声明的会落到 `ctx.attrs`，于是 `setup(props)` 静默拿到 `undefined`。
 
-✅ 用 `defineAdminContribution()` 时**必须声明 `props`**。详见 [[插件自带后台界面|Development/Plugin-API/Admin-UI]]。
+✅ 用 `defineAdminContribution()` 时**必须声明 `props`**。详见 [[插件自带后台界面|Plugin-API-Admin-UI]]。
 
 ### `replaceable: false` 为什么拦住了我自己？
 

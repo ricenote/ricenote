@@ -129,6 +129,6 @@ vendor 缺失时**自动降级**回文本域 —— 编辑功能与草稿都不�
 ## 相关页面
 
 - [[主题与外观|Themes]]
-- [[插件安装与更新|Plugins/Install-and-Update]]
-- [[官方插件一览|Plugins/Overview]]
+- [[插件安装与更新|Plugins-Install-and-Update]]
+- [[官方插件一览|Plugins-Overview]]
 - [[命令行参考|CLI-Reference]]

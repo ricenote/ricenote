@@ -155,7 +155,7 @@ MySQL 客户端未在 PATH 时用 `MYSQLDUMP_BIN` / `MYSQL_BIN` 指定绝对路�
 
 ## 相关页面
 
-- [[启动时序|Development/Architecture/Core-Bootstrap]]
-- [[安全控制面|Development/Architecture/Security]]
+- [[启动时序|Architecture-Core-Bootstrap]]
+- [[安全控制面|Architecture-Security]]
 - [[升级已部署实例|Upgrading]]
 - [[故障排查|Troubleshooting]]

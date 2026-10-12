@@ -149,6 +149,6 @@ POST /api/admin/system/restart（权限 system.restart）
 
 ## 相关页面
 
-- [[插件生命周期与依赖解析|Development/Architecture/Plugin-Lifecycle]]
-- [[数据层与迁移|Development/Architecture/Data-and-Migrations]]
+- [[插件生命周期与依赖解析|Architecture-Plugin-Lifecycle]]
+- [[数据层与迁移|Architecture-Data-and-Migrations]]
 - [[故障排查|Troubleshooting]]

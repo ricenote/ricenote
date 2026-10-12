@@ -31,7 +31,7 @@ my-plugin/
 这 6 个字段是 `required`，且 schema 设了 `additionalProperties: false`
 （**写错字段名会直接校验失败**，不会静默忽略）。
 
-各字段的完整说明见 [[manifest 逐字段参考|Development/Plugin-API/Manifest-Reference]]。
+各字段的完整说明见 [[manifest 逐字段参考|Plugin-API-Manifest-Reference]]。
 
 ---
 
@@ -201,9 +201,9 @@ export default definePlugin({
 
 ## 6. 接下来
 
-- 字段细节 → [[manifest 逐字段参考|Development/Plugin-API/Manifest-Reference]]
-- 每个 API 的签名与边界 → [[PluginContext 逐方法参考|Development/Plugin-API/Context-Reference]]
-- 与其它插件协作 → [[跨插件服务契约|Development/Plugin-API/Service-Contracts]]
-- 做后台界面 → [[插件自带后台界面|Development/Plugin-API/Admin-UI]]
-- 暴露可配置项 → [[声明式设置表单|Development/Plugin-API/Settings]]
-- **端到端走一遍** → [[完整教程：从零写插件|Development/Plugin-API/Tutorial]]
+- 字段细节 → [[manifest 逐字段参考|Plugin-API-Manifest-Reference]]
+- 每个 API 的签名与边界 → [[PluginContext 逐方法参考|Plugin-API-Context-Reference]]
+- 与其它插件协作 → [[跨插件服务契约|Plugin-API-Service-Contracts]]
+- 做后台界面 → [[插件自带后台界面|Plugin-API-Admin-UI]]
+- 暴露可配置项 → [[声明式设置表单|Plugin-API-Settings]]
+- **端到端走一遍** → [[完整教程：从零写插件|Plugin-API-Tutorial]]

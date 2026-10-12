@@ -40,6 +40,27 @@
     避免非交互环境被凭据提示挂死；
   - `--dry-run` 可先看将新增/修改/删除的页面再决定是否推送。
 
+### Fixed（wiki 页面命名：改为扁平）
+
+- **wiki 页面从「目录式」改为「扁平前缀式」命名**。根因是 **GitHub Wiki 不支持用目录组织页面** ——
+  文件名决定页面标题，而标题中不允许出现 `/`（GitHub 官方文档「Adding or editing wiki pages」
+  明确列出禁用字符 `\ / : * ? " < > |`）。原先按 `Plugins/`、`Development/Architecture/`
+  组织，推送后 GitHub **丢掉目录、只取文件名当标题**，于是三个 `Overview.md`、两个 `Settings.md`
+  争同一个 `wiki/Overview` / `wiki/Settings` 地址，绝大多数页面无法按预期 URL 打开
+  （`wiki/_pages` 列表里同名标题重复出现，可复现）。
+  现改为连字符前缀（`Plugins-Install-and-Update.md`、`Architecture-Core-Bootstrap.md`、
+  `Plugin-API-Tutorial.md`），**侧栏仍按原分组呈现**，读者观感不变；
+  迁移由一次性脚本 `scripts/migrate-wiki-layout.mjs` 完成（24 个文件重命名 + 193 处内部链接改写，
+  幂等、支持 `--dry-run`，并自动清理空目录）。真实远端预演结果：新增 24 个扁平页面、
+  更新 10 个（链接改写）、删除 24 个旧目录路径页面。
+- **`pnpm wiki:check` 新增两条硬校验**，让这类问题在本地就被拦住，而不是等推上去发现页面打不开：
+  ① **文件名不得包含目录分隔符**（GitHub 会丢目录）；
+  ② **页面标题规范化后必须全局唯一**（GitHub 把连字符显示为空格，故 `Foo-Bar.md` 与 `Foo Bar.md`
+  在读者眼里是同一个标题）。
+- `wiki/Contributing.md` 的「页面命名与结构」「链接约定」两节据实重写：讲清目录为何必须平铺、
+  连字符在标题栏会被显示为空格、以及正确的链接语法顺序（`[[显示文本|页面名]]`，**显示文本在前**）——
+  后者是本次批量改写中自查出来的一处说明性错误。
+
 ### Docs（同上）
 
 - README 增补「GitHub Wiki」小节：内容源位置、两条命令、首次发布的前置条件与页面写法规约。

@@ -238,7 +238,7 @@ TS 类型对应 `packages/shared/src/manifests.ts` 的 `ThemeManifest` / `ThemeS
 
 ## 相关页面
 
-- [[模板变量与过滤器|Development/Theme-API/Template-Reference]]
-- [[主题设置与多语言|Development/Theme-API/Settings]]
-- [[挂载点清单|Development/Theme-API/Slots]]
+- [[模板变量与过滤器|Theme-API-Template-Reference]]
+- [[主题设置与多语言|Theme-API-Settings]]
+- [[挂载点清单|Theme-API-Slots]]
 - [[主题与外观|Themes]]（使用者视角）

@@ -382,6 +382,6 @@ recent(limit: number): Promise<CommentSummary[]>
 
 ## 相关页面
 
-- [[PluginContext 逐方法参考|Development/Plugin-API/Context-Reference]]
-- [[扩展点全量清单|Development/Hooks-Inventory]]
-- [[官方插件一览|Plugins/Overview]]
+- [[PluginContext 逐方法参考|Plugin-API-Context-Reference]]
+- [[扩展点全量清单|Hooks-Inventory]]
+- [[官方插件一览|Plugins-Overview]]

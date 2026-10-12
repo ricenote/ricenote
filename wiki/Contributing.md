@@ -9,21 +9,48 @@
 本 wiki 的**唯一事实来源是仓库的 `wiki/` 目录**：
 
 ```
-wiki/                        ← 内容源（Git 仓库的一部分，可 review）
-├── Home.md                  ← 首页（固定名字，必须有）
-├── _Sidebar.md              ← 全局侧栏（特殊页面，不出现在页面列表）
-├── _Footer.md               ← 全局页脚（同上）
-├── Getting-Started.md
+wiki/                                    ← 内容源（Git 仓库的一部分，可 review）
+├── Home.md                              ← 首页（固定名字，必须有）
+├── _Sidebar.md                          ← 全局侧栏（特殊页面，不出现在页面列表）
+├── _Footer.md                           ← 全局页脚（同上）
+│
+├── Getting-Started.md                   ← 开始使用
 ├── Installation.md
-├── ...
-├── Plugins/
-│   ├── Overview.md
-│   └── Install-and-Update.md
-└── Development/
-    ├── Index.md
-    ├── Architecture/*.md
-    ├── Plugin-API/*.md
-    └── Theme-API/*.md
+├── Configuration.md
+├── Deployment.md                        ← 部署与运维
+├── Upgrading.md
+├── Admin-Guide.md
+├── CLI-Reference.md
+├── Themes.md
+├── FAQ.md
+├── Troubleshooting.md
+│
+├── Plugins-Overview.md                  ← 插件
+├── Plugins-Install-and-Update.md
+│
+├── Development.md                       ← 开发者文档入口
+├── Architecture-Overview.md             ← 内核机制（共 7 页）
+├── Architecture-Core-Bootstrap.md
+├── Architecture-Plugin-Lifecycle.md
+├── Architecture-Render-Pipeline.md
+├── Architecture-Data-and-Migrations.md
+├── Architecture-Security.md
+├── Architecture-Extension-Registry.md
+├── Plugin-API-Getting-Started.md        ← 插件开发（共 7 页）
+├── Plugin-API-Manifest-Reference.md
+├── Plugin-API-Context-Reference.md
+├── Plugin-API-Service-Contracts.md
+├── Plugin-API-Admin-UI.md
+├── Plugin-API-Settings.md
+├── Plugin-API-Tutorial.md
+├── Theme-API-Overview.md                ← 主题开发（共 4 页）
+├── Theme-API-Template-Reference.md
+├── Theme-API-Settings.md
+├── Theme-API-Slots.md
+│
+├── Hooks-Inventory.md                   ← 清单与索引
+├── ADR.md
+└── Contributing.md
 ```
 
 发布时把 `wiki/` 的内容**镜像**同步到 GitHub Wiki 仓库（`ricenote.wiki.git`）。
@@ -34,13 +61,17 @@ wiki/                        ← 内容源（Git 仓库的一部分，可 review
 
 ## 2. 页面命名与结构
 
+**目录是平铺的，分组靠「文件名前缀 + 侧栏」表达** —— 这不是审美选择，而是平台的硬限制。
+
 | 规则 | 说明 |
 | --- | --- |
-| 文件名即页面名 | `Getting-Started.md` → 页面 `Getting-Started` |
-| 子页面用目录表达 | `Development/Plugin-API/Tutorial.md` → 页面 `Development/Plugin-API/Tutorial` |
+| 文件名即页面名 | `Getting-Started.md` → 页面 `Getting-Started`（URL `wiki/Getting-Started`） |
+| **不要用目录** | GitHub Wiki **不支持目录分组**：文件放进子目录后，GitHub 会**丢掉目录、只取文件名当标题**。同名文件随即互相覆盖 —— 我们真实踩过：三个 `Overview.md`、两个 `Settings.md` 争同一个 `wiki/Overview` / `wiki/Settings` 地址，绝大多数页面因此打不开 |
+| 分组编进文件名 | 用连字符代替 `/`：`Plugin-API-Tutorial.md`、`Architecture-Core-Bootstrap.md` |
+| 标题全局唯一 | `Overview.md` 与 `Plugin-API-Overview.md` 是两个页面；但两个 `Overview.md` 只能活一个 |
+| 连字符显示为空格 | 标题栏里 `Plugins-Install-and-Update` 会显示为 `Plugins Install and Update`（侧栏用自定义显示文本，不受影响） |
 | 首页 | 必须是 `Home.md` |
 | 侧栏 / 页脚 | `_Sidebar.md` / `_Footer.md`（带下划线，是特殊页面） |
-| 命名风格 | 大写单词 + 连字符（`Getting-Started`）、目录名首字母大写（`Plugin-API`） |
 | 语言 | 简体中文正文；技术名词保留英文 |
 
 **新增页面时记得两件事**：
@@ -52,16 +83,16 @@ wiki/                        ← 内容源（Git 仓库的一部分，可 review
 
 ## 3. 链接约定（重要）
 
-### 3.1 页面之间：用 wiki 语法 + **完整页面名**
+### 3.1 页面之间：用 wiki 语法
 
 ```markdown
-[[完整教程|Development/Plugin-API/Tutorial]]
+[[完整教程|Plugin-API-Tutorial]]
 [[常见问题|FAQ]]
 ```
 
-- 格式是 `[[页面名|显示文本]]` 或 `[[页面名]]`；
-- **页面名一律写完整路径**（从 wiki 根算起），不要依赖相对链接 ——
-  相对链接在不同层级的页面上会解析到不同目标，很难排查；
+- 格式是 `[[显示文本|页面名]]` 或 `[[页面名]]`（**显示文本在前**）；
+- **页面名就是文件名去掉 `.md`**（如 `Plugin-API-Tutorial`），不要带任何路径；
+- 页面名写错会被 `pnpm wiki:check` 直接指出（指向不存在的页面即报错），不会静默变成红链；
 - 在**表格里**写内部链接时，`|` 需要转义为 `\|`：
 
 ```markdown
@@ -155,7 +186,7 @@ pnpm wiki:publish      # 同步 wiki/ 到 GitHub Wiki
 | 参数 | 说明 |
 | --- | --- |
 | `--dry-run` | 只同步到临时目录并打印将新增 / 修改 / 删除的页面，不提交、不推送 |
-| `--check` | 仅校验源目录（必须有 `Home.md`、不得有仓库相对链接），**不联网** |
+| `--check` | 仅校验源目录（必须有 `Home.md`、文件名不得含目录、标题唯一、内部链接目标存在、不得有仓库相对链接），**不联网** |
 | `--message=<文本>` | 自定义提交信息 |
 | `--remote=<url>` | 覆盖远端地址（默认由 `origin` 派生为 `ricenote.wiki.git`） |
 
@@ -176,6 +207,9 @@ pnpm wiki:publish               # 正式推送
 | clone 失败 / 仓库不存在 | Wiki 未启用或未创建首个页面 → 见 [5.1](#51-前置条件只需做一次) |
 | push 被拒（认证失败） | 本机 git 凭据问题。确认 `git push` 对该仓库可用，或配置凭据助手 |
 | `--check` 报错：缺少 Home.md | 源目录必须有 `Home.md` |
+| `--check` 报错：位于子目录 | GitHub Wiki 不支持目录分组，改用 `Plugin-API-Tutorial.md` 这类扁平文件名（见第 2 节） |
+| `--check` 报错：标题冲突 | 两个文件的标题规范化后相同（如 `Foo-Bar.md` 与 `Foo Bar.md`），改名使其唯一 |
+| `--check` 报错：内部链接指向不存在的页面 | 检查 `[[显示文本\|页面名]]` 里的页面名拼写与大小写 |
 | `--check` 报错：仓库相对链接 | 改成绝对 URL（见第 3 节） |
 | 推送成功但页面没更新 | GitHub 有短暂缓存，刷新即可；确认推的是探测到的分支 |
 | 想要"某页面下线" | 从 `wiki/` 删除该文件，下次发布会同步删除 |
@@ -219,12 +253,12 @@ pnpm wiki:check          # 如果改动了 wiki/
 
 | 你改了什么 | 需要同步 |
 | --- | --- |
-| manifest schema | [[manifest 参考\|Development/Plugin-API/Manifest-Reference]] + `pnpm validate` |
-| 插件 API / SDK | [[Context 参考\|Development/Plugin-API/Context-Reference]]、[[后台界面\|Development/Plugin-API/Admin-UI]] |
-| 主题 API / helper | [[模板参考\|Development/Theme-API/Template-Reference]] |
-| 扩展点 / 权限点 / 事件 | [[扩展点清单\|Development/Hooks-Inventory]] |
+| manifest schema | [[manifest 参考\|Plugin-API-Manifest-Reference]] + `pnpm validate` |
+| 插件 API / SDK | [[Context 参考\|Plugin-API-Context-Reference]]、[[后台界面\|Plugin-API-Admin-UI]] |
+| 主题 API / helper | [[模板参考\|Theme-API-Template-Reference]] |
+| 扩展点 / 权限点 / 事件 | [[扩展点清单\|Hooks-Inventory]] |
 | CLI 或环境变量 | [[命令行参考\|CLI-Reference]]、[[环境变量参考\|Configuration]] |
-| 架构决策 | 新增 ADR + [[ADR 索引\|Development/ADR]] |
+| 架构决策 | 新增 ADR + [[ADR 索引\|ADR]] |
 | 可见行为变更 | 根目录 `CHANGELOG.md`（遵循 Keep a Changelog 1.1.0） |
 
 **运行时自省接口**可以帮你判断清单是否过期：`GET /api/admin/capabilities`
@@ -234,7 +268,7 @@ pnpm wiki:check          # 如果改动了 wiki/
 
 ## 相关页面
 
-- [[入门路线与导航|Development/Index]]
-- [[扩展点全量清单|Development/Hooks-Inventory]]
+- [[入门路线与导航|Development]]
+- [[扩展点全量清单|Hooks-Inventory]]
 - [[命令行参考|CLI-Reference]]
 - [文档平台使用说明（GitHub 官方）](https://docs.github.com/zh/communities/documenting-your-project-with-wikis)

@@ -25,7 +25,7 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **11 个官方插�
 | _示例：阅读时长_ | `acme.reading-time` | 1.1.0 | —— | —— | —— |
 
 “提供的能力契约”是插件对外暴露的**能力名**；其它插件依赖能力而不是插件 ID，因此可以替换实现。
-若某个插件被禁用，依赖它的功能会按各自的降级策略工作（见各插件小节与 [[安装与更新|Plugins/Install-and-Update]]）。
+若某个插件被禁用，依赖它的功能会按各自的降级策略工作（见各插件小节与 [[安装与更新|Plugins-Install-and-Update]]）。
 
 **必需的两项**：`rice.identity`（没有它就没有登录端点）与 `rice.authorization`（没有它权限校验会全部拒绝）。
 安装向导中这两项不可取消。
@@ -200,7 +200,7 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **11 个官方插�
 
 ## 相关页面
 
-- [[插件安装与更新|Plugins/Install-and-Update]]
+- [[插件安装与更新|Plugins-Install-and-Update]]
 - [[后台功能导览|Admin-Guide]]
-- [[扩展点全量清单|Development/Hooks-Inventory]]
-- [[跨插件服务契约|Development/Plugin-API/Service-Contracts]]
+- [[扩展点全量清单|Hooks-Inventory]]
+- [[跨插件服务契约|Plugin-API-Service-Contracts]]

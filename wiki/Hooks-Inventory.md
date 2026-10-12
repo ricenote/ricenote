@@ -118,7 +118,7 @@
 
 | 契约 | 提供者 | 文档 |
 | --- | --- | --- |
-| `core.security@1` | Core | [[契约参考\|Development/Plugin-API/Service-Contracts]] |
+| `core.security@1` | Core | [[契约参考\|Plugin-API-Service-Contracts]] |
 | `core.theme@1` | Core | 同上 |
 | `core.site@1` | Core | 同上 |
 | `core.runtime@1` | Core | 同上 |
@@ -132,7 +132,7 @@
 | `content.navigation@1` | `rice.navigation` | 同上 |
 | `content.taxonomy@1` | `rice.taxonomy` | 同上 |
 | `taxonomy.internal@1` | `rice.taxonomy` | 内部契约 |
-| `media.library@1` | `rice.media` | [[契约参考\|Development/Plugin-API/Service-Contracts]] |
+| `media.library@1` | `rice.media` | [[契约参考\|Plugin-API-Service-Contracts]] |
 | `content.search@1` | `rice.search` | 同上（**数据源注册表**） |
 | `content.comments@1` | `rice.comments` | 同上 |
 
@@ -186,7 +186,7 @@ events:subscribe    slots:register     admin:menu
 media:store         extensions:declare extensions:contribute
 ```
 
-未声明即调用 → `RN_FORBIDDEN`（403）。详见 [[起步|Development/Plugin-API/Getting-Started]]。
+未声明即调用 → `RN_FORBIDDEN`（403）。详见 [[起步|Plugin-API-Getting-Started]]。
 
 ---
 
@@ -261,7 +261,7 @@ DISCOVERED → VALIDATED → INSTALLED → ENABLED → STARTED
 
 ## 相关页面
 
-- [[跨插件服务契约|Development/Plugin-API/Service-Contracts]]
-- [[命名扩展点注册表|Development/Architecture/Extension-Registry]]
-- [[插件生命周期与依赖解析|Development/Architecture/Plugin-Lifecycle]]
+- [[跨插件服务契约|Plugin-API-Service-Contracts]]
+- [[命名扩展点注册表|Architecture-Extension-Registry]]
+- [[插件生命周期与依赖解析|Architecture-Plugin-Lifecycle]]
 - 仓库文档：[hooks-inventory.md](https://github.com/ricenote/ricenote/blob/main/docs/architecture/hooks-inventory.md)

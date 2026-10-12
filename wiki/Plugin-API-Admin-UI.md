@@ -333,7 +333,7 @@ ctx.routes.adminApi({
 
 ## 相关页面
 
-- [[manifest 逐字段参考|Development/Plugin-API/Manifest-Reference]]（`admin` / `contributions` 字段）
-- [[命名扩展点注册表|Development/Architecture/Extension-Registry]]
-- [[完整教程：从零写插件|Development/Plugin-API/Tutorial]]
+- [[manifest 逐字段参考|Plugin-API-Manifest-Reference]]（`admin` / `contributions` 字段）
+- [[命名扩展点注册表|Architecture-Extension-Registry]]
+- [[完整教程：从零写插件|Plugin-API-Tutorial]]
 - [[后台功能导览|Admin-Guide]]

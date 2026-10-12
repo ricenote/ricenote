@@ -31,7 +31,7 @@
   **补丁升级不用动区间，次版本跃迁才需要**。请用上面的方式更新插件，不要手改插件的 `package.json`。
 - 插件的启停**必须重启进程**才生效（受控重启，ADR-004 / ADR-012）。
 
-细节见 [[插件安装与更新|Plugins/Install-and-Update]]。
+细节见 [[插件安装与更新|Plugins-Install-and-Update]]。
 
 ---
 
@@ -92,7 +92,7 @@ pnpm migrate                     # Core 与插件迁移（加锁串行、幂等�
 
 ## 相关页面
 
-- [[插件安装与更新|Plugins/Install-and-Update]]
+- [[插件安装与更新|Plugins-Install-and-Update]]
 - [[环境变量参考|Configuration]]
 - [[故障排查|Troubleshooting]]
-- [[内核启动时序|Development/Architecture/Core-Bootstrap]]（想理解迁移与启动失败如何联动）
+- [[内核启动时序|Architecture-Core-Bootstrap]]（想理解迁移与启动失败如何联动）

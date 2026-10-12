@@ -187,7 +187,7 @@ pnpm plugin disable <id>        # 停用（有反向依赖会拒绝）
 
 ## 相关页面
 
-- [[官方插件一览|Plugins/Overview]]
+- [[官方插件一览|Plugins-Overview]]
 - [[命令行参考|CLI-Reference]]
 - [[升级已部署实例|Upgrading]]
-- [[插件生命周期与依赖解析|Development/Architecture/Plugin-Lifecycle]]
+- [[插件生命周期与依赖解析|Architecture-Plugin-Lifecycle]]

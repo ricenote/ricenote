@@ -170,7 +170,7 @@ plugins/third-party/notice/
 }
 ```
 
-逐项说明（完整字段表见 [[manifest 参考|Development/Plugin-API/Manifest-Reference]]）：
+逐项说明（完整字段表见 [[manifest 参考|Plugin-API-Manifest-Reference]]）：
 
 | 字段 | 为什么这么写 |
 | --- | --- |
@@ -757,11 +757,11 @@ pnpm plugin install --zip ./notice.zip
 
 ## 相关页面
 
-- [[manifest 逐字段参考|Development/Plugin-API/Manifest-Reference]]
-- [[PluginContext 逐方法参考|Development/Plugin-API/Context-Reference]]
-- [[插件自带后台界面|Development/Plugin-API/Admin-UI]]
-- [[声明式设置表单|Development/Plugin-API/Settings]]
-- [[插件生命周期与依赖解析|Development/Architecture/Plugin-Lifecycle]]
-- [[插件安装与更新|Plugins/Install-and-Update]]
+- [[manifest 逐字段参考|Plugin-API-Manifest-Reference]]
+- [[PluginContext 逐方法参考|Plugin-API-Context-Reference]]
+- [[插件自带后台界面|Plugin-API-Admin-UI]]
+- [[声明式设置表单|Plugin-API-Settings]]
+- [[插件生命周期与依赖解析|Architecture-Plugin-Lifecycle]]
+- [[插件安装与更新|Plugins-Install-and-Update]]
 - 真实范例：[reading-time（极简）](https://github.com/ricenote/ricenote/tree/main/plugins/third-party/reading-time) ｜
   [posts（完整）](https://github.com/ricenote/ricenote/tree/main/plugins/official/posts)

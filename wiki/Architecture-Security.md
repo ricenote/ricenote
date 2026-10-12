@@ -138,7 +138,7 @@ SENSITIVE_KEY = /(password|passwd|secret|token|credential|authorization|cookie)/
 ## 9. 能力白名单（插件侧）
 
 插件能调用哪些 Core API 由清单的 `capabilities` 决定，未声明即被替换为**拒绝桩**（抛 `RN_FORBIDDEN`）。
-完整的 12 项能力清单见 [[插件生命周期|Development/Architecture/Plugin-Lifecycle]]。
+完整的 12 项能力清单见 [[插件生命周期|Architecture-Plugin-Lifecycle]]。
 
 设计意图：**插件的"权限面"必须是显式且可审查的** —— 审查一个插件安全不安全，先看它的 `capabilities`。
 
@@ -171,7 +171,7 @@ SENSITIVE_KEY = /(password|passwd|secret|token|credential|authorization|cookie)/
 
 ## 相关页面
 
-- [[启动时序|Development/Architecture/Core-Bootstrap]]
-- [[数据层与迁移|Development/Architecture/Data-and-Migrations]]
+- [[启动时序|Architecture-Core-Bootstrap]]
+- [[数据层与迁移|Architecture-Data-and-Migrations]]
 - [[环境变量参考|Configuration]]
 - [[后台功能导览|Admin-Guide]]

@@ -217,7 +217,7 @@ forbidden(pluginId, capability, api) → 抛 RN_FORBIDDEN（403）
 编排为 `resolve → prepare → commit`，任一步失败回滚。
 
 它**不参与 `bootstrap()`**：内核对 `RICENOTE_PLUGINS` 声明式清单**只核对不安装**，
-启动期不做隐式磁盘修改。详见 [[插件安装与更新|Plugins/Install-and-Update]]。
+启动期不做隐式磁盘修改。详见 [[插件安装与更新|Plugins-Install-and-Update]]。
 
 ---
 
@@ -235,7 +235,7 @@ forbidden(pluginId, capability, api) → 抛 RN_FORBIDDEN（403）
 
 ## 相关页面
 
-- [[manifest 逐字段参考|Development/Plugin-API/Manifest-Reference]]
-- [[命名扩展点注册表|Development/Architecture/Extension-Registry]]
-- [[插件安装与更新|Plugins/Install-and-Update]]
+- [[manifest 逐字段参考|Plugin-API-Manifest-Reference]]
+- [[命名扩展点注册表|Architecture-Extension-Registry]]
+- [[插件安装与更新|Plugins-Install-and-Update]]
 - 仓库文档：[hooks-inventory 的生命周期与状态机章节](https://github.com/ricenote/ricenote/blob/main/docs/architecture/hooks-inventory.md)

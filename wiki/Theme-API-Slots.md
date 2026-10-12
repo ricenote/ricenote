@@ -82,7 +82,7 @@ Nunjucks 是**同步**的，而插件组件可以是异步的。流程是：
 
 好处：模板逻辑保持同步简单；组件可以是任意异步逻辑；每个占位符的上下文互相隔离。
 
-细节见 [[渲染与缓存|Development/Architecture/Render-Pipeline]]。
+细节见 [[渲染与缓存|Architecture-Render-Pipeline]]。
 
 ---
 
@@ -140,6 +140,6 @@ ctx.extensions.contribute(name, component, { scope: 'render', mode: 'append', or
 
 ## 相关页面
 
-- [[模板变量与过滤器|Development/Theme-API/Template-Reference]]
-- [[命名扩展点注册表|Development/Architecture/Extension-Registry]]
-- [[扩展点全量清单|Development/Hooks-Inventory]]
+- [[模板变量与过滤器|Theme-API-Template-Reference]]
+- [[命名扩展点注册表|Architecture-Extension-Registry]]
+- [[扩展点全量清单|Hooks-Inventory]]

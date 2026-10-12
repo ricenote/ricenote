@@ -158,10 +158,33 @@ function checkSource() {
     problems.push(`缺少首页 ${HOME_PAGE}（GitHub Wiki 要求首页必须叫这个名字）。`);
   }
 
+  // GitHub Wiki **不支持用目录组织页面**：文件名决定页面标题，而标题里不允许出现 `/`
+  // （见 GitHub 文档「Adding or editing wiki pages」的禁用字符列表）。
+  // 放进子目录会被丢掉目录、只取文件名当标题，同名页面随即互相覆盖 —— 这里提前拦住。
+  for (const file of mdFiles) {
+    if (file.includes('/')) {
+      problems.push(
+        `${file} 位于子目录：GitHub Wiki 不支持用目录组织页面，请改为扁平文件名（用连字符代替 /）。`
+      );
+    }
+  }
+
   // 页面名集合：去掉 .md 后缀；_Sidebar / _Footer 是特殊页面，不参与互链校验。
   const pageNames = new Set(
     mdFiles.filter((file) => !path.basename(file).startsWith('_')).map((file) => file.slice(0, -3))
   );
+
+  // 标题必须全局唯一：GitHub 会把文件名里的连字符显示为空格，
+  // 因此 `Foo-Bar.md` 与 `Foo Bar.md` 在读者看来是同一个标题。
+  const titleOwners = new Map();
+  for (const page of pageNames) {
+    const key = path.basename(page).replace(/-/g, ' ').toLowerCase();
+    if (titleOwners.has(key)) {
+      problems.push(`页面标题冲突：${titleOwners.get(key)} 与 ${page} 在 GitHub 下会渲染成同一个标题。`);
+    } else {
+      titleOwners.set(key, page);
+    }
+  }
 
   for (const file of mdFiles) {
     const content = readFileSync(path.join(WIKI_DIR, file), 'utf8');

@@ -39,24 +39,24 @@
 | [[后台功能导览\|Admin-Guide]] | 每个后台页面的职责，以及权限点与角色的对应关系 |
 | [[命令行参考\|CLI-Reference]] | `plugin` / `theme` / `validate` / `migrate` / `setup` 子命令与参数 |
 | [[主题与外观\|Themes]] | 主题结构与三层配置模型、声明式设置表单、页面模板选择 |
-| [[官方插件一览\|Plugins/Overview]] | 11 个官方插件的用途、能力与相互依赖 |
-| [[插件安装与更新\|Plugins/Install-and-Update]] | 三路来源、任务队列、失败回滚、更新检查 |
+| [[官方插件一览\|Plugins-Overview]] | 11 个官方插件的用途、能力与相互依赖 |
+| [[插件安装与更新\|Plugins-Install-and-Update]] | 三路来源、任务队列、失败回滚、更新检查 |
 
 ### 我要写插件或主题
 
 建议按 **教程 → 参考 → 原理** 的顺序读：
 
-1. [[从零写一个插件（完整教程）\|Development/Plugin-API/Tutorial]] —— 从脚手架到打包发布，含可直接复制的代码。
-2. [[manifest.json 逐字段参考\|Development/Plugin-API/Manifest-Reference]] 与 [[PluginContext 逐方法参考\|Development/Plugin-API/Context-Reference]] —— 写代码时查这一层。
-3. [[Theme API\|Development/Theme-API/Overview]] —— 写主题时看这里。
-4. [[内核机制剖析\|Development/Architecture/Overview]] —— 想知道"它为什么这么设计"时再读。
+1. [[从零写一个插件（完整教程）\|Plugin-API-Tutorial]] —— 从脚手架到打包发布，含可直接复制的代码。
+2. [[manifest.json 逐字段参考\|Plugin-API-Manifest-Reference]] 与 [[PluginContext 逐方法参考\|Plugin-API-Context-Reference]] —— 写代码时查这一层。
+3. [[Theme API\|Theme-API-Overview]] —— 写主题时看这里。
+4. [[内核机制剖析\|Architecture-Overview]] —— 想知道"它为什么这么设计"时再读。
 
-其余入口见 [[开发者文档导航\|Development/Index]]。
+其余入口见 [[开发者文档导航\|Development]]。
 
 ---
 
 ## 本 wiki 的组织方式
 
-- 本 wiki 的**内容源**在仓库的 [`wiki/`](https://github.com/ricenote/ricenote/tree/main/wiki) 目录，通过 `pnpm wiki:publish` 同步发布，见 [[维护与发布指南|Development/Contributing]]。
+- 本 wiki 的**内容源**在仓库的 [`wiki/`](https://github.com/ricenote/ricenote/tree/main/wiki) 目录，通过 `pnpm wiki:publish` 同步发布，见 [[维护与发布指南|Contributing]]。
 - 更深入的实现细节与全部架构决策记录在仓库 [`docs/`](https://github.com/ricenote/ricenote/tree/main/docs) 目录；本 wiki 的开发者页面会给出对应的绝对链接。
 - 版本变更见 [CHANGELOG.md](https://github.com/ricenote/ricenote/blob/main/CHANGELOG.md)。

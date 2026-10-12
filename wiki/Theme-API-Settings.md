@@ -217,6 +217,6 @@ API：`GET/PUT /api/admin/themes/:themeId/settings`、
 
 ## 相关页面
 
-- [[主题包结构与契约|Development/Theme-API/Overview]]
-- [[声明式设置表单|Development/Plugin-API/Settings]]（插件侧，同一份 schema）
+- [[主题包结构与契约|Theme-API-Overview]]
+- [[声明式设置表单|Plugin-API-Settings]]（插件侧，同一份 schema）
 - [[主题与外观|Themes]]（使用者视角）

@@ -191,7 +191,7 @@ themeId | r<主题设置revision> | s<站点信息revision> | p<已启用能力�
 
 ## 相关页面
 
-- [[模板变量与过滤器|Development/Theme-API/Template-Reference]]
-- [[挂载点清单|Development/Theme-API/Slots]]
-- [[命名扩展点注册表|Development/Architecture/Extension-Registry]]
+- [[模板变量与过滤器|Theme-API-Template-Reference]]
+- [[挂载点清单|Theme-API-Slots]]
+- [[命名扩展点注册表|Architecture-Extension-Registry]]
 - [[主题与外观|Themes]]

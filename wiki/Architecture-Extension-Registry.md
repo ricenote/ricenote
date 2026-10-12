@@ -158,7 +158,7 @@ post.beforeContent  post.afterContent  post.comments
 
 样式按**引用计数**注入与卸载；`import` 失败会追加 `?retry=1` 重试一次；**每条贡献有独立错误边界**（一个插件界面出错不影响其它）。
 
-详见 [[插件自带后台界面|Development/Plugin-API/Admin-UI]]。
+详见 [[插件自带后台界面|Plugin-API-Admin-UI]]。
 
 ---
 
@@ -201,6 +201,6 @@ post.beforeContent  post.afterContent  post.comments
 
 ## 相关页面
 
-- [[扩展点全量清单|Development/Hooks-Inventory]]
-- [[插件自带后台界面|Development/Plugin-API/Admin-UI]]
-- [[渲染与缓存|Development/Architecture/Render-Pipeline]]
+- [[扩展点全量清单|Hooks-Inventory]]
+- [[插件自带后台界面|Plugin-API-Admin-UI]]
+- [[渲染与缓存|Architecture-Render-Pipeline]]

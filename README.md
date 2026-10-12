@@ -254,8 +254,8 @@ pnpm wiki:publish    # 镜像同步到 GitHub Wiki（支持 --dry-run / --messag
 - 首次发布前需在 GitHub 仓库 **Settings → Features 勾选 Wikis**，并先在 wiki 页面创建第一个页面
   （否则 `ricenote.wiki.git` 不存在，脚本会给出中文指引）。
 - 新增页面只需在 `wiki/` 下建 `.md` 并在 `wiki/_Sidebar.md` 加一行链接；
-  页面互链用 `[[显示文本|完整页面名]]`，指向仓库文件一律用绝对 URL。写法规约见
-  [wiki/Development/Contributing.md](wiki/Development/Contributing.md)。
+  页面互链用 `[[显示文本|页面名]]`，指向仓库文件一律用绝对 URL。写法规约见
+  [wiki/Contributing.md](wiki/Contributing.md)。
 
 ## 变更日志
 

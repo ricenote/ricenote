@@ -83,14 +83,14 @@ v1 **单站点**，站点标识固定为 `default`。但 `rn_site_state`、`rn_t
 
 | ADR | 对应 wiki 页 |
 | --- | --- |
-| ADR-004 / ADR-012 | [[启动时序\|Development/Architecture/Core-Bootstrap]] |
-| ADR-005 | [[安全控制面\|Development/Architecture/Security]] |
-| ADR-007 / ADR-015 / ADR-016 | [[插件安装与更新\|Plugins/Install-and-Update]] |
-| ADR-010 / ADR-017 | [[主题契约\|Development/Theme-API/Overview]] |
+| ADR-004 / ADR-012 | [[启动时序\|Architecture-Core-Bootstrap]] |
+| ADR-005 | [[安全控制面\|Architecture-Security]] |
+| ADR-007 / ADR-015 / ADR-016 | [[插件安装与更新\|Plugins-Install-and-Update]] |
+| ADR-010 / ADR-017 | [[主题契约\|Theme-API-Overview]] |
 | ADR-011 | [[环境变量参考\|Configuration]] |
-| ADR-013 | [[服务契约\|Development/Plugin-API/Service-Contracts]]（导航插件） |
-| ADR-014 | [[插件自带后台界面\|Development/Plugin-API/Admin-UI]] |
-| ADR-017 | [[命名扩展点注册表\|Development/Architecture/Extension-Registry]] |
+| ADR-013 | [[服务契约\|Plugin-API-Service-Contracts]]（导航插件） |
+| ADR-014 | [[插件自带后台界面\|Plugin-API-Admin-UI]] |
+| ADR-017 | [[命名扩展点注册表\|Architecture-Extension-Registry]] |
 
 ---
 
@@ -105,6 +105,6 @@ v1 **单站点**，站点标识固定为 `default`。但 `rn_site_state`、`rn_t
 
 ## 相关页面
 
-- [[分层与数据所有权|Development/Architecture/Overview]]
-- [[扩展点全量清单|Development/Hooks-Inventory]]
+- [[分层与数据所有权|Architecture-Overview]]
+- [[扩展点全量清单|Hooks-Inventory]]
 - [docs/architecture/hooks-inventory.md](https://github.com/ricenote/ricenote/blob/main/docs/architecture/hooks-inventory.md)

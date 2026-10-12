@@ -127,4 +127,4 @@ pnpm start
 - 需要调整配置？→ [[环境变量参考|Configuration]]
 - 要部署到服务器？→ [[容器化部署与反向代理|Deployment]]
 - 要用命令行管理插件与主题？→ [[命令行参考|CLI-Reference]]
-- 想自己写一个插件？→ [[从零写一个插件|Development/Plugin-API/Tutorial]]
+- 想自己写一个插件？→ [[从零写一个插件|Plugin-API-Tutorial]]
