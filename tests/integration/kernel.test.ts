@@ -402,10 +402,15 @@ describe('插件生命周期与依赖前置校验', () => {
     assert.ok(kernel);
     const servicesBefore = kernel.services.list();
 
-    // hello 插件默认未启用，先启用再在当前进程内启动一次以验证注销
-    await kernel.plugins.enable('rice.hello');
-    const hello = kernel.plugins.summary().find((item) => item.id === 'rice.hello');
-    assert.equal(hello?.enabled, true);
+    /*
+     * 先覆盖"启用"这条状态变更：**不写死具体插件** —— 官方插件集的组成会变
+     * （例如示例插件被移除），写死 ID 会让用例跟着一起碎。改为挑一个默认未启用的，
+     * 启用后确认记录确实翻成 enabled。
+     */
+    const target = kernel.plugins.summary().find((item) => !item.enabled);
+    assert.ok(target, '应当存在一个默认未启用的插件用于本用例');
+    await kernel.plugins.enable(target.id);
+    assert.equal(kernel.plugins.summary().find((item) => item.id === target.id)?.enabled, true);
 
     // 关闭 posts（无反向依赖）后，其页面路由与服务应消失
     await kernel.plugins.disable('rice.posts');

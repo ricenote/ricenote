@@ -196,24 +196,6 @@
       "requires": [],
       "repository": "https://github.com/ricenote/plugin-editor-enhance",
       "license": "MIT"
-    },
-    {
-      "id": "rice.hello",
-      "npm": "@ricenote/plugin-hello",
-      "version": "1.0.0",
-      "category": "example",
-      "label": "Hello 示例",
-      "description": "演示插件发现、依赖解析、路由注册、服务发布与事件订阅的最小示例，可作为编写插件的起手模板。",
-      "capabilities": [
-        "routes:public",
-        "services:provide",
-        "events:publish",
-        "events:subscribe",
-        "admin:menu"
-      ],
-      "requires": [],
-      "repository": "https://github.com/ricenote/plugin-hello",
-      "license": "MIT"
     }
   ]
 }

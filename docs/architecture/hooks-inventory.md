@@ -94,7 +94,6 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 
 | 插件 | 方法 | 路径 | capability | 说明 |
 | --- | --- | --- | --- | --- |
-| `rice.hello` | GET | `/hello` | 默认（public） | 示例 JSON 接口 |
 | `rice.media` | GET | `/media/:mediaId` | 默认（public） | 文件回传 |
 | `rice.comments` | POST | `/comments/submit` | 默认（public） | 访客提交评论（支持无 JS 表单，302 回文章页） |
 | `rice.comments` | GET | `/api/comments` | 默认（public） | 按 `postId` 读取已通过评论 |
@@ -183,7 +182,6 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | 事件 | 发布者 | 订阅者 | 用途 |
 | --- | --- | --- | --- |
 | `core.runtime.started.v1` | **Core** | `rice.identity`、`rice.posts`、`rice.pages`、`rice.navigation`、`rice.search` | 全部插件启动完成后的初始化时机 |
-| `core.hello.ping.v1` | 外部触发（示例） | `rice.hello` | 演示事件通道 |
 | `identity.user.created.v1` | `rice.identity` | `rice.authorization`（priority 10） | 新用户自动分派角色 |
 | `identity.session.created.v1` | `rice.identity` | 无 | 登录审计扩展点 |
 | `identity.user.password.changed.v1` | `rice.identity` | 无 | 改密/重置（重置时带 `byAdmin: true`） |
@@ -239,7 +237,6 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `media.library@1` | `rice.media` | `rice.posts`（可选）、后台站点设置（Logo 上传） |
 | `content.search@1` | `rice.search` | `rice.posts`（可选，注册可搜索数据源） |
 | `content.comments@1` | `rice.comments` | 后台仪表盘（可选） |
-| `demo.hello@1` | `rice.hello` | 示例 |
 
 > 只有"没有它就无法工作"的依赖才写进 `requires`。
 > 目前仅 `rice.authorization` 与 `rice.posts` 声明了 `requires`（都是 `identity.users@1`）。
@@ -250,7 +247,6 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 
 | 菜单项 id | label | path | icon | order | permission | 来源 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `demo.hello` | Hello 示例 | `/hello` | `Sparkles` | -10 | `plugin.view` | `rice.hello` |
 | `media.library` | 媒体库 | `/media` | `Image` | 10 | `media.manage` | `rice.media` |
 | `pages.list` | 页面 | `/pages` | `FileStack` | 15 | `page.view` | `rice.pages` |
 | `navigation.items` | 导航栏 | `/navigation` | `Navigation` | 18 | `nav.view` | `rice.navigation` |
@@ -315,7 +311,7 @@ Core 在插件启动时读取声明并注册菜单，同时：
 | `rice.identity` | `session` | `sessionTtlSeconds`、`maxSessionsPerUser` |
 | `rice.media` | `upload` | `maxFileBytes` |
 | `acme.reading-time`（第三方） | `display` | `wordsPerMinute`、`showWordCount`、`label` |
-| `rice.authorization`、`rice.taxonomy`、`rice.hello` | 无 | 无可配置项，后台不显示设置入口 |
+| `rice.authorization`、`rice.taxonomy` | 无 | 无可配置项，后台不显示设置入口 |
 
 设置生效时机：`ctx.config` 是**插件启动期快照**，因此保存后需重启（ADR-004 / ADR-012）。
 校验与合并由 `packages/core/src/plugins/settings-schema.ts` 统一提供，
