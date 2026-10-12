@@ -1,7 +1,9 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": ".",
+    // 刻意不设 rootDir：本工程只做类型检查（noEmit），
+    // 而 unit/setup-cli.test.ts 需要直接引用 apps/server/src/cli/* 测纯逻辑，
+    // 设了 rootDir 就会把它们全部判成 TS6059「不在 rootDir 下」。
     "noEmit": true,
     "types": ["node"]
   },

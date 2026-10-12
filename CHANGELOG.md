@@ -95,6 +95,15 @@
   `rice.hello` 后该用例直接以 ENOENT 失败；列表同时漏了 navigation / pages / comments /
   search / seo / editor-enhance 六个插件。现改为扫描 `plugins/official/` 与 `themes/` 下
   含清单文件的直接子目录，并补上"扫不到任何清单就显式失败"的断言，避免空循环静默通过。
+- **`tests` 补上 `@types/adm-zip`（devDependency）**：`unit/zip-guard.test.ts`、`unit/plugin-installer.test.ts`
+  与 `unit/backup-service.test.ts` 都在用 `adm-zip` 的类型，而 pnpm 的严格隔离不会把
+  `packages/core` 的那份类型链接过来（core 自己声明了 `@types/adm-zip`），
+  `pnpm --filter @ricenote/tests typecheck` 因此报 TS7016。
+- **`tests/tsconfig.json` 不再设 `rootDir`**：该工程只做类型检查（`noEmit: true`），而
+  `unit/setup-cli.test.ts` 为测纯逻辑直接引用 `apps/server/src/cli/*`，设了 `rootDir` 会把这些
+  **跨包引用**判成 TS6059「不在 rootDir 下」（含 `setup.ts` 带出的 `prompts.ts` / `setup-env.ts`，共 3 处）。
+- 修正 `integration/m4-features.test.ts` 的一处真错误：`router.ownedBy(...).pages` 本就是
+  路由名组成的 `string[]`，却又写了一次 `.map((item) => item.name)`（TS2339）。
 
 ### Docs（同上）
 

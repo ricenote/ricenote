@@ -180,7 +180,7 @@ describe('rice.search：接管 /search 并跨数据源检索', () => {
     assert.equal(route.kind, 'search');
 
     // posts 不再注册 /search，避免路由冲突
-    const owned = kernel.router.ownedBy('rice.posts').pages.map((item) => item.name);
+    const owned = kernel.router.ownedBy('rice.posts').pages;
     assert.equal(owned.includes('search'), false);
   });
 
