@@ -87,8 +87,8 @@ export default defineAdminPage({
      */
     function brokenReason(item) {
       if (item.type === 'custom' || !item.enabled) return '';
-      if (!item.target || !item.target.exists) return '目标已被删除，前台不会显示';
-      if (!item.target.published) return '目标尚未发布，前台不会显示';
+      if (!item.target || !item.target.exists) return '目标已被删除，站点上不会显示';
+      if (!item.target.published) return '目标尚未发布，站点上不会显示';
       return '';
     }
 
@@ -298,7 +298,7 @@ export default defineAdminPage({
   template: `
 <AdminPage
   title="导航栏"
-  description="前台顶部导航栏的唯一来源：自定义链接、页面、文章都可以加进来，顺序即展示顺序"
+  description="管理站点顶部导航栏：自定义链接、页面、文章都可以加进来，顺序即展示顺序"
 >
   <template #actions>
     <Button variant="outline" :loading="loading" @click="load">
@@ -312,7 +312,7 @@ export default defineAdminPage({
   </template>
 
   <Card class="p-4">
-    <p class="text-[11px] font-medium text-muted-foreground">前台预览</p>
+    <p class="text-[11px] font-medium text-muted-foreground">预览</p>
     <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
       <template v-if="previewItems.length > 0">
         <span v-for="item in previewItems" :key="item.id" class="text-sm text-foreground">
@@ -320,7 +320,7 @@ export default defineAdminPage({
         </span>
       </template>
       <span v-else class="text-xs text-muted-foreground">
-        暂无前台可见项（导航栏为空，主题只显示首页等内置入口）
+        暂无可见项（导航栏为空，站点只显示首页等内置入口）
       </span>
     </div>
   </Card>
@@ -383,7 +383,7 @@ export default defineAdminPage({
   <Dialog v-model:open="dialogOpen" :title="editingId ? '编辑导航项' : '添加导航项'"
     description="页面与文章只保存引用，标题与地址随内容自动更新。" width="md">
     <div class="flex flex-col gap-4">
-      <Field label="来源类型" description="自定义链接适合外部站点或未在站内发布的内容；页面与文章会跟随其标题与地址变化。">
+      <Field label="来源类型" description="自定义链接适合外部网站；页面与文章会跟随其标题与地址变化。">
         <Select :model-value="form.type" :options="typeOptions"
           @update:model-value="(value) => onTypeChange(value)" />
       </Field>
@@ -394,7 +394,7 @@ export default defineAdminPage({
       </Field>
 
       <Field v-else :label="form.type === 'page' ? '选择页面' : '选择文章'" required
-        description="只列出已发布的内容；未发布的目标在前台不会显示。">
+        description="只列出已发布的内容；未发布的内容不会显示。">
         <Select v-model="form.refId" :disabled="targetsLoading" :options="targetSelectOptions" />
       </Field>
 
@@ -414,7 +414,7 @@ export default defineAdminPage({
       <div class="flex items-center justify-between gap-3 border-t border-border pt-3">
         <div>
           <p class="text-sm text-foreground">启用</p>
-          <p class="text-[11px] text-muted-foreground">停用后保留配置但不在前台显示</p>
+          <p class="text-[11px] text-muted-foreground">停用后保留配置但不在站点上显示</p>
         </div>
         <Switch v-model="form.enabled" />
       </div>

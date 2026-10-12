@@ -233,7 +233,7 @@ export default defineAdminPage({
 
   template: `
 <AdminPage :title="heading"
-  description="正文使用 Markdown，服务端渲染并统一消毒后再输出；预览与前台渲染结果一致。">
+  description="正文使用 Markdown 编写，预览效果与站点展示一致。">
   <template #actions>
     <Button variant="ghost" @click="cancel">取消</Button>
     <Button :loading="saving" @click="save">{{ editingId !== null ? '保存' : '创建文章' }}</Button>
@@ -247,7 +247,7 @@ export default defineAdminPage({
         <div class="flex flex-col gap-4">
           <Field label="标题" required>
             <Input v-model="form.title" placeholder="例如：RiceNote 架构说明" /></Field>
-          <Field label="别名（slug，留空自动生成）">
+          <Field label="别名（留空自动生成）">
             <Input v-model="form.slug" placeholder="ricenote-architecture" /></Field>
           <Field label="状态"><Select v-model="form.status" :options="statusOptions" /></Field>
           <Field label="摘要（留空自动截取）">

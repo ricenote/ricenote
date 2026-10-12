@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rice.taxonomy",
   "name": "分类与标签",
-  "description": "提供分类（category）与标签（tag）两类词条及其与文章的关联能力。",
+  "description": "为文章提供分类与标签，方便组织与归档内容。",
   "version": "1.1.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",

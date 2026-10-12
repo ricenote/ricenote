@@ -22,8 +22,8 @@ import {
 } from '/admin-sdk/v1/ricenote-admin.js';
 
 const TYPE_OPTIONS = [
-  { label: '分类（category）', value: 'category' },
-  { label: '标签（tag）', value: 'tag' }
+  { label: '分类', value: 'category' },
+  { label: '标签', value: 'tag' }
 ];
 
 /** 统一把接口错误转成可读文案（与 Core 页面的处理口径一致）。 */
@@ -137,7 +137,7 @@ export default defineAdminPage({
   template: `
 <AdminPage
   title="分类与标签"
-  description="由 taxonomy 插件提供；归档页面由 posts 插件渲染，插件之间只通过服务契约协作"
+  description="管理文章的分类与标签"
 >
   <template #actions>
     <Button v-if="canManage" variant="outline" :loading="loading" @click="load">

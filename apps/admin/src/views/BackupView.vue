@@ -97,7 +97,7 @@ async function confirmRestore(): Promise<void> {
     selectedFile.value = null;
     preview.value = null;
     if (fileInput.value) fileInput.value.value = '';
-    toast.success(`恢复完成，已自动保存恢复前快照 ${result.snapshot.name}，请重启服务端`);
+    toast.success(`恢复完成，已自动保存恢复前快照 ${result.snapshot.name}，请重启服务`);
     await loadSnapshots();
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : '恢复失败');
@@ -113,7 +113,7 @@ async function rollback(): Promise<void> {
   try {
     const result = await api.post<{ snapshot: BackupSnapshot }>(`/backup/snapshots/${encodeURIComponent(target.name)}/restore`);
     rollbackTarget.value = null;
-    toast.success(`已回滚到 ${target.name}，恢复前快照：${result.snapshot.name}，请重启服务端`);
+    toast.success(`已回滚到 ${target.name}，恢复前快照：${result.snapshot.name}，请重启服务`);
     await loadSnapshots();
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : '回滚失败');
@@ -153,7 +153,7 @@ onMounted(loadSnapshots);
       <div>
         <h1 class="text-xl font-semibold text-foreground">备份与恢复</h1>
         <p class="mt-1 text-xs text-muted-foreground">
-          备份包含数据库全量导出、上传文件与已安装插件/主题清单。恢复前会
+          备份包含站点数据、上传文件与已安装的插件和主题。恢复前会
           <strong class="text-foreground">自动生成当前状态快照</strong>，因此任何一次恢复都可以回退。
         </p>
       </div>
@@ -167,13 +167,8 @@ onMounted(loadSnapshots);
           <h2 class="text-sm font-semibold text-foreground">导出备份</h2>
         </div>
         <p class="text-xs text-muted-foreground">
-          导出为 ZIP 直接下载，包含：
+          导出为 ZIP 直接下载，包含站点数据、上传文件与已安装的插件和主题。
         </p>
-        <ul class="flex flex-col gap-1 text-xs text-muted-foreground">
-          <li>· <span class="font-mono text-foreground">manifest.json</span> — 导出时间、站点、插件与主题清单</li>
-          <li>· <span class="font-mono text-foreground">database.sql</span> — mysqldump 全量导出</li>
-          <li>· <span class="font-mono text-foreground">uploads/**</span> — 媒体库文件</li>
-        </ul>
         <div>
           <Button :loading="exporting" :disabled="busy" @click="exportBackup">
             <Download class="h-4 w-4" />
@@ -201,23 +196,21 @@ onMounted(loadSnapshots);
             {{ selectedFile ? selectedFile.name : '点击选择或拖拽备份 ZIP 到此处' }}
           </p>
           <p class="text-[11px] text-muted-foreground">
-            {{ selectedFile ? formatBytes(selectedFile.size) : '选择后会先解析包内清单，确认后才执行恢复' }}
+            {{ selectedFile ? formatBytes(selectedFile.size) : '选择后可先确认备份内容，再执行恢复' }}
           </p>
         </div>
         <input ref="fileInput" type="file" accept=".zip" class="hidden" @change="pickFile(($event.target as HTMLInputElement).files?.[0] ?? null)">
 
-        <div v-if="inspecting" class="text-xs text-muted-foreground">正在解析备份包…</div>
+        <div v-if="inspecting" class="text-xs text-muted-foreground">正在读取备份包…</div>
 
         <div v-if="preview" class="rounded-md border border-border bg-muted/40 p-3 text-xs">
-          <p class="font-medium text-foreground">包内清单</p>
+          <p class="font-medium text-foreground">备份内容</p>
           <dl class="mt-2 grid grid-cols-2 gap-y-1.5">
             <dt class="text-muted-foreground">导出时间</dt>
             <dd class="text-foreground">{{ formatDateTime(preview.manifest.createdAt) }}</dd>
-            <dt class="text-muted-foreground">来源站点</dt>
-            <dd class="text-foreground">{{ preview.manifest.siteId }} · v{{ preview.manifest.appVersion }}</dd>
-            <dt class="text-muted-foreground">数据库</dt>
-            <dd class="text-foreground">{{ preview.manifest.database.name }}</dd>
-            <dt class="text-muted-foreground">数据库导出体积</dt>
+            <dt class="text-muted-foreground">版本</dt>
+            <dd class="text-foreground">v{{ preview.manifest.appVersion }}</dd>
+            <dt class="text-muted-foreground">站点数据体积</dt>
             <dd class="text-foreground">{{ formatBytes(preview.dumpBytes) }}</dd>
             <dt class="text-muted-foreground">上传文件</dt>
             <dd class="text-foreground">
@@ -231,8 +224,8 @@ onMounted(loadSnapshots);
         <div class="flex items-start gap-2 rounded-md border border-[hsl(var(--warning))] bg-[hsl(var(--warning))]/5 p-3">
           <AlertTriangle class="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--warning))]" />
           <p class="text-[11px] text-muted-foreground">
-            恢复会<strong class="text-foreground">覆盖当前数据库与上传文件</strong>。系统会先自动保存一份当前状态快照，
-            恢复成功后需要重启服务端进程才能让插件与主题状态完全生效。
+            恢复会<strong class="text-foreground">覆盖当前站点数据与上传文件</strong>。系统会先自动保存一份当前状态快照，
+            恢复成功后需要重启服务才能完全生效。
           </p>
         </div>
 
@@ -256,7 +249,7 @@ onMounted(loadSnapshots);
           <HardDrive class="h-4 w-4 text-muted-foreground" />
           <h2 class="text-sm font-semibold text-foreground">恢复前快照</h2>
         </div>
-        <span class="text-[11px] text-muted-foreground">共 {{ snapshots.length }} 份 · 保留在 storage/backups</span>
+        <span class="text-[11px] text-muted-foreground">共 {{ snapshots.length }} 份</span>
       </div>
 
       <div v-if="snapshots.length > 0" class="overflow-x-auto">
@@ -297,7 +290,7 @@ onMounted(loadSnapshots);
     <Dialog
       :open="confirmOpen"
       title="确认恢复备份"
-      description="该操作会覆盖当前数据库与上传文件，且不可撤销（但可回滚到自动快照）。"
+      description="该操作会覆盖当前站点数据与上传文件，且不可撤销（但可回滚到自动快照）。"
       width="md"
       @update:open="confirmOpen = false"
     >
@@ -308,7 +301,7 @@ onMounted(loadSnapshots);
         <p class="text-muted-foreground">
           系统会先生成一份当前状态快照；若恢复结果不符预期，可在"历史快照"中回滚。
         </p>
-        <p class="text-muted-foreground">恢复完成后需要重启服务端进程。</p>
+        <p class="text-muted-foreground">恢复完成后需要重启服务。</p>
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
@@ -327,7 +320,7 @@ onMounted(loadSnapshots);
     >
       <div class="flex flex-col gap-3 text-xs">
         <p class="text-muted-foreground">
-          回滚会覆盖当前数据库与上传文件。系统同样会先生成一份当前状态快照。
+          回滚会覆盖当前站点数据与上传文件。系统同样会先生成一份当前状态快照。
         </p>
         <p v-if="rollbackTarget" class="text-muted-foreground">
           快照生成于 {{ formatDateTime(rollbackTarget.createdAt) }}，体积 {{ formatBytes(rollbackTarget.size) }}。

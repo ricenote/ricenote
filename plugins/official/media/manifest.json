@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rice.media",
   "name": "媒体库",
-  "description": "负责文件上传、媒体元数据登记与公开访问；主题设置中的 image 字段保存的就是媒体 ID。",
+  "description": "管理站点上传的图片与文件，供文章中引用。",
   "version": "1.2.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",

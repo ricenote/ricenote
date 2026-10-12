@@ -49,7 +49,7 @@ async function triggerRestart(): Promise<void> {
       toast.success('服务已重启并恢复');
       await loadMenu();
     } else {
-      toast.warning('等待超时：请检查服务端日志确认重启结果');
+      toast.warning('等待超时，请稍后刷新页面确认重启结果');
     }
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : '重启请求失败');
@@ -286,13 +286,6 @@ onBeforeUnmount(() => {
         </a>
       </template>
     </nav>
-
-    <div class="mt-6 rounded-lg border border-border p-3">
-      <p class="text-xs font-medium text-foreground">插件优先架构</p>
-      <p class="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-        内容、分类、媒体等能力均由插件提供，可在「扩展中心」中独立启停。
-      </p>
-    </div>
   </aside>
 
   <div v-if="drawerOpen" class="fixed inset-0 z-20 bg-foreground/30 lg:hidden" @click="drawerOpen = false" />
@@ -322,8 +315,7 @@ onBeforeUnmount(() => {
   >
     <div class="rounded-md border border-border bg-muted/40 px-3 py-2.5">
       <p class="text-xs leading-relaxed text-muted-foreground">
-        重启将优雅关停插件与数据库连接，随后重新装配内核并监听同一端口（通常数秒）。
-        期间访问会返回 503，前端会等待服务恢复。
+        重启通常需要数秒，期间站点会短暂无法访问，请稍候。
       </p>
       <p v-if="system.pendingReason.value" class="mt-2 text-xs text-foreground">
         待生效原因：{{ system.pendingReason.value }}

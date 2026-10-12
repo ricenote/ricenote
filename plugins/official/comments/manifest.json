@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rice.comments",
   "name": "评论",
-  "description": "提供访客评论、嵌套回复、四态审核（待审/通过/垃圾/回收）、关键词与频率反垃圾，以及后台评论审核台。",
+  "description": "为文章提供访客评论与回复，支持审核与垃圾评论拦截。",
   "version": "1.2.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",

@@ -28,7 +28,7 @@ const PAGE_SIZE = 20;
 const TABS = [
   { value: 'pending', label: '待审', hint: '等待人工判断的评论' },
   { value: 'approved', label: '已通过', hint: '已在站点公开显示' },
-  { value: 'spam', label: '垃圾', hint: '被反垃圾规则或人工标记为垃圾' },
+  { value: 'spam', label: '垃圾', hint: '被识别为垃圾或人工标记的评论' },
   { value: 'trash', label: '回收站', hint: '已下架但仍保留记录' },
   { value: 'all', label: '全部', hint: '包含所有状态的记录' }
 ];
@@ -289,7 +289,7 @@ export default defineAdminPage({
 
           <p class="mt-1 text-[11px] text-muted-foreground">
             文章：{{ item.postTitle || ('#' + item.postId) }}
-            <span v-if="item.parentId"> · 回复 #{{ item.parentId }}</span>
+            <span v-if="item.parentId"> · 这是一条回复</span>
           </p>
         </div>
       </li>
@@ -353,7 +353,7 @@ export default defineAdminPage({
           <p class="mt-0.5 text-foreground">{{ detail.postTitle || ('#' + detail.postId) }}</p>
         </div>
         <div>
-          <p class="text-muted-foreground">来源 IP 哈希</p>
+          <p class="text-muted-foreground">来源标识</p>
           <p class="mt-0.5 break-all font-mono text-[11px] text-foreground">{{ detail.ipHash || '—' }}</p>
         </div>
         <div>
@@ -363,7 +363,7 @@ export default defineAdminPage({
       </div>
 
       <div>
-        <p class="text-muted-foreground">User-Agent</p>
+        <p class="text-muted-foreground">浏览器信息</p>
         <p class="mt-0.5 break-all font-mono text-[11px] text-foreground">{{ detail.userAgent || '—' }}</p>
       </div>
 

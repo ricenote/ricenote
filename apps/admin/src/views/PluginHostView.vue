@@ -118,7 +118,7 @@ async function mount(current: EntryTarget): Promise<void> {
     const imported = (await import(/* @vite-ignore */ url)) as { default?: unknown };
     if (!imported.default || typeof imported.default !== 'object') {
       status.value = 'error';
-      detail.value = '模块没有导出默认组件（应使用 defineAdminPage 导出页面定义）';
+      detail.value = '页面内容无法加载，请联系插件提供方。';
       return;
     }
 
@@ -158,7 +158,7 @@ watch(
     const current = target.value;
     if (!current) {
       status.value = 'error';
-      detail.value = '该地址没有对应的插件界面声明';
+      detail.value = '该地址没有对应页面';
       return;
     }
     void mount(current);
@@ -178,24 +178,20 @@ function retry(): void {
 function goPlugins(): void {
   navigate('/plugins');
 }
-
-const errorSummary = computed(() => detail.value.split('\n')[0] ?? '');
 </script>
 
 <template>
   <LoadingState
     v-if="status === 'loading'"
-    :message="`正在加载「${target?.label ?? '插件界面'}」…`"
+    :message="`正在加载「${target?.label ?? '页面'}」…`"
   />
 
   <Card v-else-if="status === 'unavailable'" class="mx-auto mt-10 max-w-xl p-6">
     <h2 class="text-base font-semibold text-foreground">
-      「{{ target?.label ?? route.path }}」由插件提供，当前未启用
+      「{{ target?.label ?? route.path }}」当前未启用
     </h2>
     <p class="mt-2 text-xs leading-relaxed text-muted-foreground">
-      该页面属于插件 <code class="font-mono">{{ target?.pluginId || '（未知）' }}</code>，
-      插件被停用或启动失败时其界面不可用（数据仍然保留在库中）。
-      可在扩展中心启用该插件，然后按提示重启服务。
+      该功能当前已关闭。可在扩展中心重新开启，然后按提示重启服务。
     </p>
     <div class="mt-4 flex items-center gap-2">
       <Button @click="goPlugins">去扩展中心</Button>
@@ -203,13 +199,9 @@ const errorSummary = computed(() => detail.value.split('\n')[0] ?? '');
   </Card>
 
   <Card v-else-if="status === 'error'" class="mx-auto mt-10 max-w-xl p-6">
-    <h2 class="text-base font-semibold text-foreground">插件界面加载失败</h2>
+    <h2 class="text-base font-semibold text-foreground">页面加载失败</h2>
     <p class="mt-2 text-xs leading-relaxed text-muted-foreground">
-      可能原因：插件尚未构建、界面文件缺失，或模块格式不正确。
-      若刚更新过插件，请确认服务端已重启。
-    </p>
-    <p v-if="errorSummary" class="mt-3 rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-[11px] text-muted-foreground">
-      {{ errorSummary }}
+      请稍后重试。若刚更新过插件，请重启服务后再试。
     </p>
     <div class="mt-4 flex items-center gap-2">
       <Button @click="retry">重试</Button>

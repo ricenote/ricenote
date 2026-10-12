@@ -167,7 +167,7 @@ export default defineAdminContribution({
     @click="openPreview"
   >
     <Icon name="eye" class="h-3.5 w-3.5" />
-    前台预览
+    预览页面
   </Button>
   <Button variant="outline" size="sm" @click="openImage">
     <Icon name="image" class="h-3.5 w-3.5" />
@@ -177,8 +177,8 @@ export default defineAdminContribution({
   <!-- 只有拿到非空 HTML 时 openPreview 才会置 open，因此这里不必再判空 -->
   <Dialog
     v-model:open="previewOpen"
-    title="前台预览"
-    description="与前台渲染一致：同一套服务端渲染管线，输出前统一消毒。"
+    title="预览页面"
+    description="预览效果与站点展示一致。"
     width="lg"
   >
     <div class="max-h-[60vh] overflow-y-auto text-sm leading-relaxed" v-html="previewHtml"></div>
@@ -187,7 +187,7 @@ export default defineAdminContribution({
   <Dialog
     v-model:open="imageOpen"
     title="插入图片"
-    description="从媒体库选择，或直接填写图片地址（未安装媒体库时即为此输入框）。"
+    description="从媒体库选择，或直接填写图片地址。"
     width="lg"
   >
     <PluginSlot name="rice.media.picker" :context="{ onPick: onPicked }">
@@ -196,7 +196,7 @@ export default defineAdminContribution({
            插入由面板自己的按钮经 onPick 完成。 -->
       <div class="flex flex-col gap-2">
         <Input v-model="link" placeholder="https://…" />
-        <p class="text-xs text-muted-foreground">尚未选择图片：可直接填写图片地址（例 /media/12）。</p>
+        <p class="text-xs text-muted-foreground">可直接填写图片地址（例 /media/12）。</p>
       </div>
     </PluginSlot>
 

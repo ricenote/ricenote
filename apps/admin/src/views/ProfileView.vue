@@ -80,7 +80,7 @@ async function savePassword(): Promise<void> {
     passwordForm.currentPassword = '';
     passwordForm.nextPassword = '';
     passwordForm.confirmPassword = '';
-    toast.success('密码已修改，其他设备的登录已失效');
+    toast.success('密码已修改，其他设备需要重新登录');
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : '密码修改失败');
   } finally {
@@ -96,7 +96,7 @@ onMounted(load);
     <header>
       <h1 class="text-xl font-semibold text-foreground">个人资料</h1>
       <p class="mt-1 text-xs text-muted-foreground">
-        修改显示名与邮箱，或更换登录密码。改密后其他设备上的会话会被强制失效。
+        修改显示名与邮箱，或更换登录密码。修改密码后其他设备需要重新登录。
       </p>
     </header>
 
@@ -120,12 +120,12 @@ onMounted(load);
         <div class="mt-4 flex flex-col gap-4">
           <div class="flex flex-col gap-1.5">
             <Label>显示名</Label>
-            <Input v-model="profileForm.displayName" :maxlength="120" placeholder="在后台与前台展示的名字" />
+            <Input v-model="profileForm.displayName" :maxlength="120" placeholder="展示给他人看到的名字" />
           </div>
           <div class="flex flex-col gap-1.5">
             <Label>邮箱</Label>
             <Input v-model="profileForm.email" type="email" :maxlength="190" placeholder="name@example.com" />
-            <p class="text-[11px] text-muted-foreground">邮箱需唯一，用于账号识别与后续通知。</p>
+            <p class="text-[11px] text-muted-foreground">用于账号识别与接收通知。</p>
           </div>
         </div>
 
@@ -144,7 +144,7 @@ onMounted(load);
           <ShieldCheck class="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <p class="text-[11px] leading-relaxed text-muted-foreground">
             需要先验证原密码。密码至少 8 位，不能是纯数字，也不能与登录名相同。
-            修改成功后，其他设备的登录会话会立即失效。
+            修改成功后，其他设备需要重新登录。
           </p>
         </div>
 

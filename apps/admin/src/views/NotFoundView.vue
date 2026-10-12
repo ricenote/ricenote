@@ -20,7 +20,7 @@ function goHome(): void {
   <Card class="mx-auto mt-10 max-w-xl p-6">
     <h2 class="text-base font-semibold text-foreground">页面不存在</h2>
     <p class="mt-2 text-xs leading-relaxed text-muted-foreground">
-      当前地址在后台没有对应页面。可能是链接已失效，或该功能所属的插件已被卸载。
+      当前地址没有对应页面。可能是链接已失效，或该功能已被移除。
     </p>
     <div class="mt-4 flex items-center gap-2">
       <Button @click="goHome">返回仪表盘</Button>

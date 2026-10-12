@@ -241,7 +241,7 @@ export default defineAdminPage({
 
   template: `
 <AdminPage :title="heading"
-  description="正文使用 Markdown，服务端渲染并统一消毒后再输出；内容字段来自当前主题声明。">
+  description="正文使用 Markdown 编写。">
   <template #actions>
     <Button variant="ghost" @click="cancel">取消</Button>
     <Button :loading="saving" @click="save">{{ editingId !== null ? '保存' : '创建页面' }}</Button>
@@ -259,22 +259,22 @@ export default defineAdminPage({
           <Field label="标题" required>
             <Input v-model="form.title" placeholder="关于我们" :maxlength="255" />
           </Field>
-          <Field label="别名（slug，留空自动生成）">
+          <Field label="别名（留空自动生成）">
             <Input v-model="form.slug" placeholder="about" :maxlength="200" />
           </Field>
           <Field label="状态">
             <Select v-model="form.status" :options="statusOptions" />
           </Field>
-          <Field label="页面模板" description="可选项来自当前主题的 pageTemplates 声明">
+          <Field label="页面模板" description="可选项来自当前主题提供的页面版式">
             <Select v-model="form.template" :options="templateOptions" />
           </Field>
           <Field label="排序（数值越小越靠前）">
             <Input v-model="form.sortOrder" type="number" />
           </Field>
-          <Field label="SEO 标题（留空使用页面标题）">
+          <Field label="搜索标题（留空使用页面标题）">
             <Input v-model="form.seoTitle" :maxlength="255" />
           </Field>
-          <Field label="SEO 描述（留空自动截取正文）">
+          <Field label="搜索描述（留空自动截取正文）">
             <Input v-model="form.seoDescription" :maxlength="500" />
           </Field>
         </div>

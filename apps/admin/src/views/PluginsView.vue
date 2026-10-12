@@ -83,9 +83,7 @@ async function toggle(plugin: PluginSummary): Promise<void> {
   try {
     await api.post(`/plugins/${plugin.id}/${action}`);
     toast.success(
-      plugin.enabled
-        ? `已禁用 ${plugin.id}，重启后路由才会卸载`
-        : `已启用 ${plugin.id}，重启后生效`
+      plugin.enabled ? `已禁用「${plugin.name}」，重启后生效` : `已启用「${plugin.name}」，重启后生效`
     );
     await Promise.all([load(), system.refresh()]);
   } catch (error) {
@@ -130,7 +128,7 @@ async function saveSettings(): Promise<void> {
       values: { ...settingsValues }
     });
     settingsDto.value = result;
-    restartHint.value = `设置已保存。插件在启动时读取配置，重启后生效。`;
+    restartHint.value = `设置已保存，重启服务后生效。`;
     toast.success('插件设置已保存，重启后生效');
     // 顶栏据此出现重启按钮
     system.markPending(`插件「${result.name}」的设置已保存，重启后生效`);
@@ -184,7 +182,7 @@ async function updatePlugin(plugin: PluginSummary): Promise<void> {
     const job = await api.post<PluginJobDto>(`/plugins/${plugin.id}/update`, {});
     activeJob.value = job;
     jobOpen.value = true;
-    toast.info(`已提交 ${plugin.id} 的更新任务`);
+    toast.info(`已提交「${plugin.name}」的更新任务`);
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : '更新任务提交失败');
   } finally {
@@ -194,8 +192,7 @@ async function updatePlugin(plugin: PluginSummary): Promise<void> {
 
 async function removePlugin(plugin: PluginSummary): Promise<void> {
   const confirmed = window.confirm(
-    `确定卸载「${plugin.name}」（${plugin.id}）？\n\n` +
-      '将删除插件目录与安装记录；插件自己的数据表不会被删除（ADR-007）。'
+    `确定卸载「${plugin.name}」？\n\n` + '卸载后该插件将不再可用，但已保存的数据不会被删除。'
   );
   if (!confirmed) return;
 
@@ -204,7 +201,7 @@ async function removePlugin(plugin: PluginSummary): Promise<void> {
     const job = await api.post<PluginJobDto>(`/plugins/${plugin.id}/remove`, {});
     activeJob.value = job;
     jobOpen.value = true;
-    toast.info(`已提交 ${plugin.id} 的卸载任务`);
+    toast.info(`已提交「${plugin.name}」的卸载任务`);
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : '卸载任务提交失败');
   } finally {
@@ -223,17 +220,15 @@ function onJobFinished(finished: PluginJobDto): void {
   system.refresh().catch(() => undefined);
 }
 
-/** 来源信息的中文标签与地址。 */
+/** 来源信息的中文标签。 */
 function sourceLabel(plugin: PluginSummary): string {
   const source = plugin.source;
-  if (!source) return '来源未知（v0.4.0 之前安装）';
+  if (!source) return '来源未知';
   if (source.type === 'registry') {
-    return `npm：${source.spec}${source.resolvedVersion ? ` → ${source.resolvedVersion}` : ''}`;
+    return `来自扩展中心${source.resolvedVersion ? ` · ${source.resolvedVersion}` : ''}`;
   }
-  if (source.type === 'git') {
-    return `Git：${source.spec}#${source.ref ?? 'HEAD'}`;
-  }
-  return `本地：${source.spec || '（未记录路径）'}${source.via === 'zip' ? '（压缩包）' : ''}`;
+  if (source.type === 'git') return '来自 Git 仓库';
+  return source.via === 'zip' ? '本地压缩包安装' : '本地安装';
 }
 
 onMounted(() => {
@@ -247,9 +242,7 @@ onMounted(() => {
     <header class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-xl font-semibold text-foreground">扩展中心</h1>
-        <p class="mt-1 text-xs text-muted-foreground">
-          插件通过目录安装、以 capability 契约解析依赖；启停为受控重启语义（ADR-004）
-        </p>
+        <p class="mt-1 text-xs text-muted-foreground">安装、启用与管理扩展功能。</p>
       </div>
       <Button variant="outline" :loading="loading" @click="load">
         <RefreshCw class="h-3.5 w-3.5" />
@@ -262,10 +255,10 @@ onMounted(() => {
       <div class="flex items-start gap-2.5">
         <ShieldAlert class="mt-0.5 h-4 w-4 shrink-0 text-warning" />
         <div class="text-xs leading-relaxed text-muted-foreground">
-          <p class="font-medium text-foreground">插件运行在核心进程内，不具备真实安全沙箱</p>
+          <p class="font-medium text-foreground">仅安装可信来源的插件</p>
           <p class="mt-1">
-            仅允许安装受信任插件。禁用被依赖的插件会被拒绝（返回 409 并列出依赖者）；
-            启停操作写入数据库后需要<strong class="text-foreground">重启进程</strong>才能让路由变更生效。
+            禁用被其他插件依赖的插件时会被拒绝；启用或禁用后需要
+            <strong class="text-foreground">重启服务</strong>才能生效。
           </p>
           <p v-if="pendingRestart > 0" class="mt-1.5 text-warning">
             当前有 {{ pendingRestart }} 个插件处于待重启状态。
@@ -287,25 +280,24 @@ onMounted(() => {
     >
       <div class="flex items-center gap-2">
         <AlertTriangle class="h-4 w-4 text-warning" />
-        <p class="text-sm font-medium text-foreground">启动诊断</p>
+        <p class="text-sm font-medium text-foreground">插件异常</p>
       </div>
 
       <ul v-if="failedCount > 0" class="mt-2 list-inside list-disc text-xs text-muted-foreground">
         <li v-for="plugin in plugins.filter((item) => item.state === 'FAILED')" :key="plugin.id">
-          <span class="font-mono">{{ plugin.id }}</span> —— {{ plugin.lastError || '未知错误' }}
+          {{ plugin.name }} —— {{ plugin.lastError || '未知错误' }}
         </li>
       </ul>
 
       <ul v-if="diagnostics?.dependencyProblems.length" class="mt-2 list-inside list-disc text-xs text-muted-foreground">
         <li v-for="problem in diagnostics.dependencyProblems" :key="`${problem.pluginId}-${problem.key}`">
-          <span class="font-mono">{{ problem.pluginId }}</span> 的依赖
-          <span class="font-mono">{{ problem.key }}</span> —— {{ problem.message }}
+          {{ problem.pluginId }}：{{ problem.message }}
         </li>
       </ul>
 
       <ul v-if="diagnostics?.invalid.length" class="mt-2 list-inside list-disc text-xs text-muted-foreground">
         <li v-for="item in diagnostics.invalid" :key="item.dir">
-          <span class="font-mono">{{ item.dir }}</span> 清单非法（
+          {{ item.dir }} 的插件信息有误（
           {{ item.issues.slice(0, 2).map((issue) => issue.message).join('；') }}）
         </li>
       </ul>
@@ -324,14 +316,12 @@ onMounted(() => {
                 但它可更新、可卸载；只有随仓库分发的那份才不可卸载。
               -->
               <Badge v-if="plugin.official" variant="outline">官方</Badge>
-              <Badge v-if="plugin.builtin" variant="muted">随仓库分发</Badge>
+              <Badge v-if="plugin.builtin" variant="muted">内置</Badge>
               <Badge v-if="updates[plugin.id]?.updateAvailable" variant="warning">
                 可更新 {{ updates[plugin.id]?.latestVersion }}
               </Badge>
             </div>
-            <p class="mt-1 font-mono text-[11px] text-muted-foreground">
-              {{ plugin.id }} · v{{ plugin.version }} · API {{ plugin.apiVersion }}
-            </p>
+            <p class="mt-1 text-[11px] text-muted-foreground">v{{ plugin.version }}</p>
             <p class="mt-1 truncate text-[11px] text-muted-foreground" :title="sourceLabel(plugin)">
               {{ sourceLabel(plugin) }}
             </p>
@@ -375,7 +365,7 @@ onMounted(() => {
 
         <div class="mt-3 flex flex-col gap-2 border-t border-border pt-3">
           <div>
-            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">提供能力</p>
+            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">功能</p>
             <div class="mt-1 flex flex-wrap gap-1">
               <Badge v-for="capability in plugin.provides" :key="capability" variant="outline">
                 {{ capability }}
@@ -431,7 +421,7 @@ onMounted(() => {
     <Dialog
       v-model:open="settingsOpen"
       :title="settingsDto ? `插件设置 · ${settingsDto.name}` : '插件设置'"
-      :description="settingsDto ? `${settingsDto.pluginId} · v${settingsDto.version} · revision ${settingsDto.revision}` : ''"
+      :description="settingsDto ? `v${settingsDto.version}` : ''"
       width="lg"
     >
       <p v-if="settingsLoading" class="py-6 text-center text-xs text-muted-foreground">
@@ -456,15 +446,7 @@ onMounted(() => {
         </div>
 
         <div v-else class="rounded-md border border-border bg-muted/40 p-4">
-          <p class="text-xs text-foreground">
-            该插件未声明 <span class="font-mono">settingsSchema</span>，因此没有可自动生成的表单。
-          </p>
-          <pre class="mt-2 overflow-x-auto rounded border border-border bg-card p-2 font-mono text-[11px] text-muted-foreground">{{
-            JSON.stringify(settingsValues, null, 2)
-          }}</pre>
-          <p class="mt-2 text-[11px] text-muted-foreground">
-            如需在此编辑，请在插件 manifest.json 中声明 settingsSchema（分组 + 字段）。
-          </p>
+          <p class="text-xs text-foreground">该插件暂无可调整的设置。</p>
         </div>
       </template>
 

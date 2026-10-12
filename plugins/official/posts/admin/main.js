@@ -146,7 +146,7 @@ export default defineAdminPage({
   template: `
 <AdminPage
   title="文章"
-  :description="'共 ' + total + ' 篇 · 内容由 posts 插件提供，启停该插件不影响后台其他功能'"
+  :description="'共 ' + total + ' 篇'"
 >
   <template #actions>
     <PluginSlot name="rice.posts.listActions" :context="{ kind: 'post' }">
@@ -165,7 +165,7 @@ export default defineAdminPage({
       </div>
       <div class="relative min-w-[14rem] flex-1">
         <Icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input v-model="keyword" class="pl-8" placeholder="搜索标题或 slug" @enter="search" />
+        <Input v-model="keyword" class="pl-8" placeholder="搜索标题或路径" @enter="search" />
       </div>
       <Button variant="outline" :loading="loading" @click="search">查询</Button>
     </div>
@@ -198,7 +198,7 @@ export default defineAdminPage({
     <template #cell-actions="{ row }">
       <div class="flex items-center justify-end gap-1">
         <a v-if="row.status === 'published'" :href="'/post/' + row.slug" target="_blank" rel="noopener"
-          class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" title="查看前台">
+          class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" title="查看页面">
           <Icon name="eye" />
         </a>
         <button v-if="canWrite" type="button"

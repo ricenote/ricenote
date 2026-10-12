@@ -60,6 +60,12 @@ export default defineAdminPage({
       return role.permissions.filter((item) => item !== '*');
     }
 
+    /** 权限点的对外显示名（未收录时回退为原始标识）。 */
+    function permissionLabelOf(key) {
+      const matched = permissions.value.find((item) => item.key === key);
+      return matched && matched.label ? matched.label : key;
+    }
+
     async function load() {
       loading.value = true;
       try {
@@ -82,7 +88,7 @@ export default defineAdminPage({
     async function assign() {
       const userId = Number.parseInt(assignUserId.value, 10);
       if (!Number.isInteger(userId) || userId <= 0) {
-        toast.warning('请输入合法的用户 ID');
+        toast.warning('请输入合法的用户编号');
         return;
       }
 
@@ -109,6 +115,7 @@ export default defineAdminPage({
       groupedPermissions,
       load,
       loading,
+      permissionLabelOf,
       roleOptions,
       roles
     };
@@ -117,7 +124,7 @@ export default defineAdminPage({
   template: `
 <AdminPage
   title="角色与权限"
-  description="权限点由 Core 的安全网关执行 fail-closed 校验；内置角色的权限集合以插件代码为准，每次启动同步"
+  description="为用户分配角色，并查看各角色拥有的权限"
 >
   <template #actions>
     <Button variant="outline" :loading="loading" @click="load">刷新</Button>
@@ -133,7 +140,7 @@ export default defineAdminPage({
     </p>
 
     <div class="mt-4 grid gap-3 sm:grid-cols-3">
-      <Field label="用户 ID">
+      <Field label="用户编号">
         <Input v-model="assignUserId" type="number" placeholder="例如 2" />
       </Field>
       <Field label="角色">
@@ -160,7 +167,7 @@ export default defineAdminPage({
       <div class="mt-3 flex flex-wrap gap-1">
         <Badge v-if="role.permissions.includes('*')" variant="default">全部权限</Badge>
         <Badge v-for="permission in grantedPermissions(role)" :key="permission" variant="outline">
-          {{ permission }}
+          {{ permissionLabelOf(permission) }}
         </Badge>
         <span v-if="role.permissions.length === 0" class="text-[11px] text-muted-foreground">未授予任何权限</span>
       </div>
@@ -168,10 +175,7 @@ export default defineAdminPage({
   </div>
 
   <Card class="p-5">
-    <h2 class="text-sm font-semibold text-foreground">权限点目录</h2>
-    <p class="mt-1 text-xs text-muted-foreground">
-      插件通过 <code class="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[11px]">ctx.routes.adminApi({ permission })</code> 声明所需权限点，Core 在路由层统一校验。
-    </p>
+    <h2 class="text-sm font-semibold text-foreground">权限目录</h2>
 
     <div class="mt-4 flex flex-col gap-4">
       <div v-for="group in groupedPermissions" :key="group.group">
@@ -179,13 +183,12 @@ export default defineAdminPage({
         <div class="mt-1.5 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
           <div v-for="permission in group.items" :key="permission.key"
             class="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-1.5">
-            <span class="font-mono text-[11px] text-foreground">{{ permission.key }}</span>
-            <span class="text-[11px] text-muted-foreground">{{ permission.label }}</span>
+            <span class="text-[11px] text-foreground">{{ permission.label }}</span>
           </div>
         </div>
       </div>
       <p v-if="groupedPermissions.length === 0" class="text-xs text-muted-foreground">
-        需要 user.manage 权限才能查看权限点目录。
+        需要相应权限才能查看权限目录。
       </p>
     </div>
   </Card>

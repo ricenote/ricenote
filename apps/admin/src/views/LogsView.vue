@@ -30,7 +30,6 @@ const pageSize = 30;
 const entries = ref<RuntimeLogEntry[]>([]);
 const files = ref<RuntimeLogFileInfo[]>([]);
 const total = ref(0);
-const scannedLines = ref(0);
 const truncated = ref(false);
 const readFiles = ref<string[]>([]);
 const loading = ref(false);
@@ -40,10 +39,10 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize))
 
 const levelOptions = [
   { label: '全部级别', value: 'all' },
-  { label: 'debug', value: 'debug' },
-  { label: 'info', value: 'info' },
-  { label: 'warn', value: 'warn' },
-  { label: 'error', value: 'error' }
+  { label: '调试', value: 'debug' },
+  { label: '信息', value: 'info' },
+  { label: '警告', value: 'warn' },
+  { label: '错误', value: 'error' }
 ];
 
 const levelVariant: Record<LogLevelName, 'muted' | 'outline' | 'warning' | 'error'> = {
@@ -51,6 +50,14 @@ const levelVariant: Record<LogLevelName, 'muted' | 'outline' | 'warning' | 'erro
   info: 'outline',
   warn: 'warning',
   error: 'error'
+};
+
+/** 级别展示名（内部代号不外露）。 */
+const levelLabel: Record<LogLevelName, string> = {
+  debug: '调试',
+  info: '信息',
+  warn: '警告',
+  error: '错误'
 };
 
 const fileOptions = computed(() => [
@@ -86,7 +93,6 @@ async function load(): Promise<void> {
     entries.value = response.data;
     files.value = response.files;
     total.value = response.total;
-    scannedLines.value = response.scannedLines;
     truncated.value = response.truncated;
     readFiles.value = response.readFiles;
     expanded.value = [];
@@ -125,9 +131,7 @@ onMounted(load);
     <header class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-xl font-semibold text-foreground">运行日志</h1>
-        <p class="mt-1 text-xs text-muted-foreground">
-          只读查看结构化运行日志。服务端按文件尾部读取有限窗口，因此超大日志也不会拖慢后台。
-        </p>
+        <p class="mt-1 text-xs text-muted-foreground">查看站点运行记录。</p>
       </div>
       <Button variant="outline" :loading="loading" @click="reload">
         <RefreshCw class="h-4 w-4" />
@@ -155,7 +159,7 @@ onMounted(load);
         </div>
         <div class="flex flex-col gap-1.5">
           <Label>关键字</Label>
-          <Input v-model="keyword" placeholder="消息或字段值" @enter="reload" />
+          <Input v-model="keyword" placeholder="搜索内容" @enter="reload" />
         </div>
       </div>
 
@@ -190,14 +194,14 @@ onMounted(load);
       <div class="flex items-center justify-between border-b border-border px-4 py-2.5">
         <div class="flex items-center gap-2">
           <Activity class="h-4 w-4 text-muted-foreground" />
-          <h2 class="text-sm font-semibold text-foreground">日志流</h2>
+          <h2 class="text-sm font-semibold text-foreground">日志记录</h2>
         </div>
         <!-- 文件清单可能很长：此处只显示数量并截断，完整列表由筛选区的下拉提供 -->
         <span
-          class="min-w-0 max-w-[70%] truncate text-right font-mono text-[11px] text-muted-foreground"
+          class="min-w-0 max-w-[70%] truncate text-right text-[11px] text-muted-foreground"
           :title="readFiles.join('、')"
         >
-          读取自 {{ readFiles.length }} 个日志文件{{ readFiles.length > 0 ? `：${readFiles.join('、')}` : '' }}
+          共 {{ readFiles.length }} 个日志文件
         </span>
       </div>
 
@@ -212,15 +216,14 @@ onMounted(load);
               :is="expanded.includes(index) ? ChevronDown : ChevronRight"
               class="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
             />
-            <Badge :variant="levelVariant[entry.level]" class="shrink-0">{{ entry.level }}</Badge>
-            <span class="shrink-0 font-mono text-[11px] text-muted-foreground">
+            <Badge :variant="levelVariant[entry.level]" class="shrink-0">
+              {{ levelLabel[entry.level] ?? entry.level }}
+            </Badge>
+            <span class="shrink-0 text-[11px] text-muted-foreground">
               {{ entry.timestamp || '无时间戳' }}
             </span>
-            <span class="min-w-0 flex-1 break-words font-mono text-xs text-foreground">
+            <span class="min-w-0 flex-1 break-words text-xs text-foreground">
               {{ entry.message }}
-            </span>
-            <span class="shrink-0 font-mono text-[11px] text-muted-foreground">
-              {{ entry.file }}:{{ entry.line }}
             </span>
           </button>
 

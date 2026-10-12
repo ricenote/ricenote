@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import { BookOpen, Cpu, Image, Save, ScrollText, Server, Upload, X } from 'lucide-vue-next';
 import type { AuditLogEntry, MediaSummary, SiteSettings } from '@ricenote/shared';
 import { api, ApiError, Badge, Button, Card, formatDateTime, Input, Label, Textarea } from '@ricenote/admin-sdk';
@@ -47,8 +47,6 @@ const form = reactive({
   icpText: '',
   icpUrl: ''
 });
-
-const overridden = computed(() => new Set(site.value?.overridden ?? []));
 
 async function load(): Promise<void> {
   loading.value = true;
@@ -99,7 +97,7 @@ async function save(): Promise<void> {
     toast.success('站点信息已保存并即时生效');
   } catch (error) {
     if (error instanceof ApiError && error.isConflict) {
-      toast.warning('站点信息已被其他会话修改，已为你重新加载');
+      toast.warning('站点信息已在别处被修改，已为你重新加载');
       await load();
     } else {
       toast.error(error instanceof ApiError ? error.message : '保存失败');
@@ -143,9 +141,7 @@ onMounted(load);
     <header class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-xl font-semibold text-foreground">系统设置</h1>
-        <p class="mt-1 text-xs text-muted-foreground">
-          站点信息保存在数据库中并覆盖 .env 同名配置，保存后立即生效（无需重启）；部署级配置仍由 .env 管理。
-        </p>
+        <p class="mt-1 text-xs text-muted-foreground">站点信息保存后立即生效，无需重启。</p>
       </div>
       <Button variant="outline" :loading="loading" @click="load">刷新</Button>
     </header>
@@ -155,8 +151,6 @@ onMounted(load);
         <div class="flex items-center gap-2">
           <Server class="h-4 w-4 text-muted-foreground" />
           <h2 class="text-sm font-semibold text-foreground">站点信息</h2>
-          <Badge variant="outline">revision {{ site?.revision ?? 0 }}</Badge>
-          <Badge v-if="overridden.size" variant="muted">已覆盖 .env {{ overridden.size }} 项</Badge>
         </div>
         <Button v-if="canManageSite" :loading="saving" @click="save">
           <Save class="h-3.5 w-3.5" />
@@ -172,7 +166,7 @@ onMounted(load);
         <div class="flex flex-col gap-1.5">
           <Label>语言</Label>
           <Input v-model="form.language" :maxlength="20" placeholder="zh-CN" :disabled="!canManageSite" />
-          <p class="text-[11px] text-muted-foreground">决定主题文案的解析语言（如 zh-CN / en）。</p>
+          <p class="text-[11px] text-muted-foreground">站点界面使用的语言，例如 zh-CN。</p>
         </div>
         <div class="flex flex-col gap-1.5 md:col-span-2">
           <Label>站点描述</Label>
@@ -182,7 +176,7 @@ onMounted(load);
           <Label>站点地址</Label>
           <Input v-model="form.url" type="url" placeholder="https://example.com" :disabled="!canManageSite" />
           <p class="text-[11px] text-muted-foreground">
-            用于生成绝对链接（canonical、sitemap）。必须带 http(s) 前缀，末尾斜杠会自动去掉。
+            站点的完整访问地址，需以 http:// 或 https:// 开头。
           </p>
         </div>
       </div>
@@ -238,7 +232,7 @@ onMounted(load);
           </div>
 
           <div class="flex flex-col gap-1.5">
-            <Label>站点图标（favicon）</Label>
+            <Label>站点图标</Label>
             <div class="flex items-center gap-2">
               <Input
                 v-model="form.faviconUrl"
@@ -293,25 +287,21 @@ onMounted(load);
             />
           </div>
         </div>
-        <p class="mt-2 text-[11px] text-muted-foreground">
-          主题可通过 <span class="font-mono">site.icpText</span> 与
-          <span class="font-mono">site.icpUrl</span> 读取这两项（两套官方主题的页脚已接入）。
-        </p>
       </div>
 
       <p v-if="!canManageSite" class="mt-3 text-[11px] text-warning">
-        当前账号没有 <span class="font-mono">theme.manage</span> 权限，站点信息为只读。
+        当前账号没有修改权限，站点信息为只读。
       </p>
     </Card>
 
     <Card class="p-5">
       <div class="flex items-center gap-2">
         <Cpu class="h-4 w-4 text-muted-foreground" />
-        <h2 class="text-sm font-semibold text-foreground">运行时能力</h2>
+        <h2 class="text-sm font-semibold text-foreground">运行状态</h2>
       </div>
 
       <template v-if="snapshot">
-        <p class="mt-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">已启用能力契约</p>
+        <p class="mt-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">已启用的功能</p>
         <div class="mt-1 flex flex-wrap gap-1">
           <Badge v-for="capability in snapshot.capabilities" :key="capability" variant="outline">{{ capability }}</Badge>
           <span v-if="snapshot.capabilities.length === 0" class="text-[11px] text-muted-foreground">无</span>
@@ -328,13 +318,13 @@ onMounted(load);
             {{ route.path }} <span class="opacity-70">← {{ route.plugin }}</span>
           </li>
           <li v-if="snapshot.routes.pages.length === 0" class="text-[11px] text-muted-foreground">
-            当前没有页面提供者插件（站点将进入安装与维护界面）
+            当前没有启用任何页面功能
           </li>
         </ul>
       </template>
 
       <p v-else class="mt-3 text-xs text-muted-foreground">
-        需要 `plugin.view` 权限才能查看运行时诊断信息。
+        需要相应权限才能查看运行信息。
       </p>
     </Card>
 
@@ -342,23 +332,23 @@ onMounted(load);
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <BookOpen class="h-4 w-4 text-muted-foreground" />
-          <h2 class="text-sm font-semibold text-foreground">插槽与事件</h2>
+          <h2 class="text-sm font-semibold text-foreground">插件扩展</h2>
         </div>
         <span class="text-[11px] text-muted-foreground">
-          插槽 {{ snapshot?.slots.length ?? 0 }} · 事件 {{ snapshot?.events.length ?? 0 }}
+          扩展点 {{ snapshot?.slots.length ?? 0 }} · 事件 {{ snapshot?.events.length ?? 0 }}
         </span>
       </div>
 
       <div class="mt-3 grid gap-4 md:grid-cols-2">
         <div>
-          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">已注册插槽</p>
+          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">已注册扩展点</p>
           <ul class="mt-1 flex flex-col gap-1">
             <li v-for="slot in snapshot?.slots ?? []" :key="slot.slot" class="text-[11px] text-muted-foreground">
               <span class="font-mono text-foreground">{{ slot.slot }}</span>
               <span class="opacity-80"> ← {{ slot.components.join('、') }}</span>
             </li>
             <li v-if="(snapshot?.slots.length ?? 0) === 0" class="text-[11px] text-muted-foreground">
-              暂无插件注册插槽
+              暂无扩展点
             </li>
           </ul>
         </div>
@@ -380,7 +370,7 @@ onMounted(load);
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <ScrollText class="h-4 w-4 text-muted-foreground" />
-          <h2 class="text-sm font-semibold text-foreground">审计日志</h2>
+          <h2 class="text-sm font-semibold text-foreground">操作日志</h2>
         </div>
         <span class="text-[11px] text-muted-foreground">最近 {{ audit.length }} / 共 {{ auditTotal }} 条</span>
       </div>
@@ -392,7 +382,7 @@ onMounted(load);
               <th class="rn-th w-44">时间</th>
               <th class="rn-th">操作</th>
               <th class="rn-th w-32">操作者</th>
-              <th class="rn-th w-32 hidden md:table-cell">来源 IP</th>
+              <th class="rn-th w-32 hidden md:table-cell">来源地址</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
@@ -408,7 +398,7 @@ onMounted(load);
               <td class="rn-td hidden font-mono text-[11px] text-muted-foreground md:table-cell">{{ entry.ip || '—' }}</td>
             </tr>
             <tr v-if="audit.length === 0">
-              <td class="rn-td py-8 text-center text-xs text-muted-foreground" colspan="4">暂无审计记录</td>
+              <td class="rn-td py-8 text-center text-xs text-muted-foreground" colspan="4">暂无操作记录</td>
             </tr>
           </tbody>
         </table>

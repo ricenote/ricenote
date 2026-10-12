@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rice.navigation",
   "name": "导航栏",
-  "description": "顶部导航栏的唯一来源：把「自定义链接 / 页面 / 文章」编排成有序导航项，通过 header.navigation 插槽输出到前台，并在后台提供独立管理页。",
+  "description": "管理站点顶部导航栏，自由编排自定义链接、页面与文章。",
   "version": "1.1.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",

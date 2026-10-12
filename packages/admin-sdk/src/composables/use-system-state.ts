@@ -57,7 +57,7 @@ async function waitUntilBack(previousStartedAt: string): Promise<boolean> {
   const deadline = Date.now() + MAX_WAIT_MS;
 
   // 阶段一：等待 HTTP 恢复响应
-  state.phase = '等待服务重新监听…';
+  state.phase = '正在等待服务恢复…';
   while (Date.now() < deadline) {
     try {
       const response = await fetch('/api/health', { headers: { Accept: 'application/json' } });
@@ -69,7 +69,7 @@ async function waitUntilBack(previousStartedAt: string): Promise<boolean> {
   }
 
   // 阶段二：等待新进程完成装配（startedAt 变化）
-  state.phase = '等待内核重新装配…';
+  state.phase = '正在等待服务准备就绪…';
   while (Date.now() < deadline) {
     const current = await refresh();
     if (current && current.startedAt !== previousStartedAt) return true;

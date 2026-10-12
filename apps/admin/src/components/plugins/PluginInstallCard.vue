@@ -31,9 +31,9 @@ const emit = defineEmits<{ (event: 'finished', job: PluginJobDto): void }>();
 const toast = useToast();
 
 const tabs: TabItem[] = [
-  { key: 'registry', label: 'npm 包' },
+  { key: 'registry', label: '在线安装' },
   { key: 'git', label: 'Git 仓库' },
-  { key: 'local', label: '本地目录' }
+  { key: 'local', label: '本地安装' }
 ];
 
 const source = ref('registry');
@@ -55,15 +55,15 @@ const job = ref<PluginJobDto | null>(null);
 /** 提交前的输入校验：把明显的错误留在本地，不占用任务队列。 */
 const validationError = computed(() => {
   if (source.value === 'registry' && registrySpec.value.trim().length === 0) {
-    return '请填写 npm 包名（可带版本区间，例如 ricenote-plugin-nav@^1.2.0）';
+    return '请填写扩展包名称';
   }
   if (source.value === 'git' && gitRepo.value.trim().length === 0) {
-    return '请填写 Git 仓库地址（https:// 或 git@host:path）';
+    return '请填写 Git 仓库地址';
   }
   if (source.value === 'local') {
     if (localMode.value === 'zip' && !zipFile.value) return '请选择插件包（.zip）';
     if (localMode.value === 'path' && localPath.value.trim().length === 0) {
-      return '请填写本地插件目录的绝对路径';
+      return '请填写本地插件目录路径';
     }
   }
   return '';
@@ -127,7 +127,7 @@ async function submit(): Promise<void> {
 function onJobFinished(finished: PluginJobDto): void {
   emit('finished', finished);
   if (finished.status === 'succeeded') {
-    toast.success(`${finished.pluginId ?? '插件'} 安装完成，重启后生效`);
+    toast.success('安装完成，重启后生效');
   } else {
     toast.error(finished.error ?? '安装失败');
   }
@@ -139,12 +139,11 @@ function onJobFinished(finished: PluginJobDto): void {
     <div class="flex items-center gap-2">
       <Package class="h-4 w-4 text-muted-foreground" />
       <h2 class="text-sm font-semibold text-foreground">安装插件</h2>
-      <Badge variant="outline">需要 plugin.install 权限</Badge>
+      <Badge variant="outline">需要安装权限</Badge>
     </div>
     <p class="mt-1 text-xs leading-relaxed text-muted-foreground">
-      三种来源：<strong class="text-foreground">npm 包</strong>（主路径，自动解析依赖、按语义化版本检查更新）、
-      <strong class="text-foreground">Git 仓库</strong>（tag / 提交 / 分支，取源码后按声明构建）、
-      <strong class="text-foreground">本地目录</strong>（开发调试直接引用；压缩包为其离线形式）。
+      支持<strong class="text-foreground">在线安装</strong>、<strong class="text-foreground">Git 仓库</strong>与
+      <strong class="text-foreground">本地安装</strong>三种方式。
     </p>
 
     <div class="mt-3">
@@ -153,7 +152,7 @@ function onJobFinished(finished: PluginJobDto): void {
 
     <div class="mt-3 flex flex-col gap-3">
       <template v-if="source === 'registry'">
-        <Field label="npm 包名" required>
+        <Field label="扩展包名称" required>
           <Input
             v-model="registrySpec"
             placeholder="ricenote-plugin-nav@^1.2.0"
@@ -162,9 +161,7 @@ function onJobFinished(finished: PluginJobDto): void {
         </Field>
         <p class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Package class="h-3 w-3" />
-          省略版本时取 <span class="font-mono">latest</span>；私有源请配置环境变量
-          <span class="font-mono">RICENOTE_NPM_REGISTRY</span> 与
-          <span class="font-mono">RICENOTE_NPM_TOKEN</span>（不落库、不进日志）。
+          不填写版本时使用最新版本。
         </p>
       </template>
 
@@ -172,13 +169,12 @@ function onJobFinished(finished: PluginJobDto): void {
         <Field label="仓库地址" required>
           <Input v-model="gitRepo" placeholder="https://github.com/acme/ricenote-nav.git" :disabled="submitting" />
         </Field>
-        <Field label="引用（tag / 提交 / 分支）">
-          <Input v-model="gitRef" placeholder="v1.2.0（留空取默认分支 HEAD）" :disabled="submitting" />
+        <Field label="引用（标签或分支，可留空）">
+          <Input v-model="gitRef" placeholder="v1.2.0（留空使用默认分支）" :disabled="submitting" />
         </Field>
         <p class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <GitBranch class="h-3 w-3" />
-          只接受 <span class="font-mono">https://</span>、<span class="font-mono">ssh://</span> 与
-          <span class="font-mono">git@host:path</span>；安装时会记录实际检出的提交，便于比较更新。
+          支持 https 与 ssh 形式的仓库地址；安装时会记录实际版本，便于后续比较更新。
         </p>
       </template>
 
@@ -193,13 +189,12 @@ function onJobFinished(finished: PluginJobDto): void {
         />
 
         <template v-if="localMode === 'path'">
-          <Field label="插件目录绝对路径" required>
+          <Field label="插件目录路径" required>
             <Input v-model="localPath" placeholder="C:\\projects\\my-plugin 或 /srv/plugins/my-plugin" :disabled="submitting" />
           </Field>
           <p class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <FolderOpen class="h-3 w-3" />
-            目录需含 <span class="font-mono">manifest.json</span>；安装会复制到第三方插件目录并按需安装依赖、执行构建。
-            开发期想「改动即生效」请改用 <span class="font-mono">RICENOTE_LOCAL_PLUGINS</span> 登记目录（自动重启内核）。
+            请选择包含插件信息的目录。
           </p>
         </template>
 
@@ -211,7 +206,7 @@ function onJobFinished(finished: PluginJobDto): void {
             <Upload class="h-4 w-4 text-muted-foreground" />
             <p class="text-xs text-foreground">{{ zipFile ? zipFile.name : '点击选择插件包（.zip）' }}</p>
             <p class="text-[11px] text-muted-foreground">
-              离线兜底，不参与版本管理；包体先做完整安全校验再落盘（路径穿越 / 符号链接 / 体积与类型白名单）
+              上传的压缩包会先经过安全校验再保存，不参与版本管理。
             </p>
           </div>
           <input
@@ -227,7 +222,7 @@ function onJobFinished(finished: PluginJobDto): void {
       <div class="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
         <div class="flex items-center gap-2">
           <Switch v-model="allowScripts" :disabled="submitting" />
-          <span class="text-xs text-foreground">允许执行依赖安装脚本与构建脚本</span>
+          <span class="text-xs text-foreground">允许安装时执行额外脚本</span>
         </div>
         <Button :disabled="!canSubmit" :loading="submitting" @click="openConfirm">
           <Archive class="h-3.5 w-3.5" />
@@ -237,7 +232,7 @@ function onJobFinished(finished: PluginJobDto): void {
 
       <p v-if="validationError" class="text-[11px] text-muted-foreground">{{ validationError }}</p>
       <p v-else-if="!canInstall" class="text-[11px] text-muted-foreground">
-        当前账号缺少 <span class="font-mono">plugin.install</span> 权限，只能查看。
+        当前账号没有安装权限，只能查看。
       </p>
     </div>
 
@@ -253,13 +248,10 @@ function onJobFinished(finished: PluginJobDto): void {
       <div class="flex items-start gap-2.5 rounded-md border border-warning/40 bg-warning/5 p-3">
         <FileCode2 class="mt-0.5 h-4 w-4 shrink-0 text-warning" />
         <div class="text-xs leading-relaxed text-muted-foreground">
-          <p class="font-medium text-foreground">
-            安装第三方插件等同于授予其在服务器上执行代码的权限
-          </p>
+          <p class="font-medium text-foreground">安装第三方插件存在风险</p>
           <p class="mt-1">
-            插件在核心进程内运行，<strong class="text-foreground">没有真实安全沙箱</strong>；
-            安装过程可执行依赖安装脚本与构建脚本（当前{{ allowScripts ? '已允许' : '已禁用' }}）。
-            请只安装你信任的来源，本次操作会写入审计日志。
+            插件安装时<strong class="text-foreground">可以执行额外脚本</strong>（当前{{ allowScripts ? '已允许' : '已禁用' }}）。
+            请只安装你信任的来源，本次操作会记录在操作日志中。
           </p>
         </div>
       </div>

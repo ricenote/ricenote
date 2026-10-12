@@ -204,7 +204,7 @@ export default defineAdminPage({
   template: `
 <AdminPage
   title="用户"
-  :description="'共 ' + total + ' 个账号 · 由 identity 插件管理，角色分派由 authorization 插件负责'"
+  :description="'共 ' + total + ' 个账号'"
 >
   <template #actions>
     <Button v-if="canManage" @click="openCreate">
@@ -225,7 +225,7 @@ export default defineAdminPage({
 
   <DataTable :columns="columns" :rows="users" :loading="loading" row-key="id"
     thead-class="bg-muted/50"
-    empty-title="暂无用户，或 identity 插件未启用。">
+    empty-title="暂无用户">
     <template #cell-user="{ row }">
       <p class="font-medium text-foreground">{{ row.displayName }}</p>
       <p class="mt-0.5 font-mono text-[11px] text-muted-foreground">{{ row.username }} · {{ row.email }}</p>
@@ -297,7 +297,7 @@ export default defineAdminPage({
     <div class="flex flex-col gap-4">
       <div class="rounded-md border border-warning/40 bg-warning/5 px-3 py-2">
         <p class="text-xs leading-relaxed text-warning">
-          该用户所有设备的登录会话都会立即失效，需要重新登录。请通过安全渠道把新密码告知本人。
+          该用户在所有设备上都需要重新登录。请通过安全渠道把新密码告知本人。
         </p>
       </div>
 

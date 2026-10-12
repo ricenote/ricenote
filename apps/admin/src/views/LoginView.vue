@@ -32,7 +32,7 @@ async function submit(): Promise<void> {
     await router.push(typeof redirect === 'string' && redirect ? redirect : { name: 'dashboard' });
   } catch (error) {
     errorMessage.value =
-      error instanceof ApiError ? error.message : '登录失败，请检查服务端是否可用';
+      error instanceof ApiError ? error.message : '登录失败，请稍后重试';
   } finally {
     submitting.value = false;
   }
@@ -71,17 +71,13 @@ onMounted(() => {
         </span>
         <div>
           <p class="text-base font-semibold leading-tight text-foreground">RiceNote</p>
-          <p class="text-[11px] leading-tight text-muted-foreground">插件优先的博客系统</p>
+          <p class="text-[11px] leading-tight text-muted-foreground">笔记与内容管理</p>
         </div>
       </div>
 
       <Card class="p-6">
         <h1 class="text-lg font-semibold text-foreground">登录管理后台</h1>
-        <p class="mt-1 text-xs text-muted-foreground">
-          使用管理员账号登录；首次部署的初始账号由环境变量
-          <code class="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[11px]">BOOTSTRAP_ADMIN_*</code>
-          决定。
-        </p>
+        <p class="mt-1 text-xs text-muted-foreground">使用管理员账号登录。</p>
 
         <form class="mt-5 flex flex-col gap-4" @submit.prevent="submit">
           <div class="flex flex-col gap-1.5">
@@ -130,8 +126,8 @@ onMounted(() => {
       </Card>
 
       <p class="mt-5 text-center text-[11px] leading-relaxed text-muted-foreground">
-        RiceNote {{ version ? `v${version}` : '' }} · 会话使用 HttpOnly Cookie，写操作校验 CSRF Token<br />
-        连续失败会触发限流，请勿在公共环境使用弱口令
+        RiceNote {{ version ? `v${version}` : '' }}<br />
+        请勿在公共环境使用弱密码
       </p>
     </div>
   </div>

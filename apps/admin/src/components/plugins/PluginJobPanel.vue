@@ -20,9 +20,9 @@ const logBox = ref<HTMLDivElement | null>(null);
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 const STEPS: { key: PluginJobStep; label: string }[] = [
-  { key: 'resolve', label: '解析来源' },
-  { key: 'prepare', label: '准备与构建' },
-  { key: 'commit', label: '落盘' }
+  { key: 'resolve', label: '准备' },
+  { key: 'prepare', label: '安装' },
+  { key: 'commit', label: '完成' }
 ];
 
 const running = computed(
@@ -136,9 +136,6 @@ async function copyLog(): Promise<void> {
           }}任务
         </span>
         <Badge :variant="statusTone">{{ statusLabel }}</Badge>
-        <span v-if="current.pluginId" class="font-mono text-[11px] text-muted-foreground">
-          {{ current.pluginId }}
-        </span>
       </div>
       <div class="flex items-center gap-2">
         <span class="font-mono text-[11px] text-muted-foreground">{{ current.progress }}%</span>
@@ -207,7 +204,7 @@ async function copyLog(): Promise<void> {
         </p>
       </div>
       <p v-if="current.status === 'succeeded'" class="mt-2 text-[11px] text-warning">
-        安装已完成，请重启服务端进程使其生效。
+        安装已完成，请重启服务使其生效。
       </p>
     </div>
   </div>

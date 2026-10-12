@@ -94,9 +94,8 @@ defineExpose({ load });
       </Button>
     </div>
     <p class="mt-1 text-xs leading-relaxed text-muted-foreground">
-      官方插件随主程序发布，按<strong class="text-foreground">推荐版本</strong>安装；
-      这里是"经测试可用"的版本组合，与 registry 上的最新版本是两件事。
-      安装与更新都在后台串行执行，可实时查看日志。
+      官方插件按<strong class="text-foreground">推荐版本</strong>安装，均为经过测试的版本组合。
+      安装与更新过程中可查看进度。
     </p>
 
     <ul class="mt-3 flex flex-col divide-y divide-border border-t border-border">
@@ -109,7 +108,6 @@ defineExpose({ load });
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-sm font-medium text-foreground">{{ entry.label }}</span>
             <Badge :variant="CATEGORY[entry.category].tone">{{ CATEGORY[entry.category].label }}</Badge>
-            <span class="font-mono text-[11px] text-muted-foreground">{{ entry.id }}</span>
             <span v-if="entry.category === 'required'" class="text-[11px] text-warning">
               缺少它无法登录后台
             </span>
@@ -121,7 +119,7 @@ defineExpose({ load });
           <span v-if="!entry.installed" class="text-[11px] text-muted-foreground">
             未安装 · 推荐 v{{ entry.version }}
           </span>
-          <Badge v-else-if="entry.builtin" variant="muted">随仓库分发 v{{ entry.installedVersion }}</Badge>
+          <Badge v-else-if="entry.builtin" variant="muted">内置 v{{ entry.installedVersion }}</Badge>
           <Badge v-else-if="entry.updateToRecommended" variant="warning">
             可更新到 v{{ entry.version }}
           </Badge>

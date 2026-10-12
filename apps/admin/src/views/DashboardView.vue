@@ -2,10 +2,8 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import {
-  Activity,
   AlertTriangle,
   Clock,
-  Database,
   FileText,
   Image,
   Palette,
@@ -14,7 +12,7 @@ import {
   Users
 } from 'lucide-vue-next';
 import type { DashboardStats, PluginSummary } from '@ricenote/shared';
-import { api, Badge, Button, Card, formatDateTime, formatDuration } from '@ricenote/admin-sdk';
+import { api, Badge, Button, Card, formatBytes, formatDateTime, formatDuration } from '@ricenote/admin-sdk';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/stores/toast';
 
@@ -57,6 +55,18 @@ const stateTone: Record<string, 'success' | 'warning' | 'error' | 'muted'> = {
   STARTED: 'success',
   ENABLED: 'warning',
   FAILED: 'error'
+};
+
+/** 插件状态的中文展示名（内部状态码不外露）。 */
+const stateLabel: Record<string, string> = {
+  DISCOVERED: '待安装',
+  VALIDATED: '待启用',
+  INSTALLED: '已安装',
+  ENABLED: '已启用',
+  STARTED: '运行中',
+  STOPPED: '已停止',
+  DISABLED: '已停用',
+  FAILED: '异常'
 };
 
 onMounted(load);
@@ -114,13 +124,6 @@ onMounted(load);
             </dd>
           </div>
           <div>
-            <dt class="text-muted-foreground">Node 版本</dt>
-            <dd class="mt-0.5 flex items-center gap-1 font-medium text-foreground">
-              <Activity class="h-3.5 w-3.5 text-muted-foreground" />
-              {{ stats?.site.nodeVersion ?? '—' }}
-            </dd>
-          </div>
-          <div>
             <dt class="text-muted-foreground">激活主题</dt>
             <dd class="mt-0.5 flex items-center gap-1 font-medium text-foreground">
               <Palette class="h-3.5 w-3.5 text-muted-foreground" />
@@ -166,16 +169,7 @@ onMounted(load);
           <Image class="h-4 w-4 text-muted-foreground" />
         </div>
         <p class="mt-2 text-2xl font-semibold text-foreground">{{ stats?.media.total ?? 0 }}</p>
-        <p class="mt-1 text-[11px] text-muted-foreground">占用 {{ stats?.media.totalSize ?? 0 }} 字节</p>
-      </Card>
-
-      <Card hoverable class="p-4">
-        <div class="flex items-center justify-between">
-          <p class="text-xs text-muted-foreground">缓存条目</p>
-          <Database class="h-4 w-4 text-muted-foreground" />
-        </div>
-        <p class="mt-2 text-2xl font-semibold text-foreground">—</p>
-        <p class="mt-1 text-[11px] text-muted-foreground">详见「系统设置 → 诊断」</p>
+        <p class="mt-1 text-[11px] text-muted-foreground">占用 {{ formatBytes(stats?.media.totalSize ?? 0) }}</p>
       </Card>
     </div>
 
@@ -234,11 +228,11 @@ onMounted(load);
           >
             <div class="min-w-0">
               <p class="truncate text-sm text-foreground">{{ plugin.name }}</p>
-              <p class="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
-                {{ plugin.id }} · v{{ plugin.version }}
-              </p>
+              <p class="mt-0.5 truncate text-[11px] text-muted-foreground">v{{ plugin.version }}</p>
             </div>
-            <Badge :variant="stateTone[plugin.state] ?? 'outline'">{{ plugin.state }}</Badge>
+            <Badge :variant="stateTone[plugin.state] ?? 'outline'">
+              {{ stateLabel[plugin.state] ?? plugin.state }}
+            </Badge>
           </li>
         </ul>
       </Card>

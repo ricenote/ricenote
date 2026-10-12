@@ -83,7 +83,7 @@ async function save(): Promise<void> {
     await Promise.all([loadThemes(), loadSettings(selectedThemeId.value)]);
   } catch (error) {
     if (error instanceof ApiError && error.isConflict) {
-      toast.warning('设置已被其他会话修改，请重新加载后再保存');
+      toast.warning('设置已在别处被修改，请重新加载后再保存');
       await loadSettings(selectedThemeId.value);
     } else {
       toast.error(error instanceof ApiError ? error.message : '保存失败');
@@ -123,7 +123,7 @@ async function rollback(target: number): Promise<void> {
   if (!selectedThemeId.value) return;
   try {
     await api.post(`/themes/${selectedThemeId.value}/settings/rollback`, { revision: target });
-    toast.success(`已回滚到 revision ${target}`);
+    toast.success('已回滚到该版本');
     await Promise.all([loadThemes(), loadSettings(selectedThemeId.value)]);
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : '回滚失败');
@@ -144,7 +144,7 @@ async function uploadPackage(event: Event): Promise<void> {
     const formData = new FormData();
     formData.append('file', file);
     const result = await api.upload<{ themeId: string }>('/themes/install', formData);
-    toast.success(`主题「${result.themeId}」安装成功`);
+    toast.success('主题安装成功');
     await loadThemes();
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : '安装失败');
@@ -170,9 +170,7 @@ onMounted(loadThemes);
     <header class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-xl font-semibold text-foreground">外观中心</h1>
-        <p class="mt-1 text-xs text-muted-foreground">
-          主题零构建：theme.json + Nunjucks 模板 + 静态资源，切换主题不需要改动任何插件
-        </p>
+        <p class="mt-1 text-xs text-muted-foreground">更换主题即可改变站点外观。</p>
       </div>
       <div v-if="canManage">
         <input ref="fileInput" type="file" class="hidden" accept=".zip" @change="uploadPackage" />
@@ -226,13 +224,13 @@ onMounted(loadThemes);
             <h2 class="text-sm font-semibold text-foreground">{{ theme.name }}</h2>
             <Badge v-if="theme.active" variant="default">使用中</Badge>
           </div>
-          <p class="mt-1 font-mono text-[11px] text-muted-foreground">{{ theme.id }} · v{{ theme.version }}</p>
+          <p class="mt-1 text-[11px] text-muted-foreground">v{{ theme.version }}</p>
           <p class="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
             {{ theme.description || '该主题未提供描述。' }}
           </p>
 
           <div v-if="theme.missingRequirements.length" class="mt-2 rounded-md border border-warning/40 bg-warning/5 px-2.5 py-1.5">
-            <p class="text-[11px] text-warning">缺少依赖能力：{{ theme.missingRequirements.join('、') }}</p>
+            <p class="text-[11px] text-warning">缺少必要功能：{{ theme.missingRequirements.join('、') }}</p>
           </div>
 
           <div class="mt-auto flex flex-wrap items-center gap-2 pt-4">
@@ -250,7 +248,7 @@ onMounted(loadThemes);
 
       <Card v-if="themes.length === 0" class="p-10 text-center sm:col-span-2 lg:col-span-3">
         <p class="text-sm text-foreground">没有已安装的主题</p>
-        <p class="mt-1 text-xs text-muted-foreground">请将主题目录放入 themes/ 或上传 ZIP 包。</p>
+        <p class="mt-1 text-xs text-muted-foreground">请上传主题 ZIP 包安装。</p>
       </Card>
     </div>
 
@@ -264,9 +262,6 @@ onMounted(loadThemes);
         <Card class="flex flex-wrap items-center justify-between gap-3 p-4">
           <div>
             <p class="text-sm font-medium text-foreground">{{ selectedTheme.name }} 设置</p>
-            <p class="mt-0.5 text-[11px] text-muted-foreground">
-              当前 revision {{ revision }} · 保存使用乐观锁，冲突会提示重新加载
-            </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" @click="preview">
@@ -294,8 +289,7 @@ onMounted(loadThemes);
         <Card class="p-5">
           <h2 class="text-sm font-semibold text-foreground">可供内容选择的页面模板</h2>
           <p class="mt-0.5 text-xs text-muted-foreground">
-            在 theme.json 的 <span class="font-mono">pageTemplates</span> 中声明后，
-            页面与文章编辑时即可从下列版式中选择；未声明时统一使用<span class="font-mono">templates.page</span>。
+            主题提供的页面版式，页面与文章编辑时可从中选择。
           </p>
           <ul v-if="selectedTheme?.pageTemplates.length" class="mt-3 flex flex-col divide-y divide-border">
             <li
@@ -303,9 +297,7 @@ onMounted(loadThemes);
               :key="template.key"
               class="flex flex-wrap items-baseline gap-x-2 py-2"
             >
-              <span class="font-mono text-xs text-foreground">{{ template.key }}</span>
               <span class="text-xs text-foreground">{{ template.label }}</span>
-              <span class="font-mono text-[11px] text-muted-foreground">templates/{{ template.template }}</span>
               <span v-if="template.description" class="w-full text-[11px] text-muted-foreground">
                 {{ template.description }}
               </span>
@@ -324,7 +316,7 @@ onMounted(loadThemes);
           <ul class="mt-3 flex flex-col divide-y divide-border">
             <li v-for="entry in history.slice(0, 8)" :key="entry.revision" class="flex items-center justify-between py-2.5">
               <span class="text-xs text-muted-foreground">
-                revision {{ entry.revision }} · {{ formatDateTime(entry.createdAt) }}
+                {{ formatDateTime(entry.createdAt) }}
               </span>
               <Button v-if="canManage" variant="ghost" size="sm" @click="rollback(entry.revision)">回滚到此版本</Button>
             </li>

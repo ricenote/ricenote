@@ -112,7 +112,7 @@ export default defineAdminPage({
   template: `
 <AdminPage
   title="页面"
-  description="独立页面拥有自己的地址（/page/别名），可选择主题声明的页面模板；如需出现在前台导航栏，请在「导航栏」中引用它"
+  description="管理「关于本站」「联系方式」这类固定内容页面"
 >
   <template #actions>
     <Button variant="outline" :loading="loading" @click="load">

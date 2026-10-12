@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rice.posts",
   "name": "文章",
-  "description": "提供文章撰写、发布、归档与前台页面（首页、文章页、分类/标签归档），并向搜索插件注册可搜索数据源。",
+  "description": "撰写、发布与归档文章，并生成站点的文章页面与归档页面。",
   "version": "1.6.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",

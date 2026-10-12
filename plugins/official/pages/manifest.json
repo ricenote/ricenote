@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rice.pages",
   "name": "页面",
-  "description": "独立页面：创建「关于我们」「联系方式」等固定内容页，支持自定义地址、状态、排序与页面模板选择。页面可作为导航项来源被 rice.navigation 引用。",
+  "description": "创建「关于我们」「联系方式」这类固定内容页面，可自定义地址、状态与排序。",
   "version": "1.3.0",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",

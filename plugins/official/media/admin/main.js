@@ -139,7 +139,7 @@ export default defineAdminPage({
   template: `
 <AdminPage
   title="媒体库"
-  :description="'共 ' + total + ' 个文件 · 仅允许白名单扩展名，文件名随机化后落盘'"
+  :description="'共 ' + total + ' 个文件 · 支持常见图片、文档与压缩包格式'"
 >
   <template #actions>
     <div v-if="canManage" class="flex items-center">

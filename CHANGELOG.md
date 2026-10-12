@@ -40,6 +40,28 @@
     避免非交互环境被凭据提示挂死；
   - `--dry-run` 可先看将新增/修改/删除的页面再决定是否推送。
 
+### Changed（后台文案面向普通用户）
+
+- **后台管理界面不再暴露技术细节**。定位是面向普通用户的产品，因此删掉了解释原理/机制/字段的
+  说明性文字（如重启的"关停插件与数据库连接、监听同一端口、期间返回 503"、扩展中心的
+  "capability 契约解析依赖（ADR-004）"、插件安装的"核心进程内运行、无真实安全沙箱"、
+  系统设置的"运行时能力/插槽与事件"技术描述等），并把技术词统一改写成用户语言：
+  「落盘」→保存/写入、「落库」→写入数据库、`.env`/环境变量→部署配置、数据库→站点数据、
+  `HttpOnly Cookie`/`CSRF Token` 等直接删去。
+- **内部标识不再直接显示**：插件状态（`STARTED`/`ENABLED`/`FAILED`…）与日志级别
+  （`debug`/`info`/`warn`/`error`）改为中文展示；插件 ID、`apiVersion`、`revision`、
+  文件 `path:line`、`User-Agent`/IP 哈希等对用户无意义的标识一并隐藏或改写。
+- **插件卡片文案同步**：11 个官方插件 `manifest.json` 的 `description` 与官方目录
+  `packages/shared/manifests/plugin-catalog.json` 的 `description` 一起改写为面向用户的表述
+  （原「通过 header.navigation 插槽输出到前台」「在 head.end 注入 Open Graph / JSON-LD」
+  「Core 的安全网关据此执行 fail-closed 鉴权」等）。两组描述保持逐条一致；
+  插件的 `settingsSchema` 标签与说明**本次未动**。
+- **覆盖三处用户可见文案**：核心后台 `apps/admin/src`、官方插件自带后台界面
+  `plugins/official/*/admin`（零构建 ESM 源文件，热改即生效）、共享组件库
+  `packages/admin-sdk/src`。
+- **功能项与注释不动**：日志级别选项、输入占位示例、版本号等仍保留；**代码注释一律未改**，
+  插件的服务端源码、`docs/`、`wiki/` 与测试用例均在本次范围之外。
+
 ### Fixed（wiki 页面命名：改为扁平）
 
 - **wiki 页面从「目录式」改为「扁平前缀式」命名**。根因是 **GitHub Wiki 不支持用目录组织页面** ——
