@@ -30,7 +30,10 @@
   与 `package.json.version` 全量对齐（修掉 5 处历史漂移）。
 - `scripts/release-plugins.mjs` + `pnpm release:plugins`：**先校验后发布**
   （版本三处一致、包名与目录一致、`files` 完整、宿主包未写成普通依赖、
-  `dist` 与后台界面产物存在），按依赖顺序逐包发布；`--dry-run` / `--only=` 可用。
+  `dist` 与后台界面产物存在），按依赖顺序逐包发布；`--dry-run` / `--only=` 可用；
+  新增 `--skip-published`：发布前查 registry，已存在的版本跳过并列出
+  （npm 不允许覆盖版本号，全量发布时"只改了一个包"不会再被 EPUBLISHCONFLICT 中断整轮；
+  查询失败时按"不存在"处理并提示，宁可让 registry 拒绝一次也不静默漏发）。
 - `RICENOTE_PLUGINS` 声明式清单（`包名@区间`）：由向导写出，用于"重建环境可复现"；
   启动期**只核对不安装**，缺件或版本不符会给出可执行命令。
 - `.env.example` 增补插件安装相关配置说明（`RICENOTE_PLUGINS`、`RICENOTE_LOCAL_PLUGINS`、

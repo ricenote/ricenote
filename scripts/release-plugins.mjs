@@ -12,6 +12,11 @@
  *   node scripts/release-plugins.mjs --only=rice.posts    # 只发布一个（可重复）
  *   node scripts/release-plugins.mjs --skip-sdks          # 只发布插件
  *   node scripts/release-plugins.mjs --tag=next           # 指定 dist-tag
+ *   node scripts/release-plugins.mjs --skip-published     # 已存在于 registry 的版本自动跳过
+ *
+ * `--skip-published` 建议常开：npm 不允许覆盖已发布的版本号，
+ * 而全量发布会一次尝试 15 个包 —— 只要有**一个**版本没变就会以 EPUBLISHCONFLICT 中断整轮。
+ * 开启后"只改了插件 X"也能直接跑全量，脚本会跳过没变的那些。
  *
  * 凭据：**只从环境变量读取**（NPM_TOKEN / NODE_AUTH_TOKEN 由调用方放进
  * 临时 .npmrc），脚本本身不接触 token，也不把它写进任何文件或日志。
@@ -44,6 +49,7 @@ const args = process.argv.slice(2);
 const flags = {
   dryRun: args.includes('--dry-run'),
   skipSdks: args.includes('--skip-sdks'),
+  skipPublished: args.includes('--skip-published'),
   only: args.filter((item) => item.startsWith('--only=')).map((item) => item.slice(7)),
   tag: args.find((item) => item.startsWith('--tag='))?.slice(6) ?? 'latest'
 };
@@ -61,6 +67,36 @@ function warn(message) {
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'));
+}
+
+/**
+ * 查询某个 `包名@版本` 是否已存在于 registry。
+ *
+ * 返回值刻意分三种：
+ * - `true`：确认已存在（`npm view` 打印出了版本号）；
+ * - `false`：确认不存在（registry 明确回 404）；
+ * - `undefined`：**无法确认**（网络失败、npm 不可用、私有源未登录等）。
+ *
+ * 只有 `true` 才跳过发布：把"查不到"当作"已存在"会**静默漏发**，
+ * 而把它当作"不存在"最多让 npm 自己拒绝一次 —— 后者安全得多，符合"不假装成功"的口径。
+ * 查询不带 `--registry`，与发布使用同一套配置（npmrc / 环境变量），避免查一处、发另一处。
+ */
+function publishedState(name, version) {
+  try {
+    const output = execFileSync('npm', ['view', `${name}@${version}`, 'version', '--json'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: process.platform === 'win32',
+      timeout: 30_000
+    }).trim();
+    return output.length > 0;
+  } catch (error) {
+    const text = [error?.stderr, error?.stdout, error instanceof Error ? error.message : String(error)]
+      .filter((part) => typeof part === 'string')
+      .join(' ');
+    return /E404|404 Not Found|is not in this registry/i.test(text) ? false : undefined;
+  }
 }
 
 /** 跳过的目录名（与发现机制一致：瞬时目录与点开头目录）。 */
@@ -225,10 +261,32 @@ if (errors.length > 0) {
 process.stdout.write(`\n将按顺序发布 ${selected.length} 个包${flags.dryRun ? '（dry-run）' : ''}：\n`);
 
 let published = 0;
+let skipped = 0;
 for (const target of selected) {
   const label = `${target.name}@${target.version}`;
   const common = ['publish', '--access', 'public', '--no-git-checks', `--tag=${flags.tag}`];
   if (flags.dryRun) common.push('--dry-run');
+
+  /*
+   * 已发布的版本无法覆盖：npm 以 EPUBLISHCONFLICT 拒绝，而全量发布会一次尝试 15 个包，
+   * 只要有**一个**没变就会中断整轮。因此在发布之前先做存在性检查。
+   *
+   * 只在真实发布时查：`--dry-run` 保持完全离线（它的职责是校验与预览，不该依赖网络）。
+   */
+  if (!flags.dryRun && flags.skipPublished) {
+    const state = publishedState(target.name, target.version);
+    if (state === true) {
+      skipped += 1;
+      process.stdout.write(`\n⏭ ${label} 已存在于 registry，跳过（--skip-published）\n`);
+      continue;
+    }
+    if (state === undefined) {
+      process.stdout.write(
+        `\n⚠ ${label} 无法确认是否已发布（registry 查询失败），仍尝试发布\n` +
+          '  （若报 EPUBLISHCONFLICT，说明该版本已存在：请升级版本号后再发）\n'
+      );
+    }
+  }
 
   process.stdout.write(`\n▸ ${label}  (${target.dir})\n`);
   try {
@@ -243,14 +301,17 @@ for (const target of selected) {
   } catch (error) {
     process.stderr.write(
       `\n✖ ${label} 发布失败：${error instanceof Error ? error.message : String(error)}\n` +
-        `  已发布 ${published} 个；修复后可重跑本命令（已发布的版本会被 registry 拒绝重复发布，属正常）\n`
+        `  已发布 ${published} 个、跳过 ${skipped} 个；修复后可重跑本命令` +
+        `（配合 --skip-published 时已发布的版本会自动跳过，不会被重复发布挡住）\n`
     );
     process.exit(1);
   }
 }
 
 process.stdout.write(
-  `\n${flags.dryRun ? '✔ dry-run 完成' : '✔ 发布完成'}：${published}/${selected.length}\n` +
+  `\n${flags.dryRun ? '✔ dry-run 完成' : '✔ 发布完成'}：${published}/${selected.length}` +
+    (skipped > 0 ? `（跳过 ${skipped} 个已存在的版本）` : '') +
+    '\n' +
     (flags.dryRun
       ? '  确认无误后去掉 --dry-run 即可真实发布（需要 NPM_TOKEN 具备 @ricenote scope 的发布权限）\n'
       : '  提示：发布后请更新 packages/shared/manifests/plugin-catalog.json 中的推荐版本\n')

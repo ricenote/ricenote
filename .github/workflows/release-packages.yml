@@ -30,7 +30,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build                              # 发布前必须构建，脚本会校验 dist 存在
 
+      # --skip-published 常开：npm 不允许覆盖已发布的版本号，
+      # 而全量发布会一次尝试 15 个包 —— 只要有一个版本没变就会中断整轮。
+      # 开启后"只改了插件 X"也能直接跑全量，没变的版本会被跳过并列出。
       - name: 发布（顺序由脚本保证：shared → SDK → 插件）
-        run: node scripts/release-plugins.mjs ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: node scripts/release-plugins.mjs --skip-published ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
