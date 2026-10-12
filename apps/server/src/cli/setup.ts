@@ -63,6 +63,8 @@ const USAGE = `
   --no-scripts          安装时不执行依赖安装脚本与构建脚本
   --db-url=<连接串>     mysql://user:pass@host:port/name
   --db-host/--db-port/--db-user/--db-password/--db-name
+  --host=<地址>         本进程**监听**地址（有反向代理时仍填本机地址）
+  --port=<端口>         本进程**监听**端口（1-65535）；数据库端口是 --db-port
   --site-title/--site-url/--site-language
   --admin-username/--admin-password/--admin-email
   --help                显示本帮助
@@ -76,6 +78,8 @@ interface SetupOptions {
   fromManifest: boolean;
   allowScripts: boolean;
   plugins: string[];
+  /** 本进程监听地址与端口（与数据库的 `db` 是两回事）。 */
+  http: { host?: string; port?: number };
   db: { host?: string; port?: number; user?: string; password?: string; name?: string };
   site: { title?: string; url?: string; language?: string };
   admin: { username?: string; password?: string; email?: string };
@@ -92,6 +96,7 @@ export function parseSetupArgs(argv: readonly string[]): SetupOptions {
     fromManifest: argv.includes('--from-manifest'),
     allowScripts: !argv.includes('--no-scripts'),
     plugins: [],
+    http: {},
     db: {},
     site: {},
     admin: {}
@@ -122,6 +127,20 @@ export function parseSetupArgs(argv: readonly string[]): SetupOptions {
   const port = valueOf('--db-port');
   if (port) options.db.port = Number.parseInt(port, 10);
 
+  /*
+   * 本进程监听地址/端口刻意用 `--host` / `--port`（而不是沿用 `--db-*` 命名）：
+   * 否则"改端口"会被误读成改数据库 —— 写进 .env 后站点照样监听在 3000，
+   * 而用户以为已经改掉了。非法取值在这里就抛错（由调用方连同用法一起呈现），
+   * 而不是等 `pnpm start` 绑定时才炸。
+   */
+  const host = valueOf('--host');
+  if (host !== undefined) {
+    if (host.trim().length === 0) throw new Error('--host 不能为空（本进程监听地址）');
+    options.http.host = host.trim();
+  }
+  const listenPort = valueOf('--port');
+  if (listenPort !== undefined) options.http.port = parseListenPortFlag(listenPort);
+
   options.site.title = valueOf('--site-title');
   options.site.url = valueOf('--site-url');
   options.site.language = valueOf('--site-language');
@@ -146,9 +165,46 @@ function parseDatabaseUrlLoose(url: string): SetupOptions['db'] {
   };
 }
 
+/**
+ * 校验监听端口：必须是 1-65535 的整数（空值也算非法）。
+ *
+ * 为什么端口要校验，而不是"用户填什么就写什么"：端口是**进程绑定**参数，
+ * `0`（让内核随机分配，用户却以为固定下来了）、`65536`、`abc`、空串
+ * 都不会在写 `.env` 时暴露问题 —— 它们要等到 `pnpm start` 的 `listen` 阶段
+ * 才抛错，而那时安装向导早已"成功"退出，用户拿到的是一个起不来的站点。
+ * 挡在写入之前，错误才能和用法一起呈现给用户。
+ */
+export function validateListenPort(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return '端口不能为空';
+  if (!/^\d+$/.test(trimmed)) return '端口必须是整数（1-65535）';
+  const port = Number.parseInt(trimmed, 10);
+  return port >= 1 && port <= 65535 ? undefined : '端口必须在 1-65535 之间';
+}
+
+/** 命令行 `--port`：非法即抛错（提示带上原值，便于对照手误）。 */
+function parseListenPortFlag(raw: string): number {
+  const problem = validateListenPort(raw);
+  if (problem) throw new Error(`--port 取值非法：${problem}（收到「${raw}」）`);
+  return Number.parseInt(raw.trim(), 10);
+}
+
 /** 安装向导主流程，返回进程退出码。 */
 export async function runSetup(rootDir: string, argv: readonly string[]): Promise<number> {
-  const options = parseSetupArgs(argv);
+  /*
+   * 解析也放在 try 内：`--port=70000` 之类的非法取值会在这里抛出，
+   * 需要和向导其它错误一样呈现为"哪一项错了 + 用法"，
+   * 而不是以未捕获异常的形式打出堆栈。
+   */
+  let options: SetupOptions;
+  try {
+    options = parseSetupArgs(argv);
+  } catch (error) {
+    process.stdout.write(`\n${error instanceof Error ? error.message : String(error)}\n`);
+    process.stdout.write(USAGE);
+    return 1;
+  }
+
   const io = new Prompter({ interactive: options.yes ? false : undefined });
 
   if (options.help) {
@@ -221,16 +277,61 @@ export async function runSetup(rootDir: string, argv: readonly string[]): Promis
       ensured.created ? `已创建数据库 ${db.name}（utf8mb4）` : `已连接数据库 ${db.name}`
     );
 
-    /* ------------------------- 3) 站点与管理员 ------------------------- */
+    /* ---------------------- 3) 监听地址与对外访问 ---------------------- */
+    /*
+     * 部署形态是"本进程监听端口 + nginx/caddy 反向代理对外"，所以这两项必须能配：
+     * 端口写死时，"挂在别的端口/别的地址下面"在安装阶段根本表达不出来，
+     * 只能装完再手改 .env。
+     *
+     * `--yes` / 非交互路径不提问（`Prompter` 自动降级为取值）：容器构建里没有 TTY，
+     * 一旦提问就会把安装挂死 —— 所以这里只用"参数或默认值"两条来源。
+     */
+    io.section('监听地址');
+    const existingPort =
+      existing.PORT !== undefined && validateListenPort(existing.PORT) === undefined
+        ? existing.PORT
+        : undefined;
+    const http = {
+      host:
+        options.http.host ??
+        (await io.text('监听地址', {
+          defaultValue: existing.HOST?.trim() || '0.0.0.0',
+          required: true
+        })),
+      port:
+        options.http.port ??
+        Number.parseInt(
+          await io.text('监听端口', {
+            /*
+             * 沿用已有 .env 的 PORT，但它可能被人手改成非法值 ——
+             * 那种情况下退回 3000，而不是把 `NaN` 原样写进 .env。
+             */
+            defaultValue: existingPort ?? '3000',
+            required: true,
+            validate: (value) => validateListenPort(value)
+          }),
+          10
+        )
+    };
+    io.info(`本进程将监听 ${http.host}:${http.port}（端口需在部署时放通/转发）`);
+
+    /* ------------------------- 4) 站点与管理员 ------------------------- */
     io.section('站点与管理员');
+    io.info('对外访问地址：访客最终访问站点的 URL（canonical 链接等都用它）。');
+    io.info(`若前面有反向代理，这里填代理后的地址；本进程只保证 ${http.host}:${http.port} 可达。`);
     const site = {
       title:
         options.site.title ??
         (await io.text('站点名称', { defaultValue: existing.SITE_TITLE ?? 'RiceNote', required: true })),
       url:
         options.site.url ??
-        (await io.text('站点地址', {
-          defaultValue: existing.SITE_URL ?? 'http://localhost:3000',
+        (await io.text('对外访问地址', {
+          /*
+           * 默认值**跟随上面配置的监听端口推导**，不再写死 3000：
+           * 端口改了却给出一条 3000 的默认地址，等于把用户往错的地址上引。
+           * 已有 .env 的值与显式 `--site-url` 仍然优先（重跑向导不该覆盖既有对外地址）。
+           */
+          defaultValue: existing.SITE_URL ?? `http://localhost:${http.port}`,
           required: true,
           validate: (value) => (/^https?:\/\//.test(value) ? undefined : '必须以 http:// 或 https:// 开头')
         })),
@@ -269,7 +370,7 @@ export async function runSetup(rootDir: string, argv: readonly string[]): Promis
     io.success(`站点「${site.title}」· ${site.url} · ${site.language}`);
     io.success(`管理员账号 ${admin.username}（${admin.email}）`);
 
-    /* ---------------------------- 4) 写入 .env ---------------------------- */
+    /* ---------------------------- 5) 写入 .env ---------------------------- */
     io.section('写入配置');
     const sessionSecret =
       existing.SESSION_SECRET && existing.SESSION_SECRET !== 'change-me-in-production' && !options.forceEnv
@@ -281,6 +382,8 @@ export async function runSetup(rootDir: string, argv: readonly string[]): Promis
       [
         { key: 'NODE_ENV', value: existing.NODE_ENV ?? 'development' },
         { key: 'LOG_LEVEL', value: existing.LOG_LEVEL ?? 'info' },
+        { key: 'HOST', value: http.host },
+        { key: 'PORT', value: String(http.port) },
         { key: 'SITE_URL', value: site.url },
         { key: 'DATABASE_URL', value: buildDatabaseUrl(db) },
         { key: 'DB_HOST', value: db.host },
@@ -314,7 +417,7 @@ export async function runSetup(rootDir: string, argv: readonly string[]): Promis
       return 1;
     }
 
-    /* --------------------------- 5) 内核迁移 --------------------------- */
+    /* --------------------------- 6) 内核迁移 --------------------------- */
     io.section('数据库结构');
     const migrations = new MigrationCoordinator(config, logger);
     await migrations.ensureLedger();
@@ -330,7 +433,7 @@ export async function runSetup(rootDir: string, argv: readonly string[]): Promis
       await migrations.releaseLock().catch(() => undefined);
     }
 
-    /* --------------------------- 6) 选择插件 --------------------------- */
+    /* --------------------------- 7) 选择插件 --------------------------- */
     const catalogEntries = options.skipInstall
       ? []
       : await selectPlugins(io, options, envFilePath(rootDir));
@@ -379,7 +482,7 @@ export async function runSetup(rootDir: string, argv: readonly string[]): Promis
 
     const requiredFailures = failed.filter((item) => item.entry.category === 'required');
 
-    /* ---------------------- 7) 写入插件声明式清单 ---------------------- */
+    /* ---------------------- 8) 写入插件声明式清单 ---------------------- */
     const successful = [...installed, ...skipped.map((id) => findCatalogEntryById(id)).filter((item): item is PluginCatalogEntry => item !== undefined)];
     if (successful.length > 0) {
       upsertEnvFile(envFilePath(rootDir), [
@@ -398,7 +501,7 @@ export async function runSetup(rootDir: string, argv: readonly string[]): Promis
       io.success(`已写入 RICENOTE_PLUGINS（${successful.length} 项）`);
     }
 
-    /* --------------------------- 8) 首次启动 --------------------------- */
+    /* --------------------------- 9) 首次启动 --------------------------- */
     let themeMissing = false;
     if (!options.skipInstall) {
       io.section('初始化');
@@ -459,12 +562,19 @@ export async function runSetup(rootDir: string, argv: readonly string[]): Promis
       await adapter.close();
     }
 
-    /* ---------------------------- 9) 结果摘要 ---------------------------- */
+    /* ---------------------------- 10) 结果摘要 --------------------------- */
     io.section('完成');
     io.info(`已安装 ${installed.length} 项，跳过 ${skipped.length} 项，失败 ${failed.length} 项`);
     for (const item of failed) io.error(`${item.entry.label}（${item.entry.id}）：${item.reason}`);
     io.info('');
+    /*
+     * 后台地址用**配置后的值**（SITE_URL，其默认值又由监听端口推导），
+     * 而不是写死 localhost:3000 —— 改了端口却打印旧地址，用户点开的是打不开的链接。
+     * 另起一行报监听地址：反向代理部署下"在哪里监听"与"对外是什么地址"是两个事实。
+     */
     io.info(`后台地址：${site.url.replace(/\/+$/, '')}/admin/`);
+    io.info(`本进程监听：${http.host}:${http.port}`);
+    io.info('反向代理场景：只需保证该监听端口可达，对外地址与 TLS 由代理决定');
     io.info(`登录账号：${admin.username}`);
     if (generatedPassword !== undefined && admin.password === generatedPassword) {
       io.warn(`初始密码（仅本次显示，请立即保存）：${generatedPassword}`);

@@ -255,7 +255,14 @@ describe('ricenote setup：离线端到端（本地 registry + 真实 CLI）', (
         `--db-password=${DB.password}`,
         `--db-name=${TEST_DB}`,
         '--site-title=安装向导测试站',
-        '--site-url=http://localhost:3981',
+        /*
+         * 监听端口显式指定、且**刻意不给 --site-url**：
+         * 这样"后台地址 http://localhost:3981/admin/"与 `.env` 里的 SITE_URL
+         * 同时验证了"对外地址跟随监听端口推导"—— 若默认值哪天退回写死的
+         * localhost:3000，这两条断言会立刻变红。
+         */
+        '--host=127.0.0.1',
+        '--port=3981',
         '--admin-username=installer',
         '--admin-email=installer@example.com'
       ],
@@ -287,6 +294,25 @@ describe('ricenote setup：离线端到端（本地 registry + 真实 CLI）', (
     assert.equal(result.code, 0, `向导未成功退出：\n${result.stdout}\n${result.stderr}`);
     assert.match(result.stdout, /安装向导/);
     assert.match(result.stdout, /后台地址：http:\/\/localhost:3981\/admin\//);
+    // 反向代理部署下"监听在哪"是独立事实，摘要里必须看得到
+    assert.match(result.stdout, /本进程监听：127\.0\.0\.1:3981/);
+  });
+
+  it('.env 记录本进程监听地址与端口，SITE_URL 跟随端口推导', () => {
+    const env = readFileSync(path.join(rootDir, '.env'), 'utf8');
+
+    assert.match(env, /^HOST=127\.0\.0\.1$/m, `.env 缺少监听地址\n--- 向导输出 ---\n${result.stdout}`);
+    assert.match(env, /^PORT=3981$/m, `.env 缺少监听端口\n--- 向导输出 ---\n${result.stdout}`);
+    /*
+     * 只给了 --port、没给 --site-url：SITE_URL 必须由端口推导出来。
+     * 断言"不是写死的 3000"比只断言"等于 3981"更贴近缺陷本身 ——
+     * 一旦默认值退回硬编码，用户配了端口也会拿到指向 3000 的对外地址。
+     */
+    assert.match(env, /^SITE_URL=http:\/\/localhost:3981$/m);
+    assert.ok(
+      !/^SITE_URL=http:\/\/localhost:3000$/m.test(env),
+      `SITE_URL 不应回落到写死的 3000\n${env}`
+    );
   });
 
   it('必需插件无法被绕过：只请求 posts 也装上 identity 与 authorization', () => {

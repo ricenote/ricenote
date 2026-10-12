@@ -59,21 +59,24 @@
 
 ## 编辑器实现与降级
 
-`admin/editor.js` 按能力自动选择实现：
+**Toast UI 已 vendor 在本插件内**（来源 / 版本 / 许可证与复现步骤见
+[`admin/vendor/README.md`](./admin/vendor/README.md)）：`admin/toastui.js` 注入一次
+`<link>` + `<script>`（模块级 Promise 缓存，同一 URL 只注入一次），取
+`window.toastui.Editor` 后创建实例；两个文件**缺失或注入失败时自动降级**为
+「textarea + 右栏实时预览」，编辑功能不缺失。
 
-1. **Toast UI Editor**：若 `admin/vendor/` 下存在预构建文件，则注入一次
-   `<link>` + `<script>`（模块级 Promise 缓存，同一 URL 只注入一次），
-   取 `window.toastui.Editor` 后创建实例
-   （`initialEditType: 'markdown'`、`previewStyle: 'vertical'`、
-   `hideModeSwitch: true`、`height: '100%'`，工具栏按需裁剪）；
-2. **textarea + 右栏实时预览**：vendor 文件缺失或注入失败时自动降级。
-   预览仍调用 `props.onPreview()` 走服务端渲染管线，内容与前台一致；
-   窄屏（≤900px）时两次预览折为标签页切换。
-
-> **本次交付状态**：构建环境网络受限（jsDelivr 的 TLS 握手失败），
-> `admin/vendor/toastui-editor-all.min.js` 与 `toastui-editor.min.css` **未能取回**，
-> 因此当前实际运行在**第 2 条降级路径**（textarea + 实时预览）。
-> 加载器已就位：把这两个文件放入 `admin/vendor/` 后**无需改代码**即自动升级为 Toast UI。
+- **Toast 模式**：`initialEditType: 'markdown'`、`previewStyle: 'vertical'`、
+  `hideModeSwitch: true`、`language: 'zh-CN'`（语言包已打进同一产物）、
+  `usageStatistics: false`（不向 GA 外发匿名数据）、`autofocus: false`、
+  `height: '100%'`；工具栏按常用项裁剪但保留原生分组观感。编辑器**独占整栏** ——
+  它自带的竖向预览已满足"编辑 + 预览双栏"，右栏服务端预览只在降级模式保留，
+  「与前台一致的权威预览」仍由上方工具栏的「前台预览」按钮（走 `onPreview()`）提供。
+  Toast 自带的图片按钮只做引导（提示改走上方「插入图片」），不会插出绝对地址的图片链接。
+- **加载期**：不先渲染文本域再替换（会闪一下并在替换瞬间丢掉焦点），
+  只显示**等高占位**「正在加载编辑器…」，成功再挂 Toast；失败回落 textarea 路径。
+- **降级模式**：预览仍调用 `props.onPreview()` 走服务端渲染管线，内容与前台一致；
+  窄屏（≤900px）折为标签页 —— 这套**只作用于降级模式**（Toast 自带竖向预览，
+  叠加会变双预览）。
 
 ### Toast UI 来源 / 版本 / 许可证
 
@@ -93,8 +96,9 @@
 - **恢复条件（局限）**：仅在**挂载时 `props.value` 为空**（含纯空白）才恢复草稿 ——
   编辑既有内容时一律以宿主为准，避免把上次未保存的草稿贴进正式内容；
   草稿只保留一份、读取后不自动清除，定位是"崩溃兜底"而非版本历史；
-- **底栏统计**：字数（不含空白）与总行数。光标行列不做展示 ——
-  textarea 路径下没有可靠的跨浏览器行列来源，宁可不显示也不编造。
+- **底栏统计**：字数（不含空白）；光标行列在 Toast 模式下经**公开 API** 读取
+  （`caretChange` 事件 + `getSelection()`），拿不到时（降级模式、或 API 形状不符）
+  只显示总行数 —— 宁可不显示也不从私有属性里猜。
 
 ## 视觉约束
 

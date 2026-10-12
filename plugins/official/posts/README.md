@@ -124,6 +124,7 @@
 | --- | --- |
 | 列表页 | `admin/main.js`（`defineAdminPage` 导出页面组件） |
 | 编辑页 | `admin/editor.js`（隐藏路由 `/posts/editor`；`?id=` 编辑，无 id 新建） |
+| 标签输入 | `admin/tag-input.js`（纯 UI 组件）、`admin/tag-utils.js`（纯逻辑，可单测） |
 | 托管 URL | `/plugin-admin/rice.posts/main.js`、`/plugin-admin/rice.posts/editor.js`（需登录；插件启用时才可取） |
 | 菜单声明 | `manifest.json` → `admin.pages[]`：id `posts.list`、路径 `/posts`、图标 `FileText`、权限 `post.view`；以及隐藏页 id `posts.editor`（`hidden: true`，仅注册路由） |
 | 依赖 | 仅 `/admin-sdk/v1/ricenote-admin.js`（宿主与插件共用同一份 SDK 与同一份 Vue 实例） |
@@ -137,7 +138,7 @@
 「新建 / 编辑」不再用对话框，而是跳转到隐藏页 `/posts/editor`（新建）与
 `/posts/editor?id=<id>`（编辑）；深链与刷新均可用。
 
-- 左栏：元信息卡片（标题、别名、状态、摘要、词条）+ **内容字段区**
+- 左栏：元信息卡片（标题、别名、状态、摘要、分类、标签）+ **内容字段区**
   （字段声明来自 `GET /api/admin/content-fields`，值放入 `fields` 对象随保存提交）；
 - 右栏：占满剩余视口高度（最小 420px）的正文容器，内含 `rice.posts.editorToolbar`
   与 `rice.posts.editorBody` 两个锚点；默认内容是一致外观的多行文本域；
@@ -145,6 +146,23 @@
 - 未保存离开保护：有改动时用**既有确认对话框**提示（不使用 `window.confirm`）；
 - 预览由本页提供（`preview()` → `POST /posts/preview`），贡献插件通过 `onPreview` 回调使用，
   无需知道端点名。
+
+### 标签输入（输入即创建）
+
+左栏的「标签」改为**一个输入框里选择或输入**：UI 在 `admin/tag-input.js`
+（纯组件、不自发请求，全部经回调 props 交给 `editor.js`），纯逻辑在 `admin/tag-utils.js`
+（不 import SDK，可单测）。分类保持原来的药丸按钮，两者视觉上分开：
+
+- 已选标签渲染为**胶囊 + 删除按钮**；输入即过滤候选（**忽略大小写与首尾空白**，高亮匹配片段），
+  `↑/↓` 移动、`Enter` 选中、`Esc` 或点击组件外部关闭；
+- 回车提交自由文本：命中已有标签则直接选中；**未命中且当前用户有 `taxonomy.manage`**
+  （administrator / editor）时才 `POST /api/admin/terms { name, type: 'tag' }` 创建后选中；
+- **无 `taxonomy.manage` 时不提供创建**（author / contributor 只能选已有），输入框给出
+  「没有创建标签的权限」一行提示，不产生任何写请求；
+- 本地先按名称查重，尽量不白撞服务端的重名判断；万一命中 **409**（服务端只按 slug 判重），
+  改为重拉列表并选中那条同名 / 同 slug 的标签，提示「该标签已存在，已选中」——**不算失败**；
+  其它错误用 `useToast` 报错；
+- 保存仍只提交 `form.termIds`（分类与标签共用一个 id 数组），提交契约未变。
 
 ## 设置项（`settingsSchema`，后台自动生成表单）
 

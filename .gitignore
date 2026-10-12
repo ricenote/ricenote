@@ -45,3 +45,6 @@ plugin-repos/
 .playwright-cli/
 e2e-*.png
 RiceNote 项目规划与架构说明书 v1.0.md
+
+
+/.codebuddy/

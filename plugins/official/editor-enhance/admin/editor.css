@@ -76,8 +76,32 @@
   line-height: 1.7;
 }
 
+/*
+ * 加载期占位：与最终编辑器同高（同为 flex:1 + min-height:20rem），
+ * 所以 Toast 挂上来时布局不跳。细边框 + 静音符色，明确"还没好"。
+ */
+.ee-editor__loading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 20rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+}
+
+/*
+ * Toast 挂载容器：必须是确定高度的 flex 子项 —— Toast 初始化时 height:'100%'，
+ * 内部 `.toastui-editor-defaultUI { height: 100% }` 就取这一层的高度。
+ * 高度链条：.ee-editor(height:100%/min-height) → __panes(flex:1;min-height:0)
+ *          → __pane(flex column;min-height:0) → 这里(flex:1)。
+ */
 .ee-editor__toastui {
   flex: 1;
+  min-width: 0;
   min-height: 20rem;
 }
 
@@ -163,7 +187,12 @@
   color: hsl(var(--destructive));
 }
 
-/* 窄屏：预览折为标签页（断点与 editor.js 的 matchMedia 900px 对齐） */
+/*
+ * 窄屏：预览折为标签页（断点与 editor.js 的 matchMedia 900px 对齐）。
+ * 这套只在 **plain 模式**启用 —— Toast 自带竖向预览，再加一层折叠会变双预览，
+ * 因此 `__panes--narrow` 这个类由 editor.js 的 `tabbed` 计算属性控制，
+ * Toast 模式下永远不会落到这里。
+ */
 .ee-editor__panes--narrow {
   grid-template-columns: 1fr;
 }
@@ -173,14 +202,27 @@
 }
 
 /*
+ * 加载期与 Toast 模式只有左栏（右栏服务端预览仅 plain 模式渲染，见 editor.js 模板），
+ * 网格要收成一列 —— 否则 1fr 1fr 会在右侧留一条空白列，编辑器占不满宽度。
+ */
+.ee-editor__panes--single {
+  grid-template-columns: 1fr;
+}
+
+/*
  * Toast UI 覆盖：选择器一律以 .ee-editor 起头，只影响本插件的编辑器容器。
+ * 目标只有一个：让 Toast 看起来像后台原生的 —— 1px 细边框、无阴影、无毛玻璃、
+ * 圆角统一到 var(--radius)。Toast 自带的品牌色（#00a9ff）与 3px 小圆角都换掉。
  */
 .ee-editor .toastui-editor-defaultUI {
-  border: 0;
+  border: 0; /* 外框由 .ee-editor 自己画，避免双层边框 */
+  border-radius: var(--radius);
+  box-shadow: none;
 }
 
 .ee-editor .toastui-editor-defaultUI-toolbar {
   border-bottom: 1px solid hsl(var(--border));
+  border-radius: 0;
   background: hsl(var(--muted));
 }
 
@@ -201,6 +243,15 @@
 .ee-editor .toastui-editor-md-preview {
   font-family: inherit;
   font-size: 14px;
+}
+
+/* Toast 的弹层（链接/图片/表格、下拉工具栏、右键菜单）默认带投影：按后台规范压平 */
+.ee-editor .toastui-editor-popup,
+.ee-editor .toastui-editor-dropdown-toolbar,
+.ee-editor .toastui-editor-context-menu {
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: none;
 }
 
 /* 兜底：即使 vendor 版 Toast UI 自带阴影，也按后台规范压平 */

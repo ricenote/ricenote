@@ -81,6 +81,49 @@ describe('parseSetupArgs：非交互参数解析', () => {
     assert.equal(parseSetupArgs(['--help']).help, true);
     assert.equal(parseSetupArgs(['-h']).help, true);
   });
+
+  it('解析本进程监听地址与端口（与数据库的 --db-* 各归各的）', () => {
+    const options = parseSetupArgs([
+      '--host=127.0.0.1',
+      '--port=8080',
+      '--db-host=db.internal',
+      '--db-port=3307'
+    ]);
+    assert.equal(options.http.host, '127.0.0.1');
+    assert.equal(options.http.port, 8080);
+    /*
+     * 这条断言压着本次改动最容易踩的坑：`--port`（站点监听）与 `--db-port`（数据库）
+     * 名字相近，若解析时互相覆盖，用户的"换个端口跑"会变成"连错数据库"。
+     */
+    assert.equal(options.db.host, 'db.internal');
+    assert.equal(options.db.port, 3307);
+
+    const spaced = parseSetupArgs(['--host', '0.0.0.0', '--port', '65535']);
+    assert.equal(spaced.http.host, '0.0.0.0');
+    assert.equal(spaced.http.port, 65535);
+  });
+
+  it('未提供监听参数时留空（默认值交给 .env 与默认档决定）', () => {
+    const options = parseSetupArgs(['--yes']);
+    assert.equal(options.http.host, undefined);
+    assert.equal(options.http.port, undefined);
+  });
+
+  it('非法监听端口在解析阶段就被拒绝（而不是装完启动时才炸）', () => {
+    /*
+     * 端口是**进程绑定**参数：`0` 会让内核随机分配（用户却以为固定下来了）、
+     * `65536` / `abc` / 空串只会在 `pnpm start` 的 listen 阶段才报错 ——
+     * 那时向导早已以 0 退出，用户拿到的是一个起不来的站点。
+     */
+    for (const bad of ['0', '65536', 'abc', '3000.5', '-1', '', ' ']) {
+      assert.throws(() => parseSetupArgs([`--port=${bad}`]), /--port/, `端口「${bad}」应被拒绝`);
+    }
+    assert.throws(() => parseSetupArgs(['--host=']), /--host/, '空的监听地址应被拒绝');
+
+    // 边界值必须放行，否则 1 与 65535 会变成"看起来像错的"合法配置
+    assert.equal(parseSetupArgs(['--port=1']).http.port, 1);
+    assert.equal(parseSetupArgs(['--port=65535']).http.port, 65535);
+  });
 });
 
 describe('upsertEnvFile：增量更新，不冲掉用户内容', () => {

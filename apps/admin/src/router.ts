@@ -110,7 +110,19 @@ router.beforeEach(async (to) => {
 
   // 刚注册的路由需要重新解析一次；只做一次（`redirectedFrom` 标记），避免循环
   if (to.name === 'not-found' && !to.redirectedFrom) {
-    return { path: to.fullPath, replace: true };
+    /*
+     * 这里必须显式带上 `query` 与 `hash`，不能图省事写 `path: to.fullPath`。
+     *
+     * vue-router 对**对象形式的 `path`** 会先把 `?query` 从 path 上剥掉再匹配，
+     * 然后从 `rawLocation.query` 重建地址 —— 而我们没传 `query`，于是它按
+     * `undefined` 重建，查询参数就被吃掉了：路由匹配成功，`?id=3` 却消失。
+     *
+     * 走这条分支的时机恰好是"硬刷新 / 直接粘贴带 query 的深链"：那时插件页面路由
+     * 尚未注册，首次导航命中兜底路由才会重解析一次。应用内点击时路由已存在，
+     * 不会经过这里 —— 这正是"应用内正常、刷新丢参数"的原因。
+     * （插件编辑页靠 `?id=<id>` 区分"编辑"与"新建"，丢了它会把保存变成重复新建。）
+     */
+    return { path: to.path, query: to.query, hash: to.hash, replace: true };
   }
 
   const permission = to.meta.permission as string | undefined;

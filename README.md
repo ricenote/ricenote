@@ -71,10 +71,14 @@ pnpm run setup
 - 非交互（容器与 CI）：参数需用 `--` 分隔后原样传给向导 ——
   `pnpm run setup -- --yes`（推荐档一键装完）、`-- --plugins=posts,pages`（指定清单）、
   `-- --from-manifest`（按 `.env` 已有清单补齐）。用 `pnpm ricenote setup --yes` 这种形式则不需要 `--`。
+- 监听地址与端口：向导会收集本进程的**监听**地址与端口（默认 `0.0.0.0:3000`，重跑时沿用 `.env` 已有值，
+  也可用 `--host` / `--port` 指定），写入 `HOST` / `PORT`。数据库端口是另一组参数（`--db-port`）。
+  站点**对外**地址是另一个键 `SITE_URL`：前面有 nginx / caddy 反向代理时填访客最终访问的地址
+  （如 `https://blog.example.com`），TLS 与域名由代理决定 —— 与监听端口不一致是正常的，本进程只保证监听端口可达。
 - 可重入：任何一步失败都可以修好后重跑，已完成的步骤会被跳过。
 
 ```bash
-pnpm start            # 启动服务端（默认 http://localhost:3000）
+pnpm start            # 启动服务端（监听 .env 中的 HOST:PORT，默认 http://localhost:3000）
 ```
 
 <details>
@@ -130,6 +134,9 @@ pnpm plugin jobs               # 安装任务历史与日志
 | `http://localhost:3000/` | 公开站点（Nunjucks 服务端渲染） |
 | `http://localhost:3000/admin/` | 管理后台（构建产物由服务端托管） |
 | `http://localhost:3000/api/health` | 健康检查 |
+
+> 上表按默认 `HOST=0.0.0.0` / `PORT=3000` 列出。改了监听端口后请按新端口访问；
+> 若前面有反向代理，请以 `SITE_URL`（对外地址）为准 —— 它与监听地址不一致是正常形态。
 
 管理后台开发模式（热更新 + API 代理到 3000 端口）：
 
