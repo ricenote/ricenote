@@ -94,22 +94,39 @@ async function main(): Promise<void> {
 
     if (isRiceNoteError(error) && error.code === ErrorCode.DB_UNAVAILABLE) {
       const reason = error.message;
-      await startDiagnosticServer({
-        host: config.http.host,
-        port: config.http.port,
-        html: () =>
-          renderDatabaseDownPage({
-            siteTitle: config.site.title,
-            version: APP_VERSION,
-            error: reason,
-            host: config.database.host,
-            port: config.database.port,
-            database: config.database.name
-          })
-      });
-      process.stderr.write(
-        `[ricenote] 数据库不可用，已启动诊断服务：${config.http.siteUrl}\n${reason}\n`
-      );
+
+      /*
+       * 先写原因、再起诊断服务。
+       *
+       * 诊断服务本身也可能起不来（端口被占用、依赖缺失等），而那正是最需要看到根因的时刻：
+       * 曾有版本因为诊断服务抛错，把"数据库不可用"这条信息一起埋掉，用户只看到一坨 TypeError。
+       */
+      process.stderr.write(`[ricenote] 数据库不可用：${reason}\n`);
+
+      try {
+        await startDiagnosticServer({
+          host: config.http.host,
+          port: config.http.port,
+          html: () =>
+            renderDatabaseDownPage({
+              siteTitle: config.site.title,
+              version: APP_VERSION,
+              error: reason,
+              host: config.database.host,
+              port: config.database.port,
+              database: config.database.name
+            })
+        });
+        process.stderr.write(
+          `[ricenote] 已启动诊断服务：${config.http.siteUrl}（打开它可看到原因与修复步骤）\n`
+        );
+      } catch (diagnosticError) {
+        process.stderr.write(
+          `[ricenote] 诊断服务启动失败：${
+            diagnosticError instanceof Error ? diagnosticError.message : String(diagnosticError)
+          }\n  · 常见原因：端口被占用（改 .env 里的 PORT），或数据库已恢复但需要重启\n`
+        );
+      }
       return;
     }
 

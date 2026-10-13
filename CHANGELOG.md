@@ -9,13 +9,20 @@
 
 ## [0.6.1] - 2026-10-12
 
-> 补丁版本：修 `rice.friend-links`「装上就启动失败」的缺陷，并更正 `rice.editor-enhance` 的仓库地址。
+> 补丁版本：修 `rice.friend-links`「装上就启动失败」、修"数据库不可用时后端自己崩掉"，
+> 并更正 `rice.editor-enhance` 的仓库地址。
 > 因为 `0.6.0` 与两个插件的 `1.1.0` 已经发布到 npm（同版本不能重发），这里按补丁递增：
 > 应用与四个 SDK `0.6.0` → `0.6.1`，`rice.friend-links` 与 `rice.editor-enhance` `1.1.0` → `1.1.1`。
 > 插件声明的宿主区间 `^0.6.0` **不变** —— `0.6.1` 仍落在 `>=0.6.0 <0.7.0` 之内，无需跟着升区间。
 
-### Fixed（能力门、README 版本号、插件仓库地址）
+### Fixed（能力门、诊断服务崩溃、README 版本号、插件仓库地址）
 
+- **数据库不可用时后端自己崩掉，反而把真正的原因埋掉**：`startDiagnosticServer` 传给
+  `createHttpServer` 的"假 kernel"只有 `config`，而后者要读 `kernel.logger`（访问日志与错误处理），
+  于是**只要数据库连不上**，`node dist/index.js` 就抛
+  `TypeError: Cannot read properties of undefined (reading 'child')` —— 用户只看到一坨 TypeError，
+  看不到"数据库不可用"。现在给它补上日志器，并让原因**先于**诊断服务写出去，
+  同时容忍诊断服务自身启动失败（如端口被占用）。
 - **`rice.friend-links` 装上就启动失败（`RN_FORBIDDEN`）**：`start()` 里订阅了 `core.runtime.started.v1`，
   但清单只声明了 4 项能力、不含 `events:subscribe`，能力门在插件启动时直接拒绝（403），
   于是这个插件的路由与后台菜单全部不可用。该订阅只是为了记一条启动统计日志，且本插件 README
