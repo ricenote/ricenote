@@ -7,6 +7,13 @@
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-13
+
+> 补丁版本：把版本号收敛为 `plugin-catalog.json` 单一来源，新增 `version:check` / `version:sync` /
+> `version:bump` 三条命令并串进构建、校验、发布与 wiki 流水线；同时修掉"数据库不可用时后端自身崩溃、
+> 反而把真实原因埋掉"的诊断服务缺陷。**没有任何已发布包的内容变化** —— 因此 13 个官方插件保持各自
+> 独立的版本号不动，只把应用版本（以及跟随它的四个 SDK 包与私有工作区包）抬一个补丁。
+
 ### Added（版本号统一管理）
 
 - **`pnpm version:check` / `version:sync` / `version:bump`**：版本号的**唯一手写处**收敛为
@@ -49,8 +56,14 @@
 - `apps/server` 的清单校验（`pnpm validate`）在目录 `appVersion` 不一致时不再自己实现比对，
   改为提示运行 `pnpm version:check` / `version:sync`。
 
-### Fixed（测试）
+### Fixed（诊断服务崩溃、版本一致性测试、示例插件版本）
 
+- **数据库不可用时后端自己崩掉，反而把真正的原因埋掉**：`startDiagnosticServer` 传给
+  `createHttpServer` 的"假 kernel"只有 `config`，而后者要读 `kernel.logger`（访问日志与错误处理），
+  于是**只要数据库连不上**，`node dist/index.js` 就抛
+  `TypeError: Cannot read properties of undefined (reading 'child')` —— 用户只看到一坨 TypeError，
+  看不到"数据库不可用"。现在给它补上日志器，并让原因**先于**诊断服务写出去，
+  同时容忍诊断服务自身启动失败（如端口被占用）。
 - 新增 `tests/unit/version-sync.test.ts`：在真实仓库上跑 `--check`（含「检查项 ≥ 80」的非空断言，
   防止规则被误删后空跑通过），并用临时 fixture 对**历史上真正漂移过的每一类**
   （SDK 包版本、插件 README 版本行、插件宿主区间、wiki 首页、插件一览版本列）造负例，
@@ -59,20 +72,13 @@
 
 ## [0.6.1] - 2026-10-12
 
-> 补丁版本：修 `rice.friend-links`「装上就启动失败」、修"数据库不可用时后端自己崩掉"，
-> 并更正 `rice.editor-enhance` 的仓库地址。
+> 补丁版本：修 `rice.friend-links`「装上就启动失败」，并更正 `rice.editor-enhance` 的仓库地址。
 > 因为 `0.6.0` 与两个插件的 `1.1.0` 已经发布到 npm（同版本不能重发），这里按补丁递增：
 > 应用与四个 SDK `0.6.0` → `0.6.1`，`rice.friend-links` 与 `rice.editor-enhance` `1.1.0` → `1.1.1`。
 > 插件声明的宿主区间 `^0.6.0` **不变** —— `0.6.1` 仍落在 `>=0.6.0 <0.7.0` 之内，无需跟着升区间。
 
-### Fixed（能力门、诊断服务崩溃、README 版本号、插件仓库地址）
+### Fixed（能力门、README 版本号、插件仓库地址）
 
-- **数据库不可用时后端自己崩掉，反而把真正的原因埋掉**：`startDiagnosticServer` 传给
-  `createHttpServer` 的"假 kernel"只有 `config`，而后者要读 `kernel.logger`（访问日志与错误处理），
-  于是**只要数据库连不上**，`node dist/index.js` 就抛
-  `TypeError: Cannot read properties of undefined (reading 'child')` —— 用户只看到一坨 TypeError，
-  看不到"数据库不可用"。现在给它补上日志器，并让原因**先于**诊断服务写出去，
-  同时容忍诊断服务自身启动失败（如端口被占用）。
 - **`rice.friend-links` 装上就启动失败（`RN_FORBIDDEN`）**：`start()` 里订阅了 `core.runtime.started.v1`，
   但清单只声明了 4 项能力、不含 `events:subscribe`，能力门在插件启动时直接拒绝（403），
   于是这个插件的路由与后台菜单全部不可用。该订阅只是为了记一条启动统计日志，且本插件 README
@@ -1062,7 +1068,8 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/ricenote/ricenote/releases/tag/v0.6.2
 [0.6.1]: https://github.com/ricenote/ricenote/releases/tag/v0.6.1
 [0.6.0]: https://github.com/ricenote/ricenote/releases/tag/v0.6.0
 [0.5.4]: https://github.com/ricenote/ricenote/releases/tag/v0.5.4

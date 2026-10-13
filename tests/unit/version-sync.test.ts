@@ -14,7 +14,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, it } from 'node:test';
@@ -223,6 +223,21 @@ function readFixture(dir: string, rel: string): string {
   return readFileSync(path.join(dir, rel), 'utf8');
 }
 
+/**
+ * 把 fixture 的所有文件改成 CRLF 行尾。
+ *
+ * 真实仓库的 Markdown/JSON 都是 CRLF，而 `mkdtempSync` 写出来的是 LF ——
+ * 曾经正因为这个差异漏掉一个缺陷：`releaseChangelog` 用 `[ \t]*\n` 匹配
+ * `## [Unreleased]`，在 CRLF 文件上匹配不到，bump 走到收口那一步就抛错。
+ */
+function toCrlf(dir: string): void {
+  for (const rel of readdirSync(dir, { recursive: true }) as string[]) {
+    const file = path.join(dir, rel);
+    if (!statSync(file).isFile()) continue;
+    writeFileSync(file, readFileSync(file, 'utf8').replace(/\r?\n/g, '\r\n'));
+  }
+}
+
 describe('fixture：干净的骨架应当直接通过', () => {
   it('--check 退出码 0', () => {
     const dir = createFixture();
@@ -373,6 +388,28 @@ describe('fixture：sync 幂等，bump 正确递增', () => {
       // Unreleased 段被清空（内容已搬走）
       const unreleased = changelog.slice(changelog.indexOf('## [Unreleased]'), changelog.indexOf('## [0.6.2]'));
       assert.equal(unreleased.trim(), '## [Unreleased]');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('fixture：CRLF 行尾（真实仓库就是 CRLF，而 fixture 默认是 LF）', () => {
+  it('CRLF 的 CHANGELOG 也能收口，且不会写出混排行尾', () => {
+    const dir = createFixture();
+    try {
+      toCrlf(dir);
+
+      const check = runVersion(['--check', `--root=${dir}`]);
+      assert.equal(check.status, 0, `${check.stdout}${check.stderr}`);
+
+      const result = runVersion(['--bump', 'patch', '--no-verify', `--root=${dir}`]);
+      assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+
+      const changelog = readFixture(dir, 'CHANGELOG.md');
+      assert.match(changelog, /^## \[0\.6\.2\] - \d{4}-\d{2}-\d{2}\r$/m, '新段落应当用 CRLF 行尾');
+      assert.match(changelog, /^\[0\.6\.2\]: https:\/\/\S+\r$/m);
+      assert.ok(!/[^\r]\n/.test(changelog), 'CRLF 文件里不该出现裸 LF（行尾混排）');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/core",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "type": "module",
   "description": "RiceNote 内核：插件/主题管理、服务与事件、路由、渲染、数据库适配与安全网关",

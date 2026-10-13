@@ -246,8 +246,14 @@ function coreVersionRule(expected) {
       const hasNotice = text.includes(APP_VERSION_NOTICE);
       const spans = [];
       if (!hasNotice) {
-        // 首次 sync 时补上"由 version:sync 派生"的提示行（写入后即满足，保证幂等）
-        spans.push({ start: hits[0].indices[0][0], end: hits[0].indices[0][0], value: `${APP_VERSION_NOTICE}\n` });
+        // 首次 sync 时补上"由 version:sync 派生"的提示行（写入后即满足，保证幂等）；
+        // 行尾跟随文件自身风格 —— 仓库里这个文件是 CRLF，写死 `\n` 会造成行尾混排。
+        const eol = text.includes('\r\n') ? '\r\n' : '\n';
+        spans.push({
+          start: hits[0].indices[0][0],
+          end: hits[0].indices[0][0],
+          value: `${APP_VERSION_NOTICE}${eol}`
+        });
       }
       if (actual !== expected) {
         const [start, end] = hits[0].indices[1];
@@ -483,7 +489,13 @@ export function releaseChangelog(rootDir, version, date = today()) {
   }
   let text = readFileSync(file, 'utf8');
 
-  const unreleased = /^## \[Unreleased\][ \t]*\n/m.exec(text);
+  /*
+   * 仓库里的 Markdown 是 **CRLF** 行尾，而 fixture 是 LF —— 早先这里写 `[ \t]*\n`
+   * 在 CRLF 文件上根本匹配不到（`\r` 不属于 `[ \t]`），于是 bump 走到这一步就抛错。
+   * 因此：匹配一律容忍 `\r?\n`，插入的新行按文件自身的行尾风格生成，避免混排。
+   */
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const unreleased = /^## \[Unreleased\][ \t]*\r?\n/m.exec(text);
   if (!unreleased) throw new Error(`${CHANGELOG_PATH} 里找不到 \`## [Unreleased]\` 段`);
 
   const head = text.slice(0, unreleased.index + unreleased[0].length);
@@ -492,8 +504,13 @@ export function releaseChangelog(rootDir, version, date = today()) {
   const body = nextHeading ? rest.slice(0, nextHeading.index) : rest;
   const tail = nextHeading ? rest.slice(nextHeading.index) : '';
 
-  const moved = body.trim().length > 0 ? `\n${body.trim()}\n` : '';
-  text = `${head}\n## [${version}] - ${date}\n${moved}\n${tail}`;
+  // 段落之间保留空行，与文件里其它版本段落保持一致
+  const heading = `## [${version}] - ${date}`;
+  const moved = body.trim();
+  text =
+    moved.length > 0
+      ? `${head}${eol}${heading}${eol}${eol}${moved}${eol}${eol}${tail}`
+      : `${head}${eol}${heading}${eol}${eol}${tail}`;
 
   // 链接引用：比较基准指向新版本
   text = text.replace(
@@ -504,7 +521,7 @@ export function releaseChangelog(rootDir, version, date = today()) {
   if (!new RegExp(`^\\[${escapeRegExp(version)}\\]:`, 'm').test(text)) {
     text = text.replace(
       /^(\[Unreleased\]: \S+\/compare\/v[\d.]+\.\.\.HEAD)$/m,
-      `$1\n[${version}]: https://github.com/ricenote/ricenote/releases/tag/v${version}`
+      `$1${eol}[${version}]: https://github.com/ricenote/ricenote/releases/tag/v${version}`
     );
   }
 

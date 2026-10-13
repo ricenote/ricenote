@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/admin-sdk",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "type": "module",
   "description": "RiceNote 后台界面 SDK：设计令牌、UI 组件、管理 API 客户端与组合式能力（后台 SPA 与插件后台界面共用同一份）",
   "homepage": "https://github.com/ricenote/admin-sdk",
