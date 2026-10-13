@@ -1,6 +1,6 @@
 {
   "name": "@ricenote-example/reading-time",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "RiceNote 第三方示例插件：阅读时长（仅使用公共 SDK）",

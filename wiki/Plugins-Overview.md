@@ -23,9 +23,9 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **13 个官方插�
 | 评论 | `rice.comments` | 1.3.0 | `content.comments@1` | ——（对 posts / identity 为请求期可选依赖） | 评论审核 `/comments` |
 | 搜索 | `rice.search` | 1.2.0 | `content.search@1` | —— | —— |
 | SEO | `rice.seo` | 1.2.0 | ——（消费 `content.posts@1`） | —— | —— |
-| 编辑增强 | `rice.editor-enhance` | 1.1.0 | ——（纯前端贡献） | —— | —— |
+| 编辑增强 | `rice.editor-enhance` | 1.1.1 | ——（纯前端贡献） | —— | —— |
 | RSS 订阅 | `rice.feed` | 1.1.0 | ——（消费 `content.posts@1`） | —— | —— |
-| 友情链接 | `rice.friend-links` | 1.1.0 | —— | —— | 友情链接 `/friend-links` |
+| 友情链接 | `rice.friend-links` | 1.1.1 | —— | —— | 友情链接 `/friend-links` |
 | _示例：阅读时长_ | `acme.reading-time` | 1.1.0 | —— | —— | —— |
 
 “提供的能力契约”是插件对外暴露的**能力名**；其它插件依赖能力而不是插件 ID，因此可以替换实现。

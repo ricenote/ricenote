@@ -88,9 +88,13 @@ export function validateCatalog(input: {
   const notes: string[] = [];
 
   if (catalog.appVersion !== input.appVersion) {
+    /*
+     * 这里只提示、不自己实现全量比对：版本号的一致性由 `scripts/lib/version-plan.mjs`
+     * 统一负责（单一来源 = plugin-catalog.json），根 `pnpm validate` 已先串 `pnpm version:check`。
+     */
     notes.push(
       `官方插件目录的 appVersion=${catalog.appVersion} 与当前应用版本 ${input.appVersion} 不一致` +
-        `（升级主程序时请同步 packages/shared/manifests/plugin-catalog.json）`
+        `（运行 pnpm version:check 可看到全部不同步项，pnpm version:sync 按目录清单写回）`
     );
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/admin",
-  "version": "0.1.0",
+  "version": "0.6.1",
   "private": true,
   "type": "module",
   "description": "RiceNote 管理后台（Vue 3 + Vite + Tailwind · shadcn 风格组件）",

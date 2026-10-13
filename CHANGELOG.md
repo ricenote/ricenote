@@ -7,6 +7,56 @@
 
 ## [Unreleased]
 
+### Added（版本号统一管理）
+
+- **`pnpm version:check` / `version:sync` / `version:bump`**：版本号的**唯一手写处**收敛为
+  `packages/shared/manifests/plugin-catalog.json`（`appVersion` + 各插件 `version`），
+  其余 20 多处全部由脚本派生 —— 根 `package.json`、`packages/core/src/version.ts` 的 `APP_VERSION`、
+  四个 SDK 包与四个私有工作区包（`packages/core`、`apps/server`、`apps/admin`、`tests`）的版本、
+  13 个插件的 `manifest.json` / `package.json` / `README.md` 版本行、插件的宿主区间（跟随宿主次版本）、
+  `wiki/Home.md` / `wiki/_Footer.md` 与「官方插件一览」的版本列。
+- `scripts/lib/version-plan.mjs` 是**全仓唯一实现**（零依赖、无构建，被 CLI、发布脚本与单测共用）：
+  读盘与写盘分离（`plan()` 只报告、`apply()` 才写盘），写入按"片段位置倒序拼接"，
+  不改 JSON 的键序与缩进，也不碰标记之外的手写内容。
+- `pnpm version:bump patch|minor|major` 一条命令完成：改来源 → 写回全部派生处 → 收口 `CHANGELOG.md`
+  （把 `[Unreleased]` 的内容搬进 `## [x.y.z] - 日期` 并更新链接引用）→ `install` / `build` / `validate`。
+  `--plugin=<id>:<level>` 可单独递增某个插件（插件保持**相互独立**的语义化版本），`--dry-run` 只预览。
+  一次补丁升级的手改处因此只剩 `plugin-catalog.json` 一处（外加人手写的变更条目）。
+
+### Changed（校验进了流水线）
+
+- `version:check` 已**显式串联**进 `pnpm build`、`pnpm validate`、`pnpm wiki:check` / `wiki:publish`
+  与 `pnpm release:plugins`（刻意不用 pnpm 的 pre/post 钩子 —— pnpm 9 默认不执行它们）。
+  任何派生处漏改都会在这些入口失败，并点名「文件 + 期望值 + 实际值」。
+- `scripts/release-plugins.mjs` 的版本校验改用同一引擎，并从 `warn` 升级为 **`fail`**：
+  包一旦发出去版本号收不回，"目录说 1.1.0、包里写着 1.1.1"必须在联网之前拦住。
+- `scripts/split-plugin-repos.mjs` 生成镜像仓库时，peer/dev 区间改用 `hostRangeOf()`（跟随宿主次版本），
+  且**只按源码实际声明**的宿主包生成 —— `rice.editor-enhance` 不再被凭空塞进 `@ricenote/shared`。
+- `.github/workflows/release-packages.yml` 在发布前补一步 `pnpm validate`（版本一致性 + 清单校验）。
+
+### Docs
+
+- wiki 的《维护与发布指南》新增「版本号怎么维护」一节：唯一来源、三条命令、一次补丁升级的完整流程与边界
+  （主题版本是资源指纹、不在此列）。
+- 文档里的**具体版本字样去具体化**：宿主区间改用 `A.B.z → ^A.B.0` 的记法，示例版本用 `x.y.z` / `1.x.0` 占位，
+  涉及 `README.md`、`wiki/Upgrading.md`、`wiki/FAQ.md`、`wiki/Configuration.md`、
+  `wiki/Plugins-Install-and-Update.md`、`wiki/Plugin-API-Tutorial.md`、`wiki/Plugin-API-Permissions.md`、
+  `wiki/Plugin-API-Getting-Started.md`、`wiki/Plugin-API-Manifest-Reference.md` 与 `docs/plugin-api/v1.md`；
+  只有历史事实（如"`permissions` 自 `0.5.4` 引入"）保留具体版本号。
+- 首次 `pnpm version:sync` 修掉了一批**已存在的**漂移：`wiki/Home.md` 与 `wiki/_Footer.md` 仍写着 `0.6.0`
+  （0.6.1 已经发布）、「官方插件一览」里 `editor-enhance` / `friend-links` 的 `1.1.1` 未同步、
+  `packages/core` / `apps/*` / `tests` 的版本停在 `0.1.0`（现统一跟随应用版本）。
+- `apps/server` 的清单校验（`pnpm validate`）在目录 `appVersion` 不一致时不再自己实现比对，
+  改为提示运行 `pnpm version:check` / `version:sync`。
+
+### Fixed（测试）
+
+- 新增 `tests/unit/version-sync.test.ts`：在真实仓库上跑 `--check`（含「检查项 ≥ 80」的非空断言，
+  防止规则被误删后空跑通过），并用临时 fixture 对**历史上真正漂移过的每一类**
+  （SDK 包版本、插件 README 版本行、插件宿主区间、wiki 首页、插件一览版本列）造负例，
+  断言 `--check` 点名失败、`--sync` 能修回、`--sync` 幂等、`--bump` 的递增与 CHANGELOG 收口正确。
+- 修掉第三方示例 `acme.reading-time` 的版本不一致（`package.json` 1.0.0 → 1.1.0，与其 manifest 和 README 对齐）。
+
 ## [0.6.1] - 2026-10-12
 
 > 补丁版本：修 `rice.friend-links`「装上就启动失败」、修"数据库不可用时后端自己崩掉"，
