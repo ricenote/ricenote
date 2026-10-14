@@ -18,6 +18,7 @@ import type {
   ExtensionContributeOptions,
   ExtensionPointDeclaration,
   HttpRequestLike,
+  PageRoutePathOverride,
   PageRouteSpec,
   Plugin,
   PluginConfigReader,
@@ -195,6 +196,13 @@ export function createPluginContext(
           throw forbidden(pluginId, 'routes:public', 'ctx.routes.page');
         }
         return track(deps.router.registerPage(pluginId, spec));
+      },
+      overridePath(name: string, override: PageRoutePathOverride): Dispose {
+        // 与注册页面路由同一能力：能提供前台路由才谈得上改写前台路由
+        if (!capabilities.has('routes:public')) {
+          throw forbidden(pluginId, 'routes:public', 'ctx.routes.overridePath');
+        }
+        return track(deps.router.overridePath(pluginId, name, override));
       },
       raw(spec: RawRouteSpec): Dispose {
         const required: PluginCapability = spec.capability === 'routes:admin' ? 'routes:admin' : 'routes:public';

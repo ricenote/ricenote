@@ -1,6 +1,6 @@
 {
   "name": "ricenote",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": true,
   "description": "RiceNote - 插件优先的模块化博客与内容管理系统",
   "type": "module",
@@ -9,7 +9,10 @@
     "node": ">=20.11.0"
   },
   "scripts": {
-    "build": "pnpm -r --filter \"./packages/**\" --filter \"./plugins/official/**\" --filter \"./plugins/third-party/**\" --filter \"./apps/server\" --filter \"./apps/admin\" build",
+    "version:check": "node scripts/version.mjs --check",
+    "version:sync": "node scripts/version.mjs --sync",
+    "version:bump": "node scripts/version.mjs --bump",
+    "build": "pnpm version:check && pnpm -r --filter \"./packages/**\" --filter \"./plugins/official/**\" --filter \"./plugins/third-party/**\" --filter \"./apps/server\" --filter \"./apps/admin\" build",
     "build:all": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm --filter @ricenote/tests test",
@@ -17,14 +20,14 @@
     "dev:admin": "pnpm --filter @ricenote/admin dev",
     "start": "pnpm --filter @ricenote/server start",
     "migrate": "pnpm --filter @ricenote/server migrate",
-    "validate": "pnpm --filter @ricenote/server validate",
+    "validate": "pnpm version:check && pnpm --filter @ricenote/server validate",
     "plugin": "pnpm --filter @ricenote/server plugin",
     "theme": "pnpm --filter @ricenote/server theme",
     "setup": "pnpm --filter @ricenote/server run setup",
-    "release:plugins": "node scripts/release-plugins.mjs",
+    "release:plugins": "pnpm version:check && node scripts/release-plugins.mjs",
     "repos:plugins": "node scripts/split-plugin-repos.mjs",
-    "wiki:check": "node scripts/publish-wiki.mjs --check",
-    "wiki:publish": "node scripts/publish-wiki.mjs"
+    "wiki:check": "pnpm version:check && node scripts/publish-wiki.mjs --check",
+    "wiki:publish": "pnpm version:check && node scripts/publish-wiki.mjs"
   },
   "dependencies": {
     "@ricenote/plugin-sdk": "workspace:*",

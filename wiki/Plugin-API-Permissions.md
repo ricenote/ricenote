@@ -163,13 +163,13 @@
 ```json
 {
   "peerDependencies": {
-    "@ricenote/plugin-sdk": "^0.6.0",
-    "@ricenote/shared": "^0.6.0"
+    "@ricenote/plugin-sdk": "^x.y.0",
+    "@ricenote/shared": "^x.y.0"
   }
 }
 ```
 
-官方插件统一**跟随宿主的次版本**（当前 `0.6.0` 对应 `^0.6.0`）。区间语义与升级规则见
+其中 `x.y` 取**宿主的次版本**（宿主为 `A.B.z` 时写 `^A.B.0`）。区间语义与升级规则见
 [[插件安装与更新|Plugins-Install-and-Update]] 的「关于宿主版本区间」。
 不声明 `permissions` 的插件不受影响 —— 该字段是**可选**的。
 

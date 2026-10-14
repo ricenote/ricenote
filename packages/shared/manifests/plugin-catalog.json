@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "appVersion": "0.6.1",
+  "appVersion": "0.7.0",
   "plugins": [
     {
       "id": "rice.identity",
@@ -43,7 +43,7 @@
     {
       "id": "rice.posts",
       "npm": "@ricenote/plugin-posts",
-      "version": "1.7.0",
+      "version": "1.8.0",
       "category": "recommended",
       "label": "文章",
       "description": "撰写、发布与归档文章，并生成站点的文章页面与归档页面。",
@@ -65,7 +65,7 @@
     {
       "id": "rice.pages",
       "npm": "@ricenote/plugin-pages",
-      "version": "1.4.0",
+      "version": "1.5.0",
       "category": "recommended",
       "label": "页面",
       "description": "创建「关于我们」「联系方式」这类固定内容页面，可自定义地址、状态与排序。",
@@ -104,9 +104,29 @@
       "license": "MIT"
     },
     {
+      "id": "rice.permalink",
+      "npm": "@ricenote/plugin-permalink",
+      "version": "1.0.0",
+      "category": "optional",
+      "label": "固定链接",
+      "description": "为文章、独立页面与分类选择更友好的访问地址；第三方插件可为自己内容类型接入同一套方案。",
+      "capabilities": [
+        "database:own",
+        "routes:public",
+        "routes:admin",
+        "services:provide",
+        "services:consume",
+        "events:subscribe",
+        "extensions:declare"
+      ],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-permalink",
+      "license": "MIT"
+    },
+    {
       "id": "rice.taxonomy",
       "npm": "@ricenote/plugin-taxonomy",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "category": "recommended",
       "label": "分类与标签",
       "description": "为文章提供分类与标签，方便组织与归档内容。",
@@ -144,7 +164,7 @@
     {
       "id": "rice.comments",
       "npm": "@ricenote/plugin-comments",
-      "version": "1.3.0",
+      "version": "1.3.1",
       "category": "recommended",
       "label": "评论",
       "description": "为文章提供访客评论与回复，支持审核与垃圾评论拦截。",
@@ -176,7 +196,7 @@
     {
       "id": "rice.seo",
       "npm": "@ricenote/plugin-seo",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "category": "recommended",
       "label": "SEO",
       "description": "提升站点在搜索引擎与社交平台上的展示效果，并生成供搜索引擎抓取的站点地图。",
@@ -200,7 +220,7 @@
     {
       "id": "rice.feed",
       "npm": "@ricenote/plugin-feed",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "category": "optional",
       "label": "RSS 订阅",
       "description": "为站点提供订阅地址，读者用 RSS 阅读器即可自动获取最新文章。",

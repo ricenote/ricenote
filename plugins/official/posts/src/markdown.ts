@@ -6,6 +6,7 @@
  */
 
 import { marked } from 'marked';
+import { stripShortcodeMarks } from '@ricenote/shared';
 
 const SAFE_PROTOCOLS = /^(https?:|mailto:|\/)/i;
 
@@ -30,9 +31,11 @@ export function markdownToPlainText(markdown: string, length: number): string {
   const withoutCode = markdown
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`[^`]*`/g, ' ');
-  const plain = withoutCode
+  // 先处理链接与图片：此后剩下的方括号里只可能是短代码或普通文字
+  const withoutLinks = withoutCode
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+  const plain = stripShortcodeMarks(withoutLinks)
     .replace(/^\s{0,3}#{1,6}\s+/gm, '')
     .replace(/^\s{0,3}>\s?/gm, '')
     .replace(/[*_~]/g, '')

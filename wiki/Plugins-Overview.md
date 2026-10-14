@@ -1,9 +1,9 @@
 # 官方插件一览
 
-RiceNote 的业务能力全部由插件实现。仓库随附 **13 个官方插件**（`plugins/official/`）与 **1 个第三方示例**（`plugins/third-party/reading-time`）。
+RiceNote 的业务能力全部由插件实现。仓库随附 **14 个官方插件**（`plugins/official/`）与 **1 个第三方示例**（`plugins/third-party/reading-time`）。
 
 > **官方插件 vs 内置插件**：从官方目录随仓库分发的插件带「官方」身份但**可更新、可卸载**；
-> 内置（随进程分发、不可卸载）的只有 Core 自身的基础设施。所有 13 个官方插件都可以独立启停。
+> 内置（随进程分发、不可卸载）的只有 Core 自身的基础设施。所有 14 个官方插件都可以独立启停。
 
 官方插件提供了博客系统的基础功能，开发主题或者其他增强插件时可以直接使用。
 
@@ -15,17 +15,18 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **13 个官方插�
 | --- | --- | --- | --- | --- | --- |
 | 身份与认证 | `rice.identity` | 1.4.0 | `identity.auth@1`、`identity.users@1` | —— | 用户 `/users` |
 | 角色与权限 | `rice.authorization` | 1.4.0 | `identity.authorization@1` | `identity.users@1` | 角色与权限 `/roles` |
-| 文章 | `rice.posts` | 1.7.0 | `content.posts@1` | `identity.users@1` | 文章 `/posts`、编辑文章 `/posts/editor` |
-| 页面 | `rice.pages` | 1.4.0 | `content.pages@1` | —— | 页面 `/pages`、页面编辑 `/pages/editor` |
+| 文章 | `rice.posts` | 1.8.0 | `content.posts@1` | `identity.users@1` | 文章 `/posts`、编辑文章 `/posts/editor` |
+| 页面 | `rice.pages` | 1.5.0 | `content.pages@1` | —— | 页面 `/pages`、页面编辑 `/pages/editor` |
 | 导航栏 | `rice.navigation` | 1.2.0 | `content.navigation@1` | —— | 导航栏 `/navigation` |
-| 分类与标签 | `rice.taxonomy` | 1.2.0 | `content.taxonomy@1` | —— | 分类与标签 `/taxonomy` |
+| 固定链接 | `rice.permalink` | 1.0.0 | `permalink.routes@1` | ——（对 posts / pages / taxonomy 为可选依赖） | 固定链接 `/permalink` |
+| 分类与标签 | `rice.taxonomy` | 1.3.0 | `content.taxonomy@1` | —— | 分类与标签 `/taxonomy` |
 | 媒体库 | `rice.media` | 1.3.0 | `media.library@1` | —— | 媒体库 `/media` |
-| 评论 | `rice.comments` | 1.3.0 | `content.comments@1` | ——（对 posts / identity 为请求期可选依赖） | 评论审核 `/comments` |
+| 评论 | `rice.comments` | 1.3.1 | `content.comments@1` | ——（对 posts / identity 为请求期可选依赖） | 评论审核 `/comments` |
 | 搜索 | `rice.search` | 1.2.0 | `content.search@1` | —— | —— |
-| SEO | `rice.seo` | 1.2.0 | ——（消费 `content.posts@1`） | —— | —— |
-| 编辑增强 | `rice.editor-enhance` | 1.1.0 | ——（纯前端贡献） | —— | —— |
-| RSS 订阅 | `rice.feed` | 1.1.0 | ——（消费 `content.posts@1`） | —— | —— |
-| 友情链接 | `rice.friend-links` | 1.1.0 | —— | —— | 友情链接 `/friend-links` |
+| SEO | `rice.seo` | 1.2.1 | ——（消费 `content.posts@1`） | —— | —— |
+| 编辑增强 | `rice.editor-enhance` | 1.1.1 | ——（纯前端贡献） | —— | —— |
+| RSS 订阅 | `rice.feed` | 1.1.1 | ——（消费 `content.posts@1`） | —— | —— |
+| 友情链接 | `rice.friend-links` | 1.1.1 | —— | —— | 友情链接 `/friend-links` |
 | _示例：阅读时长_ | `acme.reading-time` | 1.1.0 | —— | —— | —— |
 
 “提供的能力契约”是插件对外暴露的**能力名**；其它插件依赖能力而不是插件 ID，因此可以替换实现。
@@ -100,6 +101,30 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **13 个官方插�
 - **安全**：地址白名单只接受 `/` 开头的站内路径与 `http(s)://` 绝对地址，
   拒绝 `javascript:` / `data:` / `vbscript:` / `mailto:` / 相对路径 / 协议相对地址（`//evil.com`）；外链固定输出 `rel="noopener noreferrer"`。
 - **渲染**：通过标准插槽 `header.navigation` 输出。
+
+---
+
+## 固定链接 `rice.permalink`
+
+- **做什么**：为**文章 / 独立页面 / 分类**三类内容各配一套路径模板，决定站点地址长什么样
+  （如 `/archives/{cid}/`、`/{year}/{month}/{day}/{slug}.html`）。它**只接管路径**，
+  内容解析与页面渲染仍在 posts / pages。
+- **对外能力**：`permalink.routes@1`（模板解读、地址生成、命中校验）。
+- **数据表**：`rn_permalink_settings`（按方案一行：`site_id + scheme_id → template`）。
+- **可用参数**：文章 `{cid}` `{slug}` `{category}` `{year}` `{month}` `{day}`；
+  页面 `{cid}` `{slug}`；分类 `{mid}` `{slug}`。每类路径至少含一个参数，非法写法保存时即被拒绝。
+- **预设风格**：文章内置「内核默认 `/post/{slug}`」「默认风格 `/archives/{cid}/`」
+  「WordPress 风格 `/archives/{slug}.html`」「按日期归档」「按分类归档」等预设，
+  也可「个性化定义」；页面与分类各有两个预设。
+- **后台页面**：固定链接 `/permalink`（`permalink.view` / `permalink.manage`）——
+  预设单选、参数标签（在光标处插入）、实时预览、风险提示、保存后标记「待重启」。
+- **对外开放**：声明两个 **server 作用域**扩展点 —— `rice.permalink.schemes`
+  （第三方内容插件为自己的内容类型新增一整套方案）与 `rice.permalink.tokens`
+  （为已有方案追加自定义参数并提供同步取值与命中校验）。
+- **零破坏**：未启用该插件（或启用但未改设置）时，前台地址与内建完全一致
+  （`/post/:slug`、`/page/:slug`、`/category/:slug`）；停用后立即回退。
+- **生效方式**：保存后需**重启**（地址在启动期装配，与插件设置同一语义）。
+- **注意**：一旦选定风格请勿轻易修改 —— 换风格后旧地址不再可用（不做 301 兼容）。
 
 ---
 

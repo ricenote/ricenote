@@ -17,6 +17,8 @@ import {
   searchPublishedFulltext,
   type PostRow
 } from './repository.js';
+import { loadCategoryMap } from './categories.js';
+import { postUrl } from './permalink.js';
 import { loadAuthorNames, type PostsRuntime } from './runtime.js';
 
 export const POSTS_SOURCE_ID = 'posts';
@@ -66,9 +68,16 @@ export function createPostsSearchSource(runtime: PostsRuntime): SearchSource {
  *
  * 刻意**不**填充 terms / coverUrl：这两项需要按行查询其他插件，
  * 会给搜索结果页引入 N+1 查询。卡片模板对这些字段都有条件渲染，缺失不影响展示。
+ *
+ * 唯一的例外是分类：文章地址模板用到 `{category}` 时非有不可，因此改为
+ * **一次批量查询**（`loadCategoryMap`）而不是逐篇查询，也不让页面缺地址。
  */
 async function toHits(runtime: PostsRuntime, rows: PostRow[]): Promise<SearchHit[]> {
   const authorNames = await loadAuthorNames(runtime, rows);
+  const categories = await loadCategoryMap(
+    runtime,
+    rows.map((row) => row.id)
+  );
   const excerptLength = runtime.excerptLength;
 
   return rows.map((row) => {
@@ -79,7 +88,13 @@ async function toHits(runtime: PostsRuntime, rows: PostRow[]): Promise<SearchHit
       id: String(row.id),
       title: row.title,
       excerpt: row.excerpt || markdownToPlainText(row.content, excerptLength),
-      url: `/post/${row.slug}`,
+      url: postUrl(runtime, {
+        id: row.id,
+        slug: row.slug,
+        publishedAt: row.published_at,
+        createdAt: row.created_at,
+        categories: categories[row.id] ?? []
+      }),
       type: 'post',
       sourceLabel: POSTS_SOURCE_LABEL,
       ...(publishedAt ? { publishedAt } : {}),

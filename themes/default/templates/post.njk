@@ -23,7 +23,8 @@
 
   {{ slot('post.beforeContent', { postId: post.id }) }}
 
-  <div class="df-prose">{{ post.html }}</div>
+  {# data-rn-shortcodes：告诉短代码引擎扫这里（正文之外的文字不参与解析） #}
+  <div class="df-prose" data-rn-shortcodes>{{ post.html }}</div>
 
   {{ slot('post.afterContent', { postId: post.id }) }}
 </article>

@@ -119,7 +119,7 @@ export default definePlugin({
    与一条启动告警；**与他人重复声明则是错误**：启动失败、`pnpm validate` 也失败。
 3. **它是个较新的字段**：`permissions` 自 `0.5.4` 引入，而 manifest schema 设了 `additionalProperties: false`，
    旧宿主读到未知字段会直接判定清单非法。因此声明了它，就要把宿主区间写到 `^0.5.4` 及以上
-   （官方插件的做法是跟随宿主次版本，当前为 `^0.6.0`）。
+   （官方插件的做法是跟随宿主次版本：宿主为 `A.B.z` 时写 `^A.B.0`）。
 
 逐条规则、命名约定与自查手段见 [[权限点声明与角色分配|Plugin-API-Permissions]]。
 

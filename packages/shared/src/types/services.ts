@@ -86,6 +86,13 @@ export const SERVICE_CONTRACTS = {
   /** comments 插件提供的评论服务。 */
   CONTENT_COMMENTS: 'content.comments@1',
   /**
+   * permalink 插件提供的固定链接方案服务。
+   *
+   * 内容插件用 `tryUse` **可选**获取：插件未启用时返回 undefined，
+   * 消费方回退到内建默认路径，因此"装了才改变行为"。
+   */
+  PERMALINK: 'permalink.routes@1',
+  /**
    * taxonomy 插件提供的内部服务。
    *
    * 用于 posts 与 taxonomy 之间的**双向**协作（文章保存时要写入词条关联），
@@ -323,9 +330,24 @@ export interface TaxonomyService {
   list(type?: TermType): Promise<TermSummary[]>;
   listWithCounts(): Promise<TermSummary[]>;
   findBySlug(slug: string): Promise<TermSummary | undefined>;
+  /**
+   * 按 ID 读取词条。
+   *
+   * 供前台归档在固定链接方案使用 `{mid}`（分类 ID）时按 ID 命中；
+   * 与 `findBySlug` 一样只读，不区分类型（调用方自行校验 `type`）。
+   */
+  findById(id: number): Promise<TermSummary | undefined>;
   save(input: { id?: number; name: string; slug?: string; type: TermType; description?: string }): Promise<{ id: number }>;
   remove(id: number): Promise<void>;
   termsOfPost(postId: number): Promise<TermSummary[]>;
+  /**
+   * 批量读取多篇文章的词条。
+   *
+   * 存在的理由是避免列表页的 N+1：文章模板使用 `{category}` 时，每篇都要知道
+   * 自己的分类才能拼出地址；逐篇调用 `termsOfPost` 会退化成"每篇一次查询"。
+   * 返回的键只包含确实有关联的文章。
+   */
+  termsOfPosts(postIds: number[]): Promise<Record<number, TermSummary[]>>;
 }
 
 /** taxonomy 插件提供给 posts 插件的关联维护能力。 */
@@ -338,6 +360,193 @@ export interface TaxonomyInternalService {
   termIdsOfPost(postId: number): Promise<number[]>;
   /** 按词条别名读取文章 ID 列表（分类/标签归档使用）。 */
   postIdsOfTerm(slug: string): Promise<number[]>;
+}
+
+/* ----------------------------- 固定链接 ----------------------------- */
+
+/**
+ * 内置固定链接方案的标识。
+ *
+ * 放在契约包的理由：它是 posts / pages 与「固定链接」插件之间的**标识约定**
+ * （内容插件要按它询问"我的方案是什么"），不属于可配置内容。
+ * 方案的中文名、默认模板与预设清单是插件自己的配置，由 `rice.permalink` 维护。
+ */
+export const PERMALINK_SCHEME_IDS = {
+  POST: 'post',
+  PAGE: 'page',
+  CATEGORY: 'category'
+} as const;
+
+/**
+ * 文章路径含 `{category}` 但文章没有分类时，用哪个片段兜底。
+ *
+ * 放在契约包的理由同方案标识：posts 负责生成该片段，「固定链接」插件
+ * 要在界面上如实告知这一兜底，两边必须指向同一个值。
+ */
+export const PERMALINK_UNCATEGORIZED_SEGMENT = 'uncategorized';
+
+/** 方案标识（内置三类之外，第三方插件可以追加自己的方案）。 */
+export type PermalinkSchemeId = string;
+
+/** 路径模板中的一个参数声明（方案自带的参数）。 */
+export interface PermalinkSchemeTokenDeclaration {
+  /** 参数名，模板中写作 `{name}`：小写字母开头，只含小写字母、数字与下划线。 */
+  name: string;
+  /** 展示名（后台参数标签与说明）。 */
+  label: string;
+  description?: string;
+}
+
+/** 一种可一键选用的预设风格。 */
+export interface PermalinkSchemePreset {
+  label: string;
+  template: string;
+}
+
+/**
+ * 一套固定链接方案的声明。
+ *
+ * 内置的文章/独立页面/分类三类方案由「固定链接」插件自己声明；
+ * 第三方内容插件通过 `rice.permalink.schemes` 扩展点贡献自己的方案，
+ * 用的是**同一个结构**，因此后台区块、模板校验、路径接管与地址生成全部复用。
+ */
+export interface PermalinkSchemeDeclaration {
+  /** 方案标识，需全局唯一（内置三类为 `post` / `page` / `category`）。 */
+  id: PermalinkSchemeId;
+  /** 展示名，例如「商品路径」。 */
+  label: string;
+  /**
+   * 要接管路径的前台路由名（例如 `shop.product`）。
+   *
+   * 该路由必须已注册且声明 `overridable: true`；不满足时本次接管会被跳过并记录告警，
+   * **不会**影响其它方案。
+   */
+  routeName: string;
+  /** 本方案自带的可用参数。 */
+  tokens: PermalinkSchemeTokenDeclaration[];
+  /** 未配置时使用的默认模板。 */
+  defaultTemplate: string;
+  /** 可一键选用的预设风格；留空表示只提供个性化定义。 */
+  presets?: PermalinkSchemePreset[];
+  /** 后台实时预览用的示例取值（键为参数名）。 */
+  sample: Record<string, string | number>;
+}
+
+/**
+ * 第三方为已有方案追加参数的声明（`rice.permalink.tokens` 扩展点）。
+ *
+ * 与方案自带参数的区别：方案自带参数的取值由提供方案的内容插件给出，
+ * 而本声明的取值由**贡献方自己**给出（`resolve`），因此贡献方与取值来源是同一方。
+ */
+export interface PermalinkTokenDeclaration {
+  /** 参数名（不含花括号），不得与内置参数或其它贡献重复。 */
+  token: string;
+  /** 展示名（后台参数标签与说明）。 */
+  label: string;
+  description?: string;
+  /** 适用的方案 id；省略表示全部方案。 */
+  schemes?: PermalinkSchemeId[];
+  /** 贡献方插件 ID（可选，用于后台区分参数的来源）。 */
+  source?: string;
+  /**
+   * 取值来源：生成地址时调用。
+   *
+   * 必须**同步**返回非空字符串 —— 地址生成也会在订阅源、站点地图等没有请求
+   * 上下文的路径上被调用，因此需要异步或重查询的数据应由贡献方自行缓存。
+   * 返回 undefined 表示本次无法取值：提供方会回退到该方案的默认模板生成
+   * （绝不产出坏链接），并记录一次告警。
+   */
+  resolve(input: {
+    scheme: PermalinkSchemeId;
+    /** 调用方已给出的其它参数取值。 */
+    values: Record<string, string | number>;
+    /** 请求期生成时才会给出。 */
+    request?: unknown;
+  }): string | undefined;
+  /**
+   * 命中校验：判断从地址中抽出的取值是否可以接受。
+   *
+   * 缺省表示接受任意非空值；返回 false 时该地址判 404，
+   * 避免同一内容出现多个可访问地址。
+   */
+  match?(input: { scheme: PermalinkSchemeId; value: string }): boolean;
+}
+
+/** `rice.permalink.schemes` 扩展点的载荷。 */
+export interface PermalinkSchemesHookPayload {
+  schemes: PermalinkSchemeDeclaration[];
+}
+
+/** `rice.permalink.tokens` 扩展点的载荷。 */
+export interface PermalinkTokensHookPayload {
+  tokens: PermalinkTokenDeclaration[];
+}
+
+/** 路径模板中一个可用的参数。 */
+export interface PermalinkTokenInfo {
+  /** 参数名，模板中写作 `{name}`。 */
+  name: string;
+  /** 展示名（后台参数标签与说明）。 */
+  label: string;
+  description?: string;
+  /** 该参数的来源插件 ID；方案自带参数来自提供方案的内容插件。 */
+  source?: string;
+}
+
+/** 一个路径方案：把「前台路由的路径」交给固定链接插件编译与接管。 */
+export interface PermalinkSchemeInfo {
+  id: PermalinkSchemeId;
+  /** 展示名，例如「文章路径」。 */
+  label: string;
+  /** 被本方案接管路径的前台路由名（如 `post.show`），该路由需声明可接管。 */
+  routeName: string;
+  /** 当前生效的模板。 */
+  template: string;
+  /** 未配置时使用的默认模板。 */
+  defaultTemplate: string;
+  /** 可选预设风格（内置的文章方案提供若干预设，第三方方案可以为空）。 */
+  presets: { label: string; template: string }[];
+  /** 本方案可用的参数（含第三方通过扩展点追加的参数）。 */
+  tokens: PermalinkTokenInfo[];
+}
+
+/**
+ * 固定链接方案服务（由 `rice.permalink` 插件提供）。
+ *
+ * 消费方一律用 `ctx.services.tryUse()` **可选**获取：插件未启用时返回 undefined，
+ * 内容插件回退到自己的内建默认路径，因此"装了才改变行为"。
+ * 所有方法都是同步的、不访问数据库 —— 方案在插件启动末段已编译完毕。
+ */
+export interface PermalinkRoutesService {
+  /** 全部生效方案（内置三类 + 第三方贡献）。 */
+  schemes(): PermalinkSchemeInfo[];
+  /** 某方案生效的模板；未知方案返回 undefined。 */
+  template(schemeId: PermalinkSchemeId): string | undefined;
+  /** 某方案可用的参数；未知方案返回空数组。 */
+  tokens(schemeId: PermalinkSchemeId): PermalinkTokenInfo[];
+  /** 某方案生效的模板是否使用了指定参数。 */
+  uses(schemeId: PermalinkSchemeId, token: string): boolean;
+  /**
+   * 从路由参数还原取值。
+   *
+   * 字面量后缀不匹配（如模板要求 `.html` 而地址里没有）或第三方参数校验不通过时
+   * 返回 undefined，调用方据此返回 404，避免同一内容出现多个可访问地址。
+   */
+  extract(
+    schemeId: PermalinkSchemeId,
+    params: Record<string, string>
+  ): Record<string, string> | undefined;
+  /**
+   * 按取值生成地址（不含站点前缀）。
+   *
+   * 缺参或第三方参数取不到值时返回 undefined，调用方回退到内建默认路径，
+   * 保证任何情况下都不会产出坏链接。
+   */
+  build(
+    schemeId: PermalinkSchemeId,
+    values: Record<string, string | number>,
+    options?: { request?: unknown }
+  ): string | undefined;
 }
 
 /* ----------------------------- 媒体 ----------------------------- */

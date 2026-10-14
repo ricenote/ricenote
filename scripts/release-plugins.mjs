@@ -27,6 +27,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { plan } from './lib/version-plan.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -109,13 +110,22 @@ function officialPluginDirs() {
 }
 
 const catalog = readJson(path.join(ROOT, 'packages/shared/manifests/plugin-catalog.json'));
-const appVersion = readJson(path.join(ROOT, 'package.json')).version;
 
-if (catalog.appVersion !== appVersion) {
-  warn(
-    `插件目录的 appVersion=${catalog.appVersion} 与根 package.json 的 ${appVersion} 不一致：` +
-      `升级主程序时请同步更新 packages/shared/manifests/plugin-catalog.json`
-  );
+/*
+ * 版本号一致性交给统一引擎（单一来源 = `plugin-catalog.json`，规则见 `scripts/lib/version-plan.mjs`）。
+ *
+ * 刻意用 `fail` 而不是 `warn`：包一旦发出去，版本号就收不回 ——
+ * "目录说 1.1.0、包里写着 1.1.1"这类不一致必须在联网之前拦住。
+ */
+const versionPlan = plan(ROOT);
+if (!versionPlan.ok) {
+  for (const issue of versionPlan.issues) fail(`版本号不一致：${issue}`);
+  for (const item of versionPlan.items.filter((entry) => !entry.ok)) {
+    fail(
+      `版本号不一致：${item.file} · ${item.label}：期望 ${item.expected}，实际 ${item.actual ?? '(无法定位)'}` +
+        `（改 packages/shared/manifests/plugin-catalog.json 后运行 pnpm version:sync）`
+    );
+  }
 }
 
 /* ------------------------------ 校验：基础包 ------------------------------ */

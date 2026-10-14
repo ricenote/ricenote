@@ -157,7 +157,7 @@ ctx.events.list(): { name: string; subscribers: number }[]
 
 ---
 
-## 7. `routes`（三类）
+## 7. `routes`（四类）
 
 ### 7.1 `page()` —— 公开页面（需要 `routes:public`）
 
@@ -170,6 +170,7 @@ interface PageRouteSpec {
   kind: string;                    // 页面类型：home / post / page / archive / search / 404 / 自定义
   template?: string;               // 覆盖主题中该 kind 的模板
   cacheable?: boolean;             // 是否参与 HTML 缓存，默认 true
+  overridable?: boolean;           // 是否允许别的插件替换本路由的路径（默认 false）
   handler: (request: HttpRequestLike) => Promise<PageViewModel> | PageViewModel;
 }
 ```
@@ -190,11 +191,34 @@ interface PageViewModel {
 
 | 边界 | 说明 |
 | --- | --- |
-| 路由名冲突 | 按 `name` 去重，冲突抛 `RN_ROUTE_CONFLICT` |
+| 路由名冲突 | 按 `name` 去重，冲突抛 `RN_ROUTE_CONFLICT`；**路径结构相同**也会冲突（按参数名归一后比较） |
 | `url()` 生成 | 模板侧 `url('post.show', { slug })`；**未注册路由降级为 `#` 并告警一次**，不是报错 |
 | cacheTags | 变更内容时配合 `core.theme@1.invalidate(tags)` 精确失效 |
+| 路径被接管 | 声明 `overridable: true` 后，别的插件可用 `overridePath` 改它的地址形式（见 7.2） |
 
-### 7.2 `raw()` —— 原始 HTTP（`routes:public`，或 `routes:admin`）
+### 7.2 `overridePath()` —— 替换已注册页面路由的路径（需要 `routes:public`）
+
+只改地址形式、**不换 handler**：提供"固定链接 / 多语言前缀"这类站点级地址方案的插件需要它。
+
+```ts
+ctx.routes.overridePath(name: string, override: {
+  path: string;        // 路由匹配模式（Fastify :param 语法），如 /archives/:cid
+  urlPath?: string;    // 地址生成模式，保留尾斜杠与 .html 等字面量，如 /archives/:cid/
+}): Dispose
+```
+
+| 情况 | 行为 |
+| --- | --- |
+| 目标路由未注册 | 抛 `RN_NOT_FOUND`（不静默登记一个永远不会生效的意图） |
+| 目标未声明 `overridable` | 抛 `RN_ROUTE_CONFLICT` |
+| 已被别的插件接管 | 抛 `RN_ROUTE_CONFLICT` |
+| 替换后与其它页面路由结构相同 | 抛 `RN_ROUTE_CONFLICT`（装配期即失败） |
+
+调用时机：与注册顺序无关（按路由名登记、读取时叠加），但目标必须已注册 ——
+因此在 `core.runtime.started.v1` 里调用（此时全部插件已注册完路由、HTTP 尚未装配）。
+返回的 `Dispose` 一调用即恢复原路径，插件停用亦然。
+
+### 7.3 `raw()` —— 原始 HTTP（`routes:public`，或 `routes:admin`）
 
 ```ts
 ctx.routes.raw(spec: RawRouteSpec): Dispose
@@ -213,7 +237,7 @@ interface RawRouteSpec {
 
 > 声明 `capability: 'routes:admin'` 时，Core 会**自动套用会话 / CSRF / 权限**校验链。
 
-### 7.3 `adminApi()` —— 管理 API（需要 `routes:admin`）
+### 7.4 `adminApi()` —— 管理 API（需要 `routes:admin`）
 
 ```ts
 ctx.routes.adminApi(spec: AdminRouteSpec): Dispose

@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/plugin-pages",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
   "description": "RiceNote 页面插件：独立页面的创建、发布与前台展示",
   "keywords": [
@@ -36,8 +36,8 @@
     "marked": "^15.0.4"
   },
   "peerDependencies": {
-    "@ricenote/plugin-sdk": "^0.6.0",
-    "@ricenote/shared": "^0.6.0"
+    "@ricenote/plugin-sdk": "^0.7.0",
+    "@ricenote/shared": "^0.7.0"
   },
   "peerDependenciesMeta": {
     "@ricenote/plugin-sdk": {

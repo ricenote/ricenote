@@ -71,8 +71,8 @@ plugins/third-party/notice/
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
-    "@ricenote/plugin-sdk": "^0.6.0",
-    "@ricenote/shared": "^0.6.0"
+    "@ricenote/plugin-sdk": "^x.y.0",
+    "@ricenote/shared": "^x.y.0"
   },
   "peerDependenciesMeta": {
     "@ricenote/plugin-sdk": { "optional": true },
@@ -89,6 +89,7 @@ plugins/third-party/notice/
 
 1. **宿主提供的包必须写 `peerDependencies`，且标记 `optional: true`** ——
    把它们写成普通 `dependencies` 会被安装器**直接拒绝**（会导致两份实例）。
+   区间取宿主的**次版本**：宿主为 `A.B.z` 时写 `^A.B.0`（上面的 `^x.y.0` 只是占位记号）。
 2. `files` 决定发布内容；`manifest.json` 必须包含，否则装完无法识别。
 3. `main` 与 `manifest.entry` 要指向同一个文件。
 

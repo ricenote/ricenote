@@ -217,7 +217,38 @@ pnpm wiki:publish               # 正式推送
 
 ---
 
-## 6. 开发者命令速查
+## 6. 版本号怎么维护
+
+**唯一手写处是 `packages/shared/manifests/plugin-catalog.json`**：它的 `appVersion` 是应用版本，
+`plugins[].version` 是各插件版本（插件保持**相互独立**的语义化版本）。其余 20 多处版本号都是**派生的**：
+
+- 根 `package.json`、`packages/core/src/version.ts` 的 `APP_VERSION`（运行时版本，会写进 `rn_site_state`）；
+- 四个 SDK 包与四个私有工作区包（`packages/core`、`apps/server`、`apps/admin`、`tests`）的 `package.json`；
+- 13 个官方插件的 `manifest.json`、`package.json` 与 `README.md` 的版本行；
+- 插件的**宿主区间**（跟随宿主的次版本：宿主为 `A.B.z` 时写 `^A.B.0`）；
+- `wiki/Home.md`、`wiki/_Footer.md` 与「官方插件一览」的版本列。
+
+规则集中在 `scripts/lib/version-plan.mjs`（全仓唯一实现，无构建、零依赖，被 CLI 与发布脚本共用）。
+
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm version:check` | 只读校验全部派生处；不一致时退出码 1，并点名「文件 + 期望值 + 实际值」 |
+| `pnpm version:sync` | 按单一来源写回全部派生处（幂等，可反复跑） |
+| `pnpm version:bump patch\|minor\|major` | 递增应用版本：改来源 → 写回派生处 → 收口 `CHANGELOG.md` → `install` / `build` / `validate` |
+
+用法要点：
+
+- **一次补丁升级**：先在 `CHANGELOG.md` 的 `[Unreleased]` 段写好条目 → `pnpm version:bump patch`
+  → 在生成的 `## [x.y.z] - 日期` 段下补齐说明（脚本不代写变更正文）。
+  `--plugin=<id>:<level>` 可同时单独递增某个插件，`--all-plugins=<level>` 递增全部插件，`--dry-run` 只预览。
+- **不要手改派生处**：`version:check` 已串进 `pnpm build`、`pnpm validate`、`pnpm wiki:check` / `wiki:publish`
+  与 `pnpm release:plugins`，漏改会在这些入口直接失败（并有单测兜底）。
+- **主题版本不在此列**：`themes/*/theme.json` 的 `version` 是静态资源指纹，改资源时要手动提升（见 [[主题与外观|Themes]]）。
+- 第三方示例插件（`plugins/third-party/*`）不参与官方发布，`version:check` 只在它与自身 manifest 不一致时给出提示。
+
+---
+
+## 7. 开发者命令速查
 
 | 命令 | 用途 |
 | --- | --- |
@@ -226,7 +257,8 @@ pnpm wiki:publish               # 正式推送
 | `pnpm build:all` | 全量构建（含全部工作区包） |
 | `pnpm typecheck` | 全量类型检查 |
 | `pnpm test` | 单元与集成测试 |
-| `pnpm validate` | 校验插件 / 主题清单（**无需数据库**，适合 CI） |
+| `pnpm validate` | 校验版本号一致性 + 插件 / 主题清单（**无需数据库**，适合 CI） |
+| `pnpm version:check` / `version:sync` / `version:bump` | 版本号校验 / 写回 / 递增（见上一节） |
 | `pnpm migrate` | 执行 Core 与插件迁移 |
 | `pnpm dev` / `pnpm dev:admin` | 服务端开发模式 / 后台前端热更新 |
 | `pnpm start` | 启动服务端 |
@@ -248,7 +280,7 @@ pnpm wiki:check          # 如果改动了 wiki/
 
 ---
 
-## 7. 文档与代码的同步
+## 8. 文档与代码的同步
 
 改了代码就要检查这些文档：
 

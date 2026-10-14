@@ -22,6 +22,7 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hostRangeOf } from './lib/version-plan.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'plugin-repos');
@@ -151,12 +152,20 @@ for (const entry of targets) {
   cpSync(path.join(ROOT, 'LICENSE'), path.join(target, 'LICENSE'));
 
   // 2) 自包含的 package.json：宿主提供的包走 peer（+optional），devDependencies 才能本地构建
-  const hostProvided = ['@ricenote/plugin-sdk', '@ricenote/shared'];
+  /*
+   * 宿主包只按**源码实际声明**的那几个生成：例如 rice.editor-enhance 只依赖 plugin-sdk，
+   * 早先无条件写两个会在镜像仓库里凭空多出一个 shared 依赖。
+   * 区间与仓库内保持一致：跟随宿主的次版本（hostRangeOf），而不是应用版本的完整补丁号。
+   */
+  const hostRange = hostRangeOf(appVersion);
+  const hostProvided = Object.keys(original.peerDependencies ?? {}).filter((name) =>
+    name.startsWith('@ricenote/')
+  );
   const devDependencies = {
     typescript: '^5.7.2',
     '@types/node': '^22.10.2'
   };
-  for (const name of hostProvided) devDependencies[name] = `^${appVersion}`;
+  for (const name of hostProvided) devDependencies[name] = hostRange;
 
   const packageJson = {
     name: entry.npm,
@@ -180,14 +189,12 @@ for (const entry of targets) {
     ...(original.dependencies && Object.keys(original.dependencies).length > 0
       ? { dependencies: original.dependencies }
       : {}),
-    peerDependencies: {
-      '@ricenote/plugin-sdk': `^${appVersion}`,
-      '@ricenote/shared': `^${appVersion}`
-    },
-    peerDependenciesMeta: {
-      '@ricenote/plugin-sdk': { optional: true },
-      '@ricenote/shared': { optional: true }
-    },
+    ...(hostProvided.length > 0
+      ? {
+          peerDependencies: Object.fromEntries(hostProvided.map((name) => [name, hostRange])),
+          peerDependenciesMeta: Object.fromEntries(hostProvided.map((name) => [name, { optional: true }]))
+        }
+      : {}),
     devDependencies
   };
 

@@ -10,11 +10,14 @@
 import { definePlugin, type PluginContext } from '@ricenote/plugin-sdk';
 import {
   ErrorCode,
+  PERMALINK_SCHEME_IDS,
   RiceNoteError,
   normalizeSlug,
   SERVICE_CONTRACTS,
   type CoreSetupService,
+  type PermalinkRoutesService,
   type TaxonomyService,
+  type TermSummary,
   type TermType
 } from '@ricenote/shared';
 import * as repo from './repository.js';
@@ -32,10 +35,37 @@ export default definePlugin({
     const setup = ctx.services.use<CoreSetupService>(SERVICE_CONTRACTS.CORE_SETUP);
     const siteId = setup.siteId();
 
+    /*
+     * 归档地址：分类交给「固定链接」方案生成，标签保持内建形式。
+     *
+     * 请求期惰性解析固定链接服务（与其它可选依赖同一约定），且**逐个词条**
+     * 生成失败都回退内建路径 —— 后台列表与其它插件的引用因此永远不会拿到坏地址。
+     */
+    const permalink = (): PermalinkRoutesService | undefined =>
+      ctx.services.tryUse<PermalinkRoutesService>(SERVICE_CONTRACTS.PERMALINK);
+
+    const withUrl = (term: TermSummary): TermSummary => ({
+      ...term,
+      url:
+        term.type === 'category'
+          ? (permalink()?.build(PERMALINK_SCHEME_IDS.CATEGORY, {
+              mid: term.id,
+              slug: term.slug
+            }) ?? `/category/${term.slug}`)
+          : `/tag/${term.slug}`
+    });
+
     const service: TaxonomyService = {
-      list: (type) => repo.listTerms(db, siteId, type),
-      listWithCounts: () => repo.listTermsWithCounts(db, siteId),
-      findBySlug: (slug) => repo.findTermBySlug(db, siteId, slug),
+      list: async (type) => (await repo.listTerms(db, siteId, type)).map(withUrl),
+      listWithCounts: async () => (await repo.listTermsWithCounts(db, siteId)).map(withUrl),
+      findBySlug: async (slug) => {
+        const term = await repo.findTermBySlug(db, siteId, slug);
+        return term ? withUrl(term) : undefined;
+      },
+      findById: async (id) => {
+        const term = await repo.findTermById(db, id);
+        return term ? withUrl(term) : undefined;
+      },
       save: async (input) => {
         const type = assertTermType(input.type);
         const name = String(input.name ?? '').trim();
@@ -79,7 +109,13 @@ export default definePlugin({
         await repo.deleteTerm(db, id);
         ctx.logger.info('词条已删除', { id });
       },
-      termsOfPost: (postId) => repo.termsOfPost(db, postId)
+      termsOfPost: async (postId) => (await repo.termsOfPost(db, postId)).map(withUrl),
+      termsOfPosts: async (postIds) => {
+        const grouped = await repo.termsOfPosts(db, postIds);
+        const output: Record<number, TermSummary[]> = {};
+        for (const [key, terms] of Object.entries(grouped)) output[Number(key)] = terms.map(withUrl);
+        return output;
+      }
     };
 
     ctx.services.provide<TaxonomyService>({

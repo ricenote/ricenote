@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/tests",
-  "version": "0.1.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "description": "RiceNote 单元与集成测试",
@@ -13,6 +13,8 @@
   "dependencies": {
     "@ricenote/core": "workspace:*",
     "@ricenote/plugin-navigation": "workspace:*",
+    "@ricenote/plugin-permalink": "workspace:*",
+    "@ricenote/plugin-posts": "workspace:*",
     "@ricenote/plugin-sdk": "workspace:*",
     "@ricenote/server": "workspace:*",
     "@ricenote/shared": "workspace:*",

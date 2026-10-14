@@ -191,6 +191,8 @@ async function resolvePostUrl(runtime: CommentsRuntime, postId: number): Promise
     const posts = runtime.posts();
     if (posts) {
       const post = await posts.findPublishedById(postId).catch(() => undefined);
+      // 优先用内容插件给出的地址（它已按当前固定链接方案生成）
+      if (post?.url) return post.url;
       if (post?.slug) return `/post/${post.slug}`;
     }
   }

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "rice.permalink",
+  "name": "固定链接",
+  "description": "为文章、独立页面与分类选择更友好的访问地址；第三方插件可为自己内容类型接入同一套方案。",
+  "version": "1.0.0",
+  "apiVersion": "^1.0.0",
+  "author": "RiceNote",
+  "license": "MIT",
+  "entry": "./dist/index.js",
+  "capabilities": [
+    "database:own",
+    "routes:public",
+    "routes:admin",
+    "services:provide",
+    "services:consume",
+    "events:subscribe",
+    "extensions:declare"
+  ],
+  "permissions": [
+    {
+      "key": "permalink.view",
+      "label": { "zh-CN": "查看固定链接", "en": "View permalinks" },
+      "group": { "zh-CN": "外观", "en": "Appearance" }
+    },
+    {
+      "key": "permalink.manage",
+      "label": { "zh-CN": "管理固定链接", "en": "Manage permalinks" },
+      "group": { "zh-CN": "外观", "en": "Appearance" }
+    }
+  ],
+  "migrations": "./migrations",
+  "admin": {
+    "pages": [
+      {
+        "id": "permalink.settings",
+        "label": "固定链接",
+        "path": "/permalink",
+        "icon": "Link",
+        "order": 16,
+        "permission": "permalink.view",
+        "entry": "./admin/main.js"
+      }
+    ]
+  },
+  "extensionPoints": [
+    {
+      "name": "rice.permalink.schemes",
+      "scope": "server",
+      "replaceable": false,
+      "description": "为自己内容类型新增一套固定链接方案：方案名、要接管的前台路由名、自己的参数、默认模板与预览示例。贡献后该方案自动获得后台区块、模板校验、路径接管与地址生成。",
+      "props": [
+        {
+          "name": "schemes",
+          "description": "已登记的全部方案（含内置三类）。贡献方读取后追加自己的方案并原样返回。"
+        }
+      ]
+    },
+    {
+      "name": "rice.permalink.tokens",
+      "scope": "server",
+      "replaceable": false,
+      "description": "为已有方案追加自定义参数（如 {lang}），并提供取值来源与命中校验。取值来源必须是同步且确定性的：地址生成也会在订阅源、站点地图等没有请求上下文的路径上被调用。",
+      "props": [
+        {
+          "name": "tokens",
+          "description": "已登记的第三方参数列表。贡献方读取后追加自己的参数并原样返回。"
+        }
+      ]
+    }
+  ]
+}

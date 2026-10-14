@@ -8,11 +8,12 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import type { RiceNoteKernel } from '@ricenote/core';
+import { createLogger, type RiceNoteKernel } from '@ricenote/core';
 import { adaptReply, adaptRequest } from './http/fastify-adapter.js';
 import { createHttpServer, type CreateServerOptions } from './http/server.js';
 import { registerAdminSpa, registerThemeAssets } from './http/theme-assets.js';
 import { registerAdminSdkAssets } from './http/admin-sdk-assets.js';
+import { registerThemeSdkAssets } from './http/theme-sdk-assets.js';
 import { registerPluginAdminAssets } from './http/plugin-admin-assets.js';
 import { registerPublicRoutes } from './http/public-routes.js';
 import { PreviewStore } from './http/preview-store.js';
@@ -40,6 +41,8 @@ export async function startHttpServer(
   const previewStore = new PreviewStore(kernel.config.preview.ttlSeconds);
 
   registerThemeAssets(app, kernel);
+  // 前台主题运行时（短代码引擎）：由主题用 shortcode_runtime() 引入
+  registerThemeSdkAssets(app, kernel);
   // 后台界面 SDK 与插件自带界面：宿主与插件从同一份产物加载 Vue（单实例前提）
   registerAdminSdkAssets(app, kernel);
   registerPluginAdminAssets(app, kernel);
@@ -107,9 +110,18 @@ export async function startDiagnosticServer(input: {
   port: number;
   html: () => string;
 }): Promise<{ close(): Promise<void> }> {
+  /*
+   * 这里不能 bootstrap 内核（数据库正是坏的），但 `createHttpServer` 仍要读两样东西：
+   * `kernel.logger`（访问日志与错误处理）与可选的 `kernel.runtime`（软重启判断，已走可选链）。
+   *
+   * 早先只塞了 `config`，于是数据库一不可用，诊断服务自己先抛
+   * `TypeError: Cannot read properties of undefined (reading 'child')` ——
+   * 恰好把"数据库不可用"这条真正的原因埋进堆栈里。
+   */
   const app = await createHttpServer(
     {
-      config: { env: 'production' } as never
+      logger: createLogger({ level: 'warn' }),
+      config: { env: 'production' }
     } as unknown as RiceNoteKernel,
     { trustProxy: false }
   );

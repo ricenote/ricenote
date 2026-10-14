@@ -24,6 +24,8 @@ import {
 import { markdownToPlainText, renderMarkdown } from './markdown.js';
 import * as repo from './repository.js';
 import { loadAuthorNames, loadTerms, taxonomyInternalOf, type PostsRuntime } from './runtime.js';
+import { loadCategoryMap } from './categories.js';
+import { categoriesOf, postUrl } from './permalink.js';
 
 const VALID_STATUS: PostStatus[] = ['draft', 'published', 'archived'];
 const MAX_TITLE_LENGTH = 255;
@@ -143,9 +145,11 @@ export async function buildSaveInput(
 }
 
 function toSummary(
+  runtime: PostsRuntime,
   row: repo.PostRow,
   authorNames?: Record<number, string>,
-  fields?: Record<string, unknown>
+  fields?: Record<string, unknown>,
+  categories: readonly { id: number; slug: string }[] = []
 ): PostSummary {
   const publishedAt = row.published_at
     ? row.published_at instanceof Date
@@ -168,6 +172,13 @@ function toSummary(
     // 仅后台视图会传入 fields（前台是"无声明即不展示"，无需携带原始存储值）
     ...(fields ? { fields } : {}),
     terms: [],
+    url: postUrl(runtime, {
+      id: row.id,
+      slug: row.slug,
+      publishedAt: row.published_at,
+      createdAt: row.created_at,
+      categories
+    }),
     ...(publishedAt ? { publishedAt } : {}),
     updatedAt:
       row.updated_at instanceof Date
@@ -188,13 +199,26 @@ async function toDetail(
   const authorNames = await loadAuthorNames(runtime, [row]);
   const terms = await loadTerms(runtime, row.id);
   return {
-    ...toSummary(row, authorNames, fields),
+    ...toSummary(runtime, row, authorNames, fields, categoriesOf(terms)),
     content: row.content,
     html: row.content_html,
     ...(row.seo_title ? { seoTitle: row.seo_title } : {}),
     ...(row.seo_description ? { seoDescription: row.seo_description } : {}),
     terms
   };
+}
+
+/** 列表摘要的统一出口：顺带把分类一次性取回（仅在模板需要时）。 */
+async function toSummaries(
+  runtime: PostsRuntime,
+  rows: repo.PostRow[],
+  authorNames?: Record<number, string>
+): Promise<PostSummary[]> {
+  const categories = await loadCategoryMap(
+    runtime,
+    rows.map((row) => row.id)
+  );
+  return rows.map((row) => toSummary(runtime, row, authorNames, undefined, categories[row.id] ?? []));
 }
 
 /** 创建 `content.posts@1` 服务实现。 */
@@ -209,7 +233,7 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
     async listPublished(input) {
       const result = await repo.listPublished(runtime.db, runtime.siteId, input, runtime.logger);
       const authorNames = await loadAuthorNames(runtime, result.items);
-      return { items: result.items.map((row) => toSummary(row, authorNames)), total: result.total };
+      return { items: await toSummaries(runtime, result.items, authorNames), total: result.total };
     },
 
     async findPublishedBySlug(slug) {
@@ -234,7 +258,7 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
         runtime.logger
       );
       const authorNames = await loadAuthorNames(runtime, result.items);
-      return { items: result.items.map((row) => toSummary(row, authorNames)), total: result.total };
+      return { items: await toSummaries(runtime, result.items, authorNames), total: result.total };
     },
 
     async searchPublished(input) {
@@ -246,7 +270,7 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
         runtime.logger
       );
       const authorNames = await loadAuthorNames(runtime, result.items);
-      return { items: result.items.map((row) => toSummary(row, authorNames)), total: result.total };
+      return { items: await toSummaries(runtime, result.items, authorNames), total: result.total };
     },
 
     async titlesOf(postIds) {
@@ -256,7 +280,21 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
     async publishedRefs(postIds) {
       // 上限防御：调用方（导航等）通常只有个位数，这里兜住异常输入
       const rows = await repo.publishedRefs(runtime.db, runtime.siteId, postIds.slice(0, 200));
-      return rows.map((row) => ({ id: row.id, title: row.title, url: `/post/${row.slug}` }));
+      const categories = await loadCategoryMap(
+        runtime,
+        rows.map((row) => row.id)
+      );
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        url: postUrl(runtime, {
+          id: row.id,
+          slug: row.slug,
+          publishedAt: row.published_at,
+          createdAt: row.created_at,
+          categories: categories[row.id] ?? []
+        })
+      }));
     },
 
     async listForAdmin(query: PostListQuery) {
@@ -276,9 +314,10 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
       const items: PostSummary[] = [];
       for (const row of result.items) {
         // 后台列表携带**原始**字段值，由 admin 层按当前主题声明过滤后输出
+        const terms = await loadTerms(runtime, row.id);
         items.push({
-          ...toSummary(row, authorNames, row.fields),
-          terms: await loadTerms(runtime, row.id)
+          ...toSummary(runtime, row, authorNames, row.fields, categoriesOf(terms)),
+          terms
         });
       }
       return { items, total: result.total };
@@ -398,7 +437,11 @@ export function createPostsService(deps: PostsServiceDeps): ContentPostsService 
       const authorNames = await loadAuthorNames(runtime, rows);
       const items: PostSummary[] = [];
       for (const row of rows) {
-        items.push({ ...toSummary(row, authorNames), terms: await loadTerms(runtime, row.id) });
+        const terms = await loadTerms(runtime, row.id);
+        items.push({
+          ...toSummary(runtime, row, authorNames, undefined, categoriesOf(terms)),
+          terms
+        });
       }
       return items;
     }

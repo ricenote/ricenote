@@ -38,6 +38,15 @@ export async function createHttpServer(
     logger: false,
     trustProxy: options.trustProxy ?? kernel.config.env === 'production',
     bodyLimit: MAX_JSON_BODY_BYTES,
+    /*
+     * 尾斜杠宽容：固定链接模板允许以 `/` 结尾（如 `/archives/{cid}/`），
+     * 而路由注册时会归一化掉尾斜杠，因此要让 `/archives/12` 与 `/archives/12/`
+     * 命中同一条路由。canonical 仍按模板输出，SEO 不受影响。
+     *
+     * 注意：这让"同一路径的带与不带尾斜杠两种写法"不再能各注册一条路由
+     * （`/admin` 与 `/admin/` 这类重复声明会被 Fastify 直接拒绝）。
+     */
+    routerOptions: { ignoreTrailingSlash: true },
     genReqId: (request) => (request.headers['x-request-id'] as string | undefined) ?? randomUUID()
   });
 

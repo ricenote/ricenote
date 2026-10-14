@@ -8,7 +8,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.comments` |
-| version | `1.3.0` |
+| version | `1.3.1` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.comments@1` |

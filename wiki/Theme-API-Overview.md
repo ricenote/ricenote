@@ -163,7 +163,7 @@ TS 类型对应 `packages/shared/src/manifests.ts` 的 `ThemeManifest` / `ThemeS
 
 | 项 | `rice.minimal` | `rice.default` |
 | --- | --- | --- |
-| 名称 / 版本 | Minimal / 1.1.0 | Default / 1.1.0 |
+| 名称 / 版本 | Minimal / 1.1.0 | Default / 1.1.1 |
 | 风格 | 极简阅读 | 深色页眉 + 卡片网格 |
 | 模板 | 9 个 + `partials/pagination.njk`、`partials/post-card.njk` | 同 9 个（无 partials 目录） |
 | `pageTemplates` | `default` / `plain` / `narrow` | 同（键一致） |
@@ -185,7 +185,7 @@ TS 类型对应 `packages/shared/src/manifests.ts` 的 `ThemeManifest` / `ThemeS
   "id": "rice.default",
   "name": "Default",
   "description": "默认主题：深色页眉 + 卡片网格首页。",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "apiVersion": "^1.0.0",
   "engine": "nunjucks",
   "author": "RiceNote",

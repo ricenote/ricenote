@@ -71,8 +71,31 @@ export interface PageRouteSpec {
   template?: string;
   /** 是否参与 HTML 缓存（默认 true）。 */
   cacheable?: boolean;
+  /**
+   * 声明「本路由的路径可被其它插件接管」。
+   *
+   * 只有显式声明为 true 的路由才允许被 `ctx.routes.overridePath()` 改写路径
+   * （例如「固定链接」插件接管 `post.show` 的地址形式）。
+   * 这是数据里的显式契约，避免任意插件劫持别人的路由；
+   * 接管方只改变路径，**不会**替换 handler。
+   */
+  overridable?: boolean;
   /** 处理函数：返回 ViewModel。 */
   handler: (request: HttpRequestLike) => Promise<PageViewModel> | PageViewModel;
+}
+
+/**
+ * 页面路由的路径替换声明。
+ *
+ * 两个字段的区别（与路径模板的「匹配模式 / 生成模式」一一对应）：
+ * - `path` 用于路由注册：参数独占一段，段内字面量被剥离
+ *   （`{slug}.html` → `:slug`，后缀由处理器剥离）；
+ * - `urlPath` 用于地址生成：保留段内字面量（`/archives/:slug.html`），
+ *   缺省与 `path` 相同。
+ */
+export interface PageRoutePathOverride {
+  path: string;
+  urlPath?: string;
 }
 
 export interface PageViewModel {
@@ -111,4 +134,15 @@ export interface RouteRegistryFacade {
   page(spec: PageRouteSpec): Dispose;
   raw(spec: RawRouteSpec): Dispose;
   adminApi(spec: AdminRouteSpec): Dispose;
+  /**
+   * 按路由名替换一条已注册的页面路由的路径。
+   *
+   * 与插件启动顺序**无关**：替换按路由名登记，在路由表被读取时叠加，
+   * 因此接管方不必让被接管插件先启动，也不必声明对它硬依赖。
+   * 但目标路由**必须已经注册**，且必须声明 `overridable: true`
+   * （在 `core.runtime.started.v1` 阶段调用即可满足"全部插件都已注册路由"）。
+   * 不满足时分别抛 `NOT_FOUND` 与 `ROUTE_CONFLICT`，绝不静默失效。
+   * 返回句柄，停用插件即恢复原路径。
+   */
+  overridePath(name: string, override: PageRoutePathOverride): Dispose;
 }

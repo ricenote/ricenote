@@ -19,6 +19,7 @@ export type {
   UrlHelper,
   SlotHelper,
   HasFeatureHelper,
+  ShortcodeRuntimeHelper,
   ThemeHelpers
 } from './helpers.js';
 

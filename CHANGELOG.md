@@ -7,9 +7,170 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-14
+
+### Changed（版本与插件发布）
+
+- **应用版本 0.6.2 → 0.7.0**：本次为**次版本跃迁**，因此官方插件声明的**最低宿主版本**
+  （`package.json` 里的宿主 `peerDependencies`）由 `^0.6.0` 提升到 **`^0.7.0`**。
+  该值由 `plugin-catalog.json` 派生（`pnpm version:sync` 写回、`pnpm version:check` 校验），
+  **请勿手改插件 `package.json`**；旧宿主上的插件需走插件更新流程，不要手改区间。
+- **官方插件版本**（代码有变化的 6 个，其余 8 个不动；新插件首次发布）：
+
+  | 插件 | 版本 | 变化 |
+  | --- | --- | --- |
+  | `rice.posts` | 1.7.0 → **1.8.0** | 新增：可按固定链接方案生成地址、摘要携带 `url`、分类批量查询 |
+  | `rice.pages` | 1.4.0 → **1.5.0** | 新增：可按固定链接方案生成地址、摘要携带 `url` |
+  | `rice.taxonomy` | 1.2.0 → **1.3.0** | 新增：`findById` 与 `termsOfPosts`（避免列表页为拼地址而 N+1 查词条） |
+  | `rice.feed` | 1.1.0 → **1.1.1** | 修正：条目地址取统一生成结果；全文模式剥离短代码标记 |
+  | `rice.seo` | 1.2.0 → **1.2.1** | 修正：站点地图地址取统一生成结果 |
+  | `rice.comments` | 1.3.0 → **1.3.1** | 修正：回退地址取统一生成结果 |
+  | `rice.permalink` | **1.0.0** | 新插件，随本版本首次发布 |
+
+### Added（固定链接）
+
+- **新官方插件 `rice.permalink`「固定链接」**（目录 `plugins/official/permalink`，`category: optional`）：
+  为文章 / 独立页面 / 分类各配一套路径模板（`/archives/{cid}/`、`/{year}/{month}/{day}/{slug}.html` 等），
+  自带后台页「固定链接」（预设单选、参数标签、实时预览、风险提示），提供 `permalink.routes@1` 契约与
+  两个 server 作用域扩展点 `rice.permalink.schemes` / `rice.permalink.tokens`。
+  **内置默认模板与现有地址完全一致**（`/post/{slug}`、`/page/{slug}`、`/category/{slug}`），
+  未启用或未改设置时前台行为零变化。
+- **对外扩展点**：第三方内容插件可为自己内容类型**新增一整套路径方案**
+  （方案名 / 要接管的路由 / 参数与中文标签 / 默认模板 / 预览示例），
+  或为已有方案**追加自定义参数**（如 `{lang}`）并提供同步取值来源与命中校验；
+  接入后自动获得后台区块、模板校验、路径接管与地址生成，无需自建任何能力。
+- **内核新增最小能力 `ctx.routes.overridePath()` + `PageRouteSpec.overridable`**：
+  按路由名替换**路径**（不换 handler），与插件启动顺序无关、目标未声明可接管即拒绝、
+  路径冲突在装配期报错、停用即恢复内建路径。
+- **摘要统一携带前台地址**：`PostSummary.url` / `PageSummary.url` / `TermSummary.url`
+  （由内容插件按当前方案生成），订阅源、站点地图、导航、后台列表与仪表盘改为直接取用，
+  不再各自拼 `/post/:slug`。
+- `@ricenote/shared` 新增与业务无关的路径模板引擎
+  （`parsePathTemplate` / `validatePathTemplate` / `compilePathTemplate`），
+  一并提供"匹配模式"（参数独占一段）与"生成模式"（保留 `.html` 等字面量）两种视角。
+- `TaxonomyService` 新增 `findById` 与 `termsOfPosts`（后者避免列表页为拼地址而 N+1 查词条）。
+
+### Changed（地址与 HTTP 行为）
+
+- 前台 HTTP 实例开启尾斜杠宽容（`routerOptions.ignoreTrailingSlash`），
+  使 `/archives/12` 与 `/archives/12/` 命中同一条路由；`/admin/` 的重复注册随之移除。
+- **顺带修正**：分类归档页此前把 canonical 写死成详情页的地址（`/post/:slug`），
+  现在按归档自身地址输出。
+- 文章路径中的月 / 日补零为两位（`/2026/03/05/…`），且命中侧按同样形态比对，
+  使"不补零的写法"不会变成同一篇文章的第二个可访问地址。
+
+### Added（短代码）
+
+- **主题自定义短代码**：作者在正文里写 `[warn]这里是内容[/warn]`，**访问者打开页面时**由主题决定
+  它显示成什么（例如警示框）。分工是刻意的：**内核只提供机制**（解析引擎、扫描约定、注册 API，
+  **不内置任何短代码**），**展示语义全部由主题定义**，服务端不参与呈现。
+  - 交付方式：引擎产物由 Core 托管（`/theme-sdk/v1/ricenote-shortcodes.js`，IIFE 全局名
+    `RiceNoteShortcodes`），模板用新增 helper `shortcode_runtime()` 引入；正文容器用
+    `data-rn-shortcodes` 标注扫描根，引擎只解析这些容器内的文字。
+  - 语法：配对 `[name]…[/name]`（内容可**跨段落**，多段/列表/图片都归入内容）、参数
+    （`[name key="value" flag]`）、自闭合 `[name /]`；名字限小写字母开头。
+  - 不解析：代码块、行内代码、`<script>` / `<style>`、HTML 注释（写教程时示例代码里的方括号不会被吃掉）。
+  - 容错：未注册的名字、未闭合的标记、定义抛错都只保留原文并留一条控制台错误，不影响页面其余内容；
+    未引入引擎的主题（如 `rice.minimal`）标记原样显示为文字，页面不报错。
+  - **服务端不改写正文**：标记原样存在于 `content_html` 与后台编辑器预览中，因此改短代码定义
+    不需要重存内容、不需要迁移、也不需要重启。
+- `@ricenote/shared` 新增与业务无关的短代码语法内核（标记识别、参数解析、`stripShortcodeMarks` /
+  `stripShortcodeMarksFromHtml`、扫描根与产物地址常量），供浏览器引擎与两个内容插件共用同一份规则。
+- `@ricenote/theme-sdk` 新增**短代码引擎**：纯函数分词器
+  （`@ricenote/theme-sdk/shortcodes/tokenizer`，可在 Node 下直接单测）与浏览器入口
+  （`define` / `scan` / `escapeHtml`，附带预注册队列），经 Vite 构建为
+  `dist/browser/ricenote-shortcodes.js`（镜像 `@ricenote/admin-sdk` 的做法）。
+- 默认主题 `rice.default` 新增短代码示例 `[warn]`（`assets/js/shortcodes.js` + `.df-warn` 样式 +
+  `layout.njk` 引入），作为其它主题的参照样板。
+
+### Changed（短代码）
+
+- 文章与独立页面的纯文本提取（`markdownToPlainText`）与订阅源全文改为**剥离短代码标记、只保留内部文字**，
+  因此列表摘要、搜索摘要、SEO 描述与 RSS 里不会出现 `[warn]` 字样；正文存储本身不改写。
+- 订阅源全文模式会顺带清掉因剥离而变空的段落，避免阅读器里出现无意义的空行。
+- 已保存内容的 `excerpt` 是保存时生成的，**历史摘要不会自动回溯**（重新保存一次即可更新）。
+- 默认主题 `rice.default` 版本提升到 `1.1.1`：主题资源地址只带**主题版本指纹**且响应
+  `immutable` 长缓存，因此改了主题资源**必须**提升 `theme.json` 的 `version` ——
+  否则浏览器会继续沿用旧的 `style.css`，表现成"短代码生效了、样式却没变"。
+
+### Docs
+
+- `docs/plugin-api/v1.md` 新增 18.9 / 18.10：server 作用域锚点（固定链接接入）与路径接管能力；
+  路由与契约表同步补录。
+- `docs/architecture/hooks-inventory.md` 与 `wiki/Hooks-Inventory.md` 登记两个 server 扩展点、
+  可被接管路径的三条路由、`permalink.routes@1`、后台菜单、权限点与管理 API。
+- `wiki/Plugins-Overview.md` 增补「固定链接」小节，官方插件计数 13 → 14。
+- `docs/theme-api/v1.md` 新增第 15 节「短代码」（交付方式、注册 API、渲染上下文、语法与**不支持**的写法、
+  纯文字场合、安全边界、未改造主题的降级），Helper 表与第 13 节「主题可用全部 Hook 点」同步；
+  `docs/architecture/hooks-inventory.md` 与 `wiki/Hooks-Inventory.md`、`wiki/Theme-API-Template-Reference.md`
+  登记新 helper 与短代码接入方式；新增 `packages/theme-sdk/README.md` 说明浏览器产物与两种使用形态。
+
+## [0.6.2] - 2026-10-13
+
+> 补丁版本：把版本号收敛为 `plugin-catalog.json` 单一来源，新增 `version:check` / `version:sync` /
+> `version:bump` 三条命令并串进构建、校验、发布与 wiki 流水线；同时修掉"数据库不可用时后端自身崩溃、
+> 反而把真实原因埋掉"的诊断服务缺陷。**没有任何已发布包的内容变化** —— 因此 13 个官方插件保持各自
+> 独立的版本号不动，只把应用版本（以及跟随它的四个 SDK 包与私有工作区包）抬一个补丁。
+
+### Added（版本号统一管理）
+
+- **`pnpm version:check` / `version:sync` / `version:bump`**：版本号的**唯一手写处**收敛为
+  `packages/shared/manifests/plugin-catalog.json`（`appVersion` + 各插件 `version`），
+  其余 20 多处全部由脚本派生 —— 根 `package.json`、`packages/core/src/version.ts` 的 `APP_VERSION`、
+  四个 SDK 包与四个私有工作区包（`packages/core`、`apps/server`、`apps/admin`、`tests`）的版本、
+  13 个插件的 `manifest.json` / `package.json` / `README.md` 版本行、插件的宿主区间（跟随宿主次版本）、
+  `wiki/Home.md` / `wiki/_Footer.md` 与「官方插件一览」的版本列。
+- `scripts/lib/version-plan.mjs` 是**全仓唯一实现**（零依赖、无构建，被 CLI、发布脚本与单测共用）：
+  读盘与写盘分离（`plan()` 只报告、`apply()` 才写盘），写入按"片段位置倒序拼接"，
+  不改 JSON 的键序与缩进，也不碰标记之外的手写内容。
+- `pnpm version:bump patch|minor|major` 一条命令完成：改来源 → 写回全部派生处 → 收口 `CHANGELOG.md`
+  （把 `[Unreleased]` 的内容搬进 `## [x.y.z] - 日期` 并更新链接引用）→ `install` / `build` / `validate`。
+  `--plugin=<id>:<level>` 可单独递增某个插件（插件保持**相互独立**的语义化版本），`--dry-run` 只预览。
+  一次补丁升级的手改处因此只剩 `plugin-catalog.json` 一处（外加人手写的变更条目）。
+
+### Changed（校验进了流水线）
+
+- `version:check` 已**显式串联**进 `pnpm build`、`pnpm validate`、`pnpm wiki:check` / `wiki:publish`
+  与 `pnpm release:plugins`（刻意不用 pnpm 的 pre/post 钩子 —— pnpm 9 默认不执行它们）。
+  任何派生处漏改都会在这些入口失败，并点名「文件 + 期望值 + 实际值」。
+- `scripts/release-plugins.mjs` 的版本校验改用同一引擎，并从 `warn` 升级为 **`fail`**：
+  包一旦发出去版本号收不回，"目录说 1.1.0、包里写着 1.1.1"必须在联网之前拦住。
+- `scripts/split-plugin-repos.mjs` 生成镜像仓库时，peer/dev 区间改用 `hostRangeOf()`（跟随宿主次版本），
+  且**只按源码实际声明**的宿主包生成 —— `rice.editor-enhance` 不再被凭空塞进 `@ricenote/shared`。
+- `.github/workflows/release-packages.yml` 在发布前补一步 `pnpm validate`（版本一致性 + 清单校验）。
+
+### Docs
+
+- wiki 的《维护与发布指南》新增「版本号怎么维护」一节：唯一来源、三条命令、一次补丁升级的完整流程与边界
+  （主题版本是资源指纹、不在此列）。
+- 文档里的**具体版本字样去具体化**：宿主区间改用 `A.B.z → ^A.B.0` 的记法，示例版本用 `x.y.z` / `1.x.0` 占位，
+  涉及 `README.md`、`wiki/Upgrading.md`、`wiki/FAQ.md`、`wiki/Configuration.md`、
+  `wiki/Plugins-Install-and-Update.md`、`wiki/Plugin-API-Tutorial.md`、`wiki/Plugin-API-Permissions.md`、
+  `wiki/Plugin-API-Getting-Started.md`、`wiki/Plugin-API-Manifest-Reference.md` 与 `docs/plugin-api/v1.md`；
+  只有历史事实（如"`permissions` 自 `0.5.4` 引入"）保留具体版本号。
+- 首次 `pnpm version:sync` 修掉了一批**已存在的**漂移：`wiki/Home.md` 与 `wiki/_Footer.md` 仍写着 `0.6.0`
+  （0.6.1 已经发布）、「官方插件一览」里 `editor-enhance` / `friend-links` 的 `1.1.1` 未同步、
+  `packages/core` / `apps/*` / `tests` 的版本停在 `0.1.0`（现统一跟随应用版本）。
+- `apps/server` 的清单校验（`pnpm validate`）在目录 `appVersion` 不一致时不再自己实现比对，
+  改为提示运行 `pnpm version:check` / `version:sync`。
+
+### Fixed（诊断服务崩溃、版本一致性测试、示例插件版本）
+
+- **数据库不可用时后端自己崩掉，反而把真正的原因埋掉**：`startDiagnosticServer` 传给
+  `createHttpServer` 的"假 kernel"只有 `config`，而后者要读 `kernel.logger`（访问日志与错误处理），
+  于是**只要数据库连不上**，`node dist/index.js` 就抛
+  `TypeError: Cannot read properties of undefined (reading 'child')` —— 用户只看到一坨 TypeError，
+  看不到"数据库不可用"。现在给它补上日志器，并让原因**先于**诊断服务写出去，
+  同时容忍诊断服务自身启动失败（如端口被占用）。
+- 新增 `tests/unit/version-sync.test.ts`：在真实仓库上跑 `--check`（含「检查项 ≥ 80」的非空断言，
+  防止规则被误删后空跑通过），并用临时 fixture 对**历史上真正漂移过的每一类**
+  （SDK 包版本、插件 README 版本行、插件宿主区间、wiki 首页、插件一览版本列）造负例，
+  断言 `--check` 点名失败、`--sync` 能修回、`--sync` 幂等、`--bump` 的递增与 CHANGELOG 收口正确。
+- 修掉第三方示例 `acme.reading-time` 的版本不一致（`package.json` 1.0.0 → 1.1.0，与其 manifest 和 README 对齐）。
+
 ## [0.6.1] - 2026-10-12
 
-> 补丁版本：修 `rice.friend-links`「装上就启动失败」的缺陷，并更正 `rice.editor-enhance` 的仓库地址。
+> 补丁版本：修 `rice.friend-links`「装上就启动失败」，并更正 `rice.editor-enhance` 的仓库地址。
 > 因为 `0.6.0` 与两个插件的 `1.1.0` 已经发布到 npm（同版本不能重发），这里按补丁递增：
 > 应用与四个 SDK `0.6.0` → `0.6.1`，`rice.friend-links` 与 `rice.editor-enhance` `1.1.0` → `1.1.1`。
 > 插件声明的宿主区间 `^0.6.0` **不变** —— `0.6.1` 仍落在 `>=0.6.0 <0.7.0` 之内，无需跟着升区间。
@@ -1005,7 +1166,9 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/ricenote/ricenote/releases/tag/v0.7.0
+[0.6.2]: https://github.com/ricenote/ricenote/releases/tag/v0.6.2
 [0.6.1]: https://github.com/ricenote/ricenote/releases/tag/v0.6.1
 [0.6.0]: https://github.com/ricenote/ricenote/releases/tag/v0.6.0
 [0.5.4]: https://github.com/ricenote/ricenote/releases/tag/v0.5.4

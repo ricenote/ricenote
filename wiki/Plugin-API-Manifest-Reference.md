@@ -203,6 +203,17 @@ if (!media) { /* 降级路径 */ }
 
 详见 [[命名扩展点注册表|Architecture-Extension-Registry]]。
 
+### 三个作用域的现有实例
+
+| 作用域 | 官方实例 | 贡献入口导出 | 备注 |
+| --- | --- | --- | --- |
+| `admin` | `rice.posts.editorBody`、`rice.media.picker` | 默认导出 `defineAdminContribution(...)` | 后台按 `permission` 过滤 |
+| `render` | 9 个标准插槽（`ctx.slots` 是其门面） | 默认导出 `{ name, render }` | 单组件抛错降级为空片段 |
+| `server` | `rice.permalink.schemes`、`rice.permalink.tokens` | 导出 `{ apply(payload, ctx) }` | 提供方用 `ctx.extensions.apply()` 串行触发（filter 语义） |
+
+`server` 作用域没有前端界面，因此只支持**声明式**贡献（命令式 `ctx.extensions.contribute`
+没有可 import 的入口）；提供方应使用 `onError: 'skip'` 让单个坏贡献不影响其它贡献。
+
 ---
 
 ## 7. `settingsSchema`
@@ -275,7 +286,7 @@ if (!media) { /* 降级路径 */ }
 
 > **宿主版本要求**：`permissions` 是 `0.5.4` 引入的字段，而 manifest schema 设了
 > `additionalProperties: false` —— 旧宿主读到这个未知字段会**直接判定清单非法**。
-> 因此声明它的插件必须把宿主区间写到 `^0.5.4` 及以上（官方插件跟随宿主次版本，当前为 `^0.6.0`）。
+> 因此声明它的插件必须把宿主区间写到 `^0.5.4` 及以上（官方插件的做法是跟随宿主次版本：宿主为 `A.B.z` 时写 `^A.B.0`）。
 > 不声明该字段的插件不受影响。
 
 面向插件作者的操作指引（什么时候需要、命名约定、声明之后谁来授权、怎么自查）见

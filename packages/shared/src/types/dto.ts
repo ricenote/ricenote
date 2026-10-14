@@ -455,6 +455,14 @@ export interface PostSummary {
    */
   fields?: Record<string, unknown>;
   terms: TermSummary[];
+  /**
+   * 前台地址（不含站点前缀）。
+   *
+   * 由提供内容的插件按当前生效的固定链接方案生成，消费方（订阅源、站点地图等）
+   * **直接取用即可**，不要自己拼 `/post/:slug` —— 这类属于 posts 的 URL 约定
+   * 一旦被复制就会与「固定链接」插件的设置漂移。
+   */
+  url?: string;
   publishedAt?: string;
   updatedAt: string;
   createdAt: string;
@@ -517,6 +525,13 @@ export interface PageSummary {
   sortOrder: number;
   seoTitle?: string;
   seoDescription?: string;
+  /**
+   * 前台地址（不含站点前缀）。
+   *
+   * 由 pages 插件按当前生效的固定链接方案生成；后台列表直接展示它，
+   * 不要自己拼 `/page/:slug`（改了地址方案后就会与实际不符）。
+   */
+  url?: string;
   createdAt: string;
   updatedAt: string;
   publishedAt?: string;
@@ -558,6 +573,13 @@ export interface TermSummary {
   slug: string;
   type: TermType;
   count?: number;
+  /**
+   * 前台归档地址（不含站点前缀）。
+   *
+   * 分类地址由「固定链接」方案生成、标签保持内建形式；消费方直接取用，
+   * 不要自己拼 `/category/:slug`。方案未启用或生成失败时省略，取值方需兜底。
+   */
+  url?: string;
 }
 
 export interface TermSaveRequest {

@@ -8,7 +8,13 @@
  */
 
 import type { RawRouteSpec } from '@ricenote/plugin-sdk';
-import { absoluteUrl, type ContentPostsService, type PostSummary } from '@ricenote/shared';
+import {
+  absoluteUrl,
+  stripShortcodeMarks,
+  stripShortcodeMarksFromHtml,
+  type ContentPostsService,
+  type PostSummary
+} from '@ricenote/shared';
 import type { FeedRuntimeLike } from './types.js';
 import { clip, escapeXml, formatRfc822 } from './util.js';
 
@@ -61,7 +67,8 @@ async function collectItems(deps: FeedDeps): Promise<FeedItem[]> {
 
   const output: FeedItem[] = [];
   for (const post of items.slice(0, settings.itemLimit)) {
-    const link = absoluteUrl(siteUrl, `/post/${post.slug}`);
+    // 地址由提供内容的插件按当前固定链接方案给出（此处不再自拼 `/post/:slug`）
+    const link = absoluteUrl(siteUrl, post.url ?? `/post/${post.slug}`);
     const pubDate = formatRfc822(post.publishedAt ?? post.updatedAt ?? post.createdAt);
 
     output.push({
@@ -80,6 +87,10 @@ async function collectItems(deps: FeedDeps): Promise<FeedItem[]> {
  * 条目正文：开启全文时取该文章的渲染结果，否则用摘要。
  *
  * 全文模式会对每条文章多查一次库，因此条数受 `itemLimit`（上限 100）约束。
+ *
+ * 短代码由前台浏览器呈现，订阅源是纯 XML 场合，标记不能原样出现：
+ * 这里剥掉标记、保留内部文字，并清掉因此变空的段落
+ * （正文存储与前台页面不受影响，短代码标记仍留在其中等待浏览器解析）。
  */
 async function descriptionOf(
   posts: ContentPostsService,
@@ -88,9 +99,9 @@ async function descriptionOf(
 ): Promise<string> {
   if (fullText) {
     const detail = await posts.findPublishedById(post.id);
-    if (detail?.html) return detail.html;
+    if (detail?.html) return stripShortcodeMarksFromHtml(detail.html);
   }
-  return clip(post.excerpt ?? '', EXCERPT_MAX_LENGTH);
+  return clip(stripShortcodeMarks(post.excerpt ?? ''), EXCERPT_MAX_LENGTH);
 }
 
 function renderChannel(runtime: FeedRuntimeLike, items: FeedItem[]): string {

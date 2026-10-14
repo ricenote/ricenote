@@ -15,6 +15,8 @@ import {
   type CoreThemeService
 } from '@ricenote/shared';
 import type { PageRow } from './repository.js';
+// 运行时无循环依赖：permalink.ts 只以 type-only 方式引用本模块（编译后擦除）
+import { pageUrl } from './permalink.js';
 
 export interface RuntimeServiceResolver {
   tryUse<T>(name: string): T | undefined;
@@ -121,7 +123,8 @@ export function toPageContentViewModel(
     title: row.title,
     slug: row.slug,
     html: runtime.html.markTrusted(options.withHtml ? row.content_html : ''),
-    url: `/page/${row.slug}`,
+    // 地址由固定链接方案生成（插件未启用时回退内建 `/page/:slug`）
+    url: pageUrl(runtime, { id: row.id, slug: row.slug }),
     fields: readContentFields(runtime, row, options.declaredFields),
     ...(row.template ? { template: row.template } : {}),
     ...(publishedAt ? { publishedAt } : {}),

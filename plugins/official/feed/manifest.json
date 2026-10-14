@@ -3,7 +3,7 @@
   "id": "rice.feed",
   "name": "RSS 订阅",
   "description": "为站点提供订阅地址，读者用 RSS 阅读器即可自动获取最新文章。",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "apiVersion": "^1.0.0",
   "author": "RiceNote",
   "license": "MIT",

@@ -41,6 +41,13 @@
   </footer>
 
   {{ slot('body.end') }}
+  {#
+    短代码：内核提供解析引擎，本主题定义具体短代码（见 assets/js/shortcodes.js）。
+    引擎必须排在主题脚本之前；两者同为 defer，按文档顺序执行。
+    不引入这一行也不影响别的功能：标记会原样显示为文字。
+  #}
+  {{ shortcode_runtime() }}
+  <script src="{{ theme_asset('js/shortcodes.js') }}" defer></script>
   <script src="{{ theme_asset('js/main.js') }}" defer></script>
 </body>
 </html>

@@ -17,6 +17,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | --- | --- | --- |
 | 生命周期 | `definePlugin({ setup?, start, stop })` | 3 个时机，不可自定义 |
 | 公开页面路由 | `ctx.routes.page(...)` | 自由注册，`name` 与 `path` 全局唯一 |
+| 页面路由路径替换 | `ctx.routes.overridePath(...)` | 只改路径、不换处理器；目标路由须声明 `overridable`（见 2.1.1） |
 | 原始 HTTP 路由 | `ctx.routes.raw(...)` | 自由注册，路径不得与内置路由冲突 |
 | 管理 API | `ctx.routes.adminApi(...)` | 挂在 `/api/admin` 下，自动套用守卫 |
 | 插槽 | `ctx.slots.register(slotName, ...)` | 9 个标准插槽 + 任意自定义名字（render 作用域别名） |
@@ -51,11 +52,11 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 单组件抛错会被隔离（降级为空片段并记 error 日志），不会让整页渲染失败。
 插件被禁用后其插槽条目自动消失。
 
-### 1.1 命名扩展点（admin 锚点，本轮新增）
+### 1.1 命名扩展点（全量）
 
 插槽是**命名扩展点注册表**在 `render` 作用域的视图（见 `docs/plugin-api/v1.md` 第 18 节、
 [ADR-017](../adr/ADR-017-named-extension-points.md)）。三个作用域（admin / render / server）共用一套
-注册表与裁决规则；下表是官方插件当前实际声明的 **admin 锚点**（提供方 → 消费者）：
+注册表与裁决规则；下表是官方插件当前实际声明的扩展点（提供方 → 消费者）：
 
 | 扩展点 | 提供方 | 消费者 | 作用域 | 可替换 |
 | --- | --- | --- | --- | --- |
@@ -66,11 +67,15 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `rice.posts.editorBody` | `rice.posts` | `rice.editor-enhance` | admin | 是 |
 | `rice.pages.editorBody` | `rice.pages` | `rice.editor-enhance` | admin | 是 |
 | `rice.media.picker` | `rice.media` | 任意需要选图/上传的插件界面 | admin | 否（第三方） |
+| `rice.permalink.schemes` | `rice.permalink` | 第三方内容插件（暂无官方消费者） | **server** | 否（第三方） |
+| `rice.permalink.tokens` | `rice.permalink` | 第三方插件（暂无官方消费者） | **server** | 否（第三方） |
 
 > 六个编辑类锚点都带 `kind`（`'post'` / `'page'`），编辑类还带 `value` / `onChange(next)` / `onPreview()`；
 > `rice.media.picker` 的 context 是 `onPick({ url, fileName, mimeType, size })`（贡献权限 `media.manage`）。
-> 目前**没有具名的 `server` 作用域扩展点**：`server` 通道能力已就绪（`ctx.extensions.apply()` 默认 abort），
-> 但尚无官方插件声明使用。
+>
+> 两个 `server` 锚点由固定链接插件以 `onError: 'skip'` 串行 `apply`：前者让第三方为自己内容类型
+> 新增一整套路径方案（方案名 / 要接管的路由 / 参数 / 默认模板 / 预览示例），后者为已有方案追加
+> 自定义参数并提供**同步**取值来源与命中校验（详见 `docs/plugin-api/v1.md` 18.9）。
 
 ---
 
@@ -90,6 +95,20 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 
 `name` 供主题的 `url('name', params)` 使用；`kind` 决定主题模板；`template` 见
 `docs/plugin-api/v1.md` 第 14 节。
+
+### 2.1.1 可被接管路径的路由（`overridable`）
+
+`post.show`、`term.category`（`rice.posts`）与 `page.show`（`rice.pages`）声明了 `overridable: true`，
+即允许「固定链接」插件按站点配置替换它们的**路径**（handler 不变）：
+
+| 路由 | 内建路径 | 接管方 | 生效条件 |
+| --- | --- | --- | --- |
+| `post.show` | `/post/:slug` | `rice.permalink` | 插件已启用且站点配置了文章路径 |
+| `term.category` | `/category/:slug` | `rice.permalink` | 同上（分类路径） |
+| `page.show` | `/page/:slug` | `rice.permalink` | 同上（独立页面路径） |
+
+接管在 `core.runtime.started.v1` 之后登记、HTTP 装配之前生效；插件停用即恢复内建路径。
+未声明 `overridable` 的路由一律拒绝（`RN_ROUTE_CONFLICT`），详见 `docs/plugin-api/v1.md` 18.10。
 
 ### 2.2 原始 HTTP 路由（`ctx.routes.raw`）
 
@@ -145,6 +164,9 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `rice.friend-links` | POST | `/friend-links/items` | `link.manage` |
 | `rice.friend-links` | PUT | `/friend-links/items/:linkId` | `link.manage` |
 | `rice.friend-links` | DELETE | `/friend-links/items/:linkId` | `link.manage` |
+| `rice.permalink` | GET | `/permalink/settings` | `permalink.view` |
+| `rice.permalink` | PUT | `/permalink/settings` | `permalink.manage` |
+| `rice.permalink` | POST | `/permalink/preview` | `permalink.view` |
 
 ### 2.4 Core 自有的管理 API（不属于插件，供对照）
 
@@ -187,7 +209,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 
 | 事件 | 发布者 | 订阅者 | 用途 |
 | --- | --- | --- | --- |
-| `core.runtime.started.v1` | **Core** | `rice.identity`、`rice.posts`、`rice.pages`、`rice.navigation`、`rice.search` | 全部插件启动完成后的初始化时机 |
+| `core.runtime.started.v1` | **Core** | `rice.identity`、`rice.posts`、`rice.pages`、`rice.navigation`、`rice.search`、`rice.permalink` | 全部插件启动完成后的初始化时机 |
 | `identity.user.created.v1` | `rice.identity` | `rice.authorization`（priority 10） | 新用户自动分派角色 |
 | `identity.session.created.v1` | `rice.identity` | 无 | 登录审计扩展点 |
 | `identity.user.password.changed.v1` | `rice.identity` | 无 | 改密/重置（重置时带 `byAdmin: true`） |
@@ -243,6 +265,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `media.library@1` | `rice.media` | `rice.posts`（可选）、后台站点设置（Logo 上传） |
 | `content.search@1` | `rice.search` | `rice.posts`（可选，注册可搜索数据源） |
 | `content.comments@1` | `rice.comments` | 后台仪表盘（可选） |
+| `permalink.routes@1` | `rice.permalink` | `rice.posts`（可选）、`rice.pages`（可选）、`rice.taxonomy`（可选） |
 
 > 只有"没有它就无法工作"的依赖才写进 `requires`。
 > 目前仅 `rice.authorization` 与 `rice.posts` 声明了 `requires`（都是 `identity.users@1`）。
@@ -256,6 +279,7 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `media.library` | 媒体库 | `/media` | `Image` | 10 | `media.manage` | `rice.media` |
 | `pages.list` | 页面 | `/pages` | `FileStack` | 15 | `page.view` | `rice.pages` |
 | `navigation.items` | 导航栏 | `/navigation` | `Navigation` | 18 | `nav.view` | `rice.navigation` |
+| `permalink.settings` | 固定链接 | `/permalink` | `Link` | 16 | `permalink.view` | `rice.permalink` |
 | `friend-links.list` | 友情链接 | `/friend-links` | `Link` | 19 | `link.view` | `rice.friend-links` |
 | `taxonomy.terms` | 分类与标签 | `/taxonomy` | `Tags` | 15 | `post.view` | `rice.taxonomy` |
 | `users.roles` | 角色与权限 | `/roles` | `ShieldCheck` | 20 | `user.manage` | `rice.authorization` |
@@ -288,10 +312,12 @@ Core 在插件启动时读取声明并注册菜单，同时：
 摘要：
 
 - 上下文变量：`site`、`page`、`theme`、`viewer`、`post`、`posts`、`content`、`pagination`、`seoDescription`
-- Helper：`theme_asset`、`url`、`slot`、`has_feature`、`site_url`
+- Helper：`theme_asset`、`url`、`slot`、`has_feature`、`site_url`、`shortcode_runtime`
 - 过滤器：`css_color`、`date`、`excerpt`、`number`、`json`
 - 页面类型（kind）：`home`、`post`、`page`、`archive`、`search`、`404`
 - 声明式差异化：`templates[kind]`、`pageTemplates`（供页面/文章选择）、`settings`
+- 短代码：主题用浏览器脚本 `RiceNoteShortcodes.define()` 定义标记的展示，正文容器标注
+  `data-rn-shortcodes` 作为扫描根；引擎由 Core 以 `/theme-sdk/v1/**` 托管（见 `docs/theme-api/v1.md` §15）
 
 ---
 
@@ -318,7 +344,7 @@ Core 在插件启动时读取声明并注册菜单，同时：
 | `rice.identity` | `session` | `sessionTtlSeconds`、`maxSessionsPerUser` |
 | `rice.media` | `upload` | `maxFileBytes` |
 | `acme.reading-time`（第三方） | `display` | `wordsPerMinute`、`showWordCount`、`label` |
-| `rice.authorization`、`rice.taxonomy` | 无 | 无可配置项，后台不显示设置入口 |
+| `rice.authorization`、`rice.taxonomy`、`rice.permalink` | 无 | 无可配置项（`rice.permalink` 的路径模板走**自己的后台页**与自有表 `rn_permalink_settings`，因此「扩展中心」里没有设置入口） |
 
 设置生效时机：`ctx.config` 是**插件启动期快照**，因此保存后需重启（ADR-004 / ADR-012）。
 校验与合并由 `packages/core/src/plugins/settings-schema.ts` 统一提供，
@@ -351,6 +377,8 @@ Core 在插件启动时读取声明并注册菜单，同时：
 | `page.manage` | 管理独立页面 | pages 增删改 |
 | `nav.view` | 查看导航栏 | 导航项列表、目标候选、后台菜单 |
 | `nav.manage` | 管理导航栏 | 导航项增删改与排序 |
+| `permalink.view` | 查看固定链接 | 固定链接页、方案读取与预览、后台菜单 |
+| `permalink.manage` | 管理固定链接 | 保存路径模板 |
 | `link.view` | 查看友情链接 | 友链列表、后台菜单 |
 | `link.manage` | 管理友情链接 | 友链增删改 |
 | `taxonomy.manage` | 管理分类与标签 | taxonomy 增删 |

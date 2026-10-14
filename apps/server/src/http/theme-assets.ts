@@ -56,8 +56,11 @@ export async function registerAdminSpa(app: FastifyInstance, kernel: RiceNoteKer
     return isReadableFile(resolved) ? resolved : undefined;
   };
 
+  /*
+   * 只注册一条：HTTP 实例开启了尾斜杠宽容（`routerOptions.ignoreTrailingSlash`），
+   * `/admin/` 会命中同一条路由，再注册一条会被 Fastify 判为重复路由。
+   */
   app.get('/admin', (_request, reply) => sendFile(reply, indexPath, false));
-  app.get('/admin/', (_request, reply) => sendFile(reply, indexPath, false));
 
   // 带指纹的构建产物：长缓存
   app.get('/admin/assets/*', (request, reply) => {
