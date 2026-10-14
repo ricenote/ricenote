@@ -28,8 +28,12 @@ jobs:
           registry-url: https://registry.npmjs.org   # 会写 .npmrc，凭据取自 NODE_AUTH_TOKEN
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm validate                           # 版本号一致性 + 插件/主题清单（不需要数据库）
+
+      # 顺序不能颠倒：validate 会加载工作区包的构建产物（apps/server 的校验命令 import
+      # `@ricenote/core/dist`），先跑会因为"找不到 dist/index.js"直接失败。
+      # 版本号一致性另外由 build 里的 version:check 先挡一道。
       - run: pnpm build                              # 发布前必须构建，脚本会校验 dist 存在
+      - run: pnpm validate                           # 清单校验（版本号 + 插件/主题，不需要数据库）
 
       # --skip-published 常开：npm 不允许覆盖已发布的版本号，
       # 而全量发布会一次尝试 17 个包 —— 只要有一个版本没变就会中断整轮。
