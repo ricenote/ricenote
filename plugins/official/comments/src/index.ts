@@ -280,6 +280,7 @@ function readSettings(ctx: PluginContext): CommentsSettings {
   return {
     enabled: ctx.config.get<boolean>('enabled', true),
     requireApproval: ctx.config.get<boolean>('requireApproval', true),
+    requireEmail: ctx.config.get<boolean>('requireEmail', true),
     pageSize: clampInt(ctx.config.get<unknown>('pageSize', 20), 1, 100, 20),
     maxLength: clampInt(ctx.config.get<unknown>('maxLength', 2000), 1, 20000, 2000),
     rateLimitWindowSeconds: clampInt(ctx.config.get<unknown>('rateLimitWindowSeconds', 60), 0, 86400, 60),

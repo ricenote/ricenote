@@ -295,6 +295,7 @@ describe('官方插件清单的设置声明', () => {
       fields: {
         enabled: true,
         requireApproval: true,
+        requireEmail: true,
         pageSize: 20,
         maxLength: 2000,
         maxDepth: 5,

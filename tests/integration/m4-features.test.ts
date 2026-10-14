@@ -386,6 +386,34 @@ describe('rice.comments：闭环与反垃圾', () => {
     assert.equal(output.html.includes('action="/comments/submit"'), true);
     assert.equal(output.html.includes('rn-slot:'), false, '不应残留 Slot 占位符');
   });
+
+  it('评论项把作者邮箱交给主题', async () => {
+    const sample = await publishSample();
+    const service = comments();
+
+    const submitted = await service.submit({
+      postId: sample.id,
+      authorName: '访客丁',
+      authorEmail: 'Guest-D@Example.com',
+      content: '这条评论带着邮箱。',
+      ip: '10.0.0.8'
+    });
+    await service.moderate({ ids: [submitted.id], action: 'approve' });
+
+    const thread = await service.listApprovedThreaded({ postId: sample.id, page: 1, pageSize: 10 });
+    assert.equal(thread.items[0]?.authorEmail, 'guest-d@example.com', '邮箱应归一化后随线程数据交出');
+
+    const output = await renderPageRoute('post.show', {
+      url: `/post/${sample.slug}`,
+      params: { slug: sample.slug }
+    });
+    assert.equal(output.status, 200);
+    assert.equal(
+      output.html.includes('data-rn-author-email="guest-d@example.com"'),
+      true,
+      '文章页评论项应带上作者邮箱，供主题取头像'
+    );
+  });
 });
 
 describe('rice.seo：社交卡片、结构化数据与站点地图', () => {

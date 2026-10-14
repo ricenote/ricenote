@@ -61,6 +61,8 @@ export interface CommentsSettings {
   enabled: boolean;
   /** 新评论是否需要人工审核（默认 true，即"先审后发"）。 */
   requireApproval: boolean;
+  /** 是否要求访客填写邮箱（关闭后可以留空，留空时前台不输出邮箱字段）。 */
+  requireEmail: boolean;
   pageSize: number;
   maxLength: number;
   /** 频率限制窗口（秒）。 */
@@ -136,10 +138,7 @@ export function createCommentsService(runtime: CommentsRuntime): ContentComments
       );
     }
 
-    const authorEmail = normalizePlain(input.authorEmail, '邮箱').toLowerCase();
-    if (authorEmail.length > EMAIL_MAX || !EMAIL_PATTERN.test(authorEmail)) {
-      throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '邮箱格式不正确', { status: 400 });
-    }
+    const authorEmail = normalizeAuthorEmail(input.authorEmail, settings.requireEmail);
 
     const authorUrl = normalizeOptionalUrl(input.authorUrl);
 
@@ -309,6 +308,8 @@ function buildTree(
     const item: CommentThreadItem = {
       id: row.id,
       authorName: row.author_name,
+      // 邮箱开放给主题（可能为空：站长允许留空时不输出该字段）
+      ...(row.author_email ? { authorEmail: row.author_email } : {}),
       ...(row.author_url ? { authorUrl: row.author_url } : {}),
       html: renderHtml(row),
       createdAt: toIso(row.created_at),
@@ -415,6 +416,26 @@ function hashSource(ip: string | undefined, siteId: string): string | null {
   const value = (ip ?? '').trim();
   if (value.length === 0) return null;
   return createHash('sha256').update(`${siteId}|comment|${value}`).digest('hex');
+}
+
+/**
+ * 归一化作者邮箱。
+ *
+ * 「要求填写邮箱」关闭时允许留空（存空字符串，前台评论项不输出邮箱字段）；
+ * 只要填了就仍然校验格式 —— 可选不等于可以乱填。邮箱会随前台评论项与公开接口交给主题。
+ */
+function normalizeAuthorEmail(value: string | undefined, required: boolean): string {
+  const email = (value ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (email.length === 0) {
+    if (required) {
+      throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '邮箱不能为空', { status: 400 });
+    }
+    return '';
+  }
+  if (email.length > EMAIL_MAX || !EMAIL_PATTERN.test(email)) {
+    throw new RiceNoteError(ErrorCode.VALIDATION_FAILED, '邮箱格式不正确', { status: 400 });
+  }
+  return email;
 }
 
 function normalizePlain(value: string | undefined, label: string): string {

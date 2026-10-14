@@ -7,6 +7,37 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-14
+
+### Changed（版本与插件发布）
+
+- **应用版本 0.7.0 → 0.8.0**：本次为**次版本跃迁**，因此官方插件声明的**最低宿主版本**
+  （`package.json` 里的宿主 `peerDependencies`）由 `^0.7.0` 提升到 **`^0.8.0`**。
+  该值由 `plugin-catalog.json` 派生（`pnpm version:sync` 写回、`pnpm version:check` 校验），
+  **请勿手改插件 `package.json`**；旧宿主上的插件需走插件更新流程，不要手改区间。
+- **官方插件版本**（代码有变化的 1 个，其余 13 个不动）：
+
+  | 插件 | 版本 | 变化 |
+  | --- | --- | --- |
+  | `rice.comments` | 1.3.1 → **1.4.0** | 新增：可关闭「要求填写邮箱」、把作者邮箱开放给主题 |
+
+### Added（评论）
+
+- `rice.comments` 新增设置项**「要求填写邮箱」**（默认开启 = 原行为）：关闭后访客可以留空邮箱，
+  服务端存空字符串、前台表单不再标必填（标签显示「邮箱（可选）」），填了仍按原有规则校验格式；
+  后台列表与详情在未填写处显示「未填写」。
+- 评论邮箱**开放给主题**：评论项输出 `data-rn-author-email` 属性，线程数据（`CommentThreadItem`）
+  与公开接口 `GET /api/comments` 同样带 `authorEmail`，主题可据此自行取头像 ——
+  插件只交出数据、不代劳渲染与获取。访客没填邮箱时该字段缺省。
+- `@ricenote/shared` 的 `CommentThreadItem` 新增可选字段 `authorEmail`；
+  `CommentSubmitRequest.authorEmail` 改为可选（关闭「要求填写邮箱」后前端可能不提交该字段）。
+
+### Changed（评论）
+
+- **前台输出邮箱不再脱敏**：邮箱以明文出现在文章页 HTML（`data-rn-author-email`）与公开接口
+  `GET /api/comments` 中，任何访客与爬虫都能读取 —— 这是"把邮箱交给主题取头像"的必然代价，
+  未使用头像的主题同样会输出该字段。
+
 ## [0.7.0] - 2026-10-14
 
 ### Changed（版本与插件发布）
@@ -1166,7 +1197,8 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/ricenote/ricenote/releases/tag/v0.8.0
 [0.7.0]: https://github.com/ricenote/ricenote/releases/tag/v0.7.0
 [0.6.2]: https://github.com/ricenote/ricenote/releases/tag/v0.6.2
 [0.6.1]: https://github.com/ricenote/ricenote/releases/tag/v0.6.1

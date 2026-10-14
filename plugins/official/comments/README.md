@@ -8,7 +8,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.comments` |
-| version | `1.3.1` |
+| version | `1.4.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.comments@1` |
@@ -24,7 +24,7 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | POST | `/comments/submit` | 访客提交评论（受频率限制与关键词黑名单约束） |
-| GET | `/api/comments` | 按 `postId` 读取已通过评论（线程化，邮箱脱敏） |
+| GET | `/api/comments` | 按 `postId` 读取已通过评论（线程化，含作者邮箱） |
 
 > 用原始路由而非页面路由：评论是站内局部交互（表单提交与数据读取），
 > 不产生独立页面，也不需要主题渲染。
@@ -107,6 +107,7 @@ pending（待审） ──approve──▶ approved（通过）
 | --- | --- | --- | --- |
 | `enabled` | boolean | `true` | 是否开放评论区（关闭后插槽不输出任何内容） |
 | `requireApproval` | boolean | `true` | 新评论是否进入待审 |
+| `requireEmail` | boolean | `true` | 是否要求访客填写邮箱（关闭后可以留空） |
 | `pageSize` | number（1–100） | `20` | 线程分页大小 |
 | `maxLength` | number（1–20000） | `2000` | 正文长度上限 |
 | `maxDepth` | number（1–10） | `5` | 嵌套回复最大深度 |
@@ -120,10 +121,32 @@ pending（待审） ──approve──▶ approved（通过）
 | `maxLinksPerComment` | number（0–100） | `2` | 单条评论允许的链接数（超限判为垃圾） |
 | `blockedKeywords` | stringList（≤200 项） | `[]` | 关键词黑名单（命中即判为垃圾），表单里每行一项 |
 
+## 把邮箱交给主题（头像等）
+
+插件**不代劳头像的渲染与获取**：只把作者邮箱开放出来，主题自己决定怎么用。
+
+- 评论项属性：`<li class="rn-comment" data-rn-author-email="guest@example.com">`
+  （访客没填时该属性不输出）；
+- 公开接口 `GET /api/comments` 的条目同样带 `authorEmail` 字段（`CommentThreadItem`）。
+
+主题脚本据此取头像时注意：**Gravatar 需要邮箱的 md5，而浏览器 WebCrypto 不支持 md5**，
+主题需自带一份 md5 实现（或改用基于其它哈希的头像服务）：
+
+```js
+document.querySelectorAll('[data-rn-author-email]').forEach(function (item) {
+  var email = item.getAttribute('data-rn-author-email');
+  // 主题自行计算头像地址并挂到这条评论上
+});
+```
+
+> ⚠️ 邮箱是**明文**出现在前台 HTML 与公开接口里的，任何访客与爬虫都能读取；
+> 不需要头像的主题也无法阻止这一输出。
+
 ## 安全要点
 
 - 评论正文经 `core.html@1` 消毒后才存库与输出，前台只输出 `TrustedHtml`；
-- 前台输出邮箱一律脱敏，后台列表才展示完整邮箱；
+- **作者邮箱会输出到前台**（评论项属性与公开接口），供主题取头像；后台列表按需打码、
+  未填写时显示「未填写」，详见上节；
 - 提交频率按 IP 哈希统计，不存储明文 IP；
 - 评论插件不直接查询 `rn_posts`：文章标题通过 `content.posts@1.titlesOf()` 批量获取，
   避免 N+1 与跨插件联表。

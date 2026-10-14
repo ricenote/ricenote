@@ -66,7 +66,7 @@ export function createCommentsSlot(deps: CommentsSlotDeps): SlotComponent {
 ${items}
   </ol>
   ${pager}
-  ${renderForm(postId, runtime.settings.requireApproval, escape)}
+  ${renderForm(postId, runtime.settings.requireApproval, runtime.settings.requireEmail, escape)}
 </div>`.trim();
     }
   };
@@ -105,7 +105,10 @@ ${item.children.map((child) => renderItem(child, escape, depth + 1)).join('\n')}
       </ol>`
       : '';
 
-  return `    <li class="rn-comment" id="comment-${item.id}" data-depth="${depth}">
+  // 邮箱开放给主题：主题脚本可读它自行取头像（访客没填时不输出该属性）
+  const emailAttr = item.authorEmail ? ` data-rn-author-email="${escape(item.authorEmail)}"` : '';
+
+  return `    <li class="rn-comment" id="comment-${item.id}" data-depth="${depth}"${emailAttr}>
       <div class="rn-comment__meta">
         ${name}
         <time class="rn-comment__time" datetime="${escape(item.createdAt)}">${formatTime(item.createdAt)}</time>
@@ -144,9 +147,15 @@ function parsePage(raw: unknown): number {
  *
  * - 表单通过主题脚本以 JSON POST 到 `/api/comments`，无需页面刷新即可获得结果；
  * - `website` 是蜜罐字段（视觉隐藏 + `tabindex="-1"`），被填写即静默丢弃；
- * - 待审模式下按钮文案与提示会明确告知"先审后发"，避免用户以为提交失败。
+ * - 待审模式下按钮文案与提示会明确告知"先审后发"，避免用户以为提交失败；
+ * - 邮箱是否必填跟随设置：关闭「要求填写邮箱」后不再加 `required`，标签标注「（可选）」。
  */
-function renderForm(postId: number, requireApproval: boolean, escape: (text: string) => string): string {
+function renderForm(
+  postId: number,
+  requireApproval: boolean,
+  requireEmail: boolean,
+  escape: (text: string) => string
+): string {
   const hint = requireApproval ? '评论提交后需经审核通过才会公开显示。' : '评论提交后将立即公开显示。';
 
   // `action`/`method` 保证无 JavaScript 时也能提交（服务端会重定向回文章页并带上结果参数）
@@ -163,8 +172,8 @@ function renderForm(postId: number, requireApproval: boolean, escape: (text: str
         <input class="rn-field__input" type="text" name="authorName" required maxlength="80" autocomplete="nickname">
       </label>
       <label class="rn-field">
-        <span class="rn-field__label">邮箱</span>
-        <input class="rn-field__input" type="email" name="authorEmail" required maxlength="160" autocomplete="email">
+        <span class="rn-field__label">邮箱${requireEmail ? '' : '（可选）'}</span>
+        <input class="rn-field__input" type="email" name="authorEmail"${requireEmail ? ' required' : ''} maxlength="160" autocomplete="email">
       </label>
       <label class="rn-field">
         <span class="rn-field__label">网址（可选）</span>

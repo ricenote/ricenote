@@ -36,8 +36,8 @@
     "marked": "^15.0.4"
   },
   "peerDependencies": {
-    "@ricenote/plugin-sdk": "^0.7.0",
-    "@ricenote/shared": "^0.7.0"
+    "@ricenote/plugin-sdk": "^0.8.0",
+    "@ricenote/shared": "^0.8.0"
   },
   "peerDependenciesMeta": {
     "@ricenote/plugin-sdk": {

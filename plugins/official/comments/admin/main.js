@@ -273,7 +273,7 @@ export default defineAdminPage({
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-2 text-xs">
             <span class="font-medium text-foreground">{{ item.authorName }}</span>
-            <span class="text-muted-foreground">{{ maskEmail(item.authorEmail) }}</span>
+            <span class="text-muted-foreground">{{ item.authorEmail ? maskEmail(item.authorEmail) : '未填写' }}</span>
             <Badge :variant="statusMeta[item.status].variant">{{ statusMeta[item.status].label }}</Badge>
             <span v-if="item.replyCount > 0" class="text-muted-foreground">{{ item.replyCount }} 条回复</span>
             <span class="text-muted-foreground">{{ formatDateTime(item.createdAt) }}</span>
@@ -342,7 +342,7 @@ export default defineAdminPage({
         </div>
         <div>
           <p class="text-muted-foreground">邮箱</p>
-          <p class="mt-0.5 text-foreground">{{ detail.authorEmail }}</p>
+          <p class="mt-0.5 text-foreground">{{ detail.authorEmail || '未填写' }}</p>
         </div>
         <div>
           <p class="text-muted-foreground">网址</p>

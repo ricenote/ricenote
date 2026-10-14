@@ -9,7 +9,7 @@
 - **零构建主题**：主题 = `theme.json` + `templates/*.njk` + `assets/*`，只需 HTML/CSS 与可选 JavaScript。
 - **易部署**：面向个人 VPS，提供 Docker Compose（MySQL 8.4 + server + Nginx）。
 
-当前版本：**0.7.0** ｜ 许可：MIT ｜ 仓库：[ricenote/ricenote](https://github.com/ricenote/ricenote)
+当前版本：**0.8.0** ｜ 许可：MIT ｜ 仓库：[ricenote/ricenote](https://github.com/ricenote/ricenote)
 
 ---
 

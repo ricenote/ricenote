@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "appVersion": "0.7.0",
+  "appVersion": "0.8.0",
   "plugins": [
     {
       "id": "rice.identity",
@@ -164,7 +164,7 @@
     {
       "id": "rice.comments",
       "npm": "@ricenote/plugin-comments",
-      "version": "1.3.1",
+      "version": "1.4.0",
       "category": "recommended",
       "label": "评论",
       "description": "为文章提供访客评论与回复，支持审核与垃圾评论拦截。",

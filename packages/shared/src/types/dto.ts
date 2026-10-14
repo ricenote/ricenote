@@ -616,7 +616,11 @@ export interface CommentSummary {
   postTitle?: string;
   parentId: number | null;
   authorName: string;
-  /** 后台可见的完整邮箱；前台输出前必须脱敏。 */
+  /**
+   * 作者邮箱（可能为空字符串：站长关闭「要求填写邮箱」后访客可以留空）。
+   *
+   * 后台展示用；前台的邮箱走 `CommentThreadItem.authorEmail`，由主题决定怎么用。
+   */
   authorEmail: string;
   authorUrl?: string;
   userId?: number;
@@ -635,6 +639,13 @@ export interface CommentSummary {
 export interface CommentThreadItem {
   id: number;
   authorName: string;
+  /**
+   * 作者邮箱（缺省表示访客没填：站长关闭「要求填写邮箱」后可以留空）。
+   *
+   * **会输出到前台**：评论项的 `data-rn-author-email` 与公开接口 `GET /api/comments`
+   * 都会带上它，供主题自行取头像或做其它展示（插件不代劳渲染）。
+   */
+  authorEmail?: string;
   authorUrl?: string;
   /** 已消毒的正文 HTML（受信句柄序列化后的字符串）。 */
   html: string;
@@ -647,7 +658,8 @@ export interface CommentSubmitRequest {
   postId: number;
   parentId?: number | null;
   authorName: string;
-  authorEmail: string;
+  /** 邮箱是否必填由插件设置决定：关闭「要求填写邮箱」后可以留空。 */
+  authorEmail?: string;
   authorUrl?: string;
   content: string;
 }
