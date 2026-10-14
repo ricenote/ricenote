@@ -140,10 +140,22 @@ export type SlotHelper = (
 /** `has_feature("comments")` → 判断某能力当前是否实际启用。 */
 export type HasFeatureHelper = (capability: string) => boolean;
 
+/**
+ * `shortcode_runtime()` → 短代码引擎的 `<script>` 标签。
+ *
+ * 引擎在**访问者浏览器里**解析正文中的短代码标记（`[warn]…[/warn]`），
+ * 具体展示由主题用 `RiceNoteShortcodes.define()` 定义；不引入它时
+ * 短代码原样显示为文字，页面不会报错。
+ *
+ * 放在主题自身脚本**之前**引入，注册顺序与扫描时机才符合预期。
+ */
+export type ShortcodeRuntimeHelper = () => string;
+
 /** 主题模板可用的全部 helper。 */
 export interface ThemeHelpers {
   theme_asset: ThemeAssetHelper;
   url: UrlHelper;
   slot: SlotHelper;
   has_feature: HasFeatureHelper;
+  shortcode_runtime: ShortcodeRuntimeHelper;
 }

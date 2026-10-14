@@ -87,7 +87,7 @@
 主题静态资源地址带**主题版本指纹**并返回 `immutable` 长缓存：
 
 ```
-/theme-assets/rice.default/css/style.css?v=1.1.0
+/theme-assets/rice.default/css/style.css?v=1.1.1
 ```
 
 ✅ **改了主题资源就提升 `theme.json` 的 `version`**，否则浏览器会一直用旧文件。

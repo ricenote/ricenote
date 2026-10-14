@@ -266,6 +266,7 @@ DISCOVERED → VALIDATED → INSTALLED → ENABLED → STARTED
 | 能力判断 | `has_feature('posts')` |
 | 路由链接 | `url('路由名', params)` |
 | 静态资源 | `theme_asset('css/style.css')` |
+| 短代码 | `{{ shortcode_runtime() }}` + 浏览器脚本 `RiceNoteShortcodes.define()` + 容器标注 `data-rn-shortcodes` |
 | 内容字段 | `page.fields.<键>`（由 `contentFields` 声明） |
 | 页面版式 | `pageTemplates` 声明 + 内容保存版式键 |
 

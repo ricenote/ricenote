@@ -4,5 +4,7 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  // 浏览器专用实现（需要 DOM 类型）只进 tsconfig.browser.json 与 Vite 产物
+  "exclude": ["src/shortcodes/browser.ts"]
 }

@@ -20,6 +20,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./shortcodes": {
+      "types": "./dist/shortcodes.d.ts",
+      "import": "./dist/shortcodes.js"
+    },
     "./manifests/plugin.schema.json": "./manifests/plugin.schema.json",
     "./manifests/theme.schema.json": "./manifests/theme.schema.json",
     "./manifests/settings.schema.json": "./manifests/settings.schema.json",

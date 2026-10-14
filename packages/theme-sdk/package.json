@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./shortcodes/tokenizer": {
+      "types": "./dist/shortcodes/tokenizer.d.ts",
+      "import": "./dist/shortcodes/tokenizer.js"
     }
   },
   "files": [
@@ -28,10 +32,15 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "tsc -p tsconfig.json && vite build",
+    "build:browser": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.browser.json"
   },
   "dependencies": {
     "@ricenote/shared": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
   }
 }

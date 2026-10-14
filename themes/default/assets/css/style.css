@@ -298,6 +298,37 @@ img {
   text-align: left;
 }
 
+/* --------------------------- 主题自带短代码（示例） -------------------------- */
+/* [warn]…[/warn] 的样式：定义见 assets/js/shortcodes.js，内核只提供解析机制 */
+.df-warn {
+  margin: 1.5rem 0;
+  padding: 0.9rem 1.1rem;
+  background: #fff8e8;
+  border: 1px solid var(--df-accent);
+  border-left-width: 4px;
+  border-radius: var(--df-radius);
+}
+
+.df-warn__title {
+  margin: 0 0 0.4rem;
+  font-weight: 600;
+}
+
+/* 正文片段常含整段内容：首尾段落不留多余外边距，避免框内上下空白过大 */
+.df-warn__body > :first-child {
+  margin-top: 0;
+}
+
+.df-warn__body > :last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 620px) {
+  .df-warn {
+    padding: 0.75rem 0.85rem;
+  }
+}
+
 /* 插件 Slot 注入的区块 */
 .df-prose + .rn-post-terms,
 .rn-post-terms {

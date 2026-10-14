@@ -177,7 +177,7 @@ themes/my-theme/
 ## 静态资源与缓存
 
 - 模板里用 `theme_asset('css/style.css')` 生成资源地址，输出形如
-  `/theme-assets/rice.default/css/style.css?v=1.1.0`。
+  `/theme-assets/rice.default/css/style.css?v=1.1.1`。
 - 该地址带**主题版本指纹**并返回 `immutable` 长缓存；**改了资源就要提升主题 `version`**，否则访客会拿到旧文件。
 - 前台 HTML 缓存的键包含：主题 ID、主题设置 revision、站点信息 revision、已启用能力集合、canonical URL、**规范化后的查询串**、模板名。
 - 内容变更会按标签失效缓存；对**出现在每个页面上的内容**（如导航栏），会整体清空缓存。

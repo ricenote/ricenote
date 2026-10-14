@@ -39,6 +39,40 @@
 - 文章路径中的月 / 日补零为两位（`/2026/03/05/…`），且命中侧按同样形态比对，
   使"不补零的写法"不会变成同一篇文章的第二个可访问地址。
 
+### Added（短代码）
+
+- **主题自定义短代码**：作者在正文里写 `[warn]这里是内容[/warn]`，**访问者打开页面时**由主题决定
+  它显示成什么（例如警示框）。分工是刻意的：**内核只提供机制**（解析引擎、扫描约定、注册 API，
+  **不内置任何短代码**），**展示语义全部由主题定义**，服务端不参与呈现。
+  - 交付方式：引擎产物由 Core 托管（`/theme-sdk/v1/ricenote-shortcodes.js`，IIFE 全局名
+    `RiceNoteShortcodes`），模板用新增 helper `shortcode_runtime()` 引入；正文容器用
+    `data-rn-shortcodes` 标注扫描根，引擎只解析这些容器内的文字。
+  - 语法：配对 `[name]…[/name]`（内容可**跨段落**，多段/列表/图片都归入内容）、参数
+    （`[name key="value" flag]`）、自闭合 `[name /]`；名字限小写字母开头。
+  - 不解析：代码块、行内代码、`<script>` / `<style>`、HTML 注释（写教程时示例代码里的方括号不会被吃掉）。
+  - 容错：未注册的名字、未闭合的标记、定义抛错都只保留原文并留一条控制台错误，不影响页面其余内容；
+    未引入引擎的主题（如 `rice.minimal`）标记原样显示为文字，页面不报错。
+  - **服务端不改写正文**：标记原样存在于 `content_html` 与后台编辑器预览中，因此改短代码定义
+    不需要重存内容、不需要迁移、也不需要重启。
+- `@ricenote/shared` 新增与业务无关的短代码语法内核（标记识别、参数解析、`stripShortcodeMarks` /
+  `stripShortcodeMarksFromHtml`、扫描根与产物地址常量），供浏览器引擎与两个内容插件共用同一份规则。
+- `@ricenote/theme-sdk` 新增**短代码引擎**：纯函数分词器
+  （`@ricenote/theme-sdk/shortcodes/tokenizer`，可在 Node 下直接单测）与浏览器入口
+  （`define` / `scan` / `escapeHtml`，附带预注册队列），经 Vite 构建为
+  `dist/browser/ricenote-shortcodes.js`（镜像 `@ricenote/admin-sdk` 的做法）。
+- 默认主题 `rice.default` 新增短代码示例 `[warn]`（`assets/js/shortcodes.js` + `.df-warn` 样式 +
+  `layout.njk` 引入），作为其它主题的参照样板。
+
+### Changed（短代码）
+
+- 文章与独立页面的纯文本提取（`markdownToPlainText`）与订阅源全文改为**剥离短代码标记、只保留内部文字**，
+  因此列表摘要、搜索摘要、SEO 描述与 RSS 里不会出现 `[warn]` 字样；正文存储本身不改写。
+- 订阅源全文模式会顺带清掉因剥离而变空的段落，避免阅读器里出现无意义的空行。
+- 已保存内容的 `excerpt` 是保存时生成的，**历史摘要不会自动回溯**（重新保存一次即可更新）。
+- 默认主题 `rice.default` 版本提升到 `1.1.1`：主题资源地址只带**主题版本指纹**且响应
+  `immutable` 长缓存，因此改了主题资源**必须**提升 `theme.json` 的 `version` ——
+  否则浏览器会继续沿用旧的 `style.css`，表现成"短代码生效了、样式却没变"。
+
 ### Docs
 
 - `docs/plugin-api/v1.md` 新增 18.9 / 18.10：server 作用域锚点（固定链接接入）与路径接管能力；
@@ -46,6 +80,10 @@
 - `docs/architecture/hooks-inventory.md` 与 `wiki/Hooks-Inventory.md` 登记两个 server 扩展点、
   可被接管路径的三条路由、`permalink.routes@1`、后台菜单、权限点与管理 API。
 - `wiki/Plugins-Overview.md` 增补「固定链接」小节，官方插件计数 13 → 14。
+- `docs/theme-api/v1.md` 新增第 15 节「短代码」（交付方式、注册 API、渲染上下文、语法与**不支持**的写法、
+  纯文字场合、安全边界、未改造主题的降级），Helper 表与第 13 节「主题可用全部 Hook 点」同步；
+  `docs/architecture/hooks-inventory.md` 与 `wiki/Hooks-Inventory.md`、`wiki/Theme-API-Template-Reference.md`
+  登记新 helper 与短代码接入方式；新增 `packages/theme-sdk/README.md` 说明浏览器产物与两种使用形态。
 
 ## [0.6.2] - 2026-10-13
 

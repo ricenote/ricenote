@@ -99,6 +99,7 @@
 | `has_feature` | `(capability) => boolean` | 能力是否启用，支持完整契约 / 全名 / 短名三种写法 |
 | `site_url` | `(pathname = '/') => string` | 拼成绝对地址（基于 `site.url`） |
 | `slot` | `(slotName, data = {}) => SafeString` | 渲染插槽；未注册 → 空串；已注册 → 返回占位符（渲染后替换） |
+| `shortcode_runtime` | `() => SafeString` | 输出短代码引擎的 `<script>` 标签（`/theme-sdk/v1/ricenote-shortcodes.js`），见第 8 节 |
 
 ### 用法
 
@@ -170,7 +171,7 @@
 <script src="{{ theme_asset('js/main.js') }}" defer></script>
 ```
 
-- 输出形如 `/theme-assets/rice.default/css/style.css?v=1.1.0`；
+- 输出形如 `/theme-assets/rice.default/css/style.css?v=1.1.1`；
 - 响应头是 `immutable` 长缓存（一年）→ **改了资源必须提升 `theme.json` 的 `version`**；
 - 该路由限定在主题 `assets/` 目录内（防目录穿越）。
 
@@ -226,7 +227,7 @@ canonical URL、**规范化查询串**、模板名。因此换主题、改设置
   <p class="meta">{{ post.authorName }} · {{ post.publishedAt | date('YYYY-MM-DD') }}</p>
 
   {{ slot('post.beforeContent', { postId: post.id }) }}
-  <div class="post-body">{{ post.html }}</div>
+  <div class="post-body" data-rn-shortcodes>{{ post.html }}</div>
   {{ slot('post.afterContent', { postId: post.id }) }}
 
   {% if has_feature('comments') %}
@@ -234,6 +235,51 @@ canonical URL、**规范化查询串**、模板名。因此换主题、改设置
   {% endif %}
 </article>
 ```
+
+---
+
+## 8. 短代码（主题自定义标记）
+
+作者在正文里写 `[warn]这里是内容[/warn]`，**访问者打开页面时**由主题决定它显示成什么。
+分工是明确的：**内核只提供机制**（解析引擎 + 扫描约定 + 注册 API，不内置任何短代码），
+**语义全部由主题定义**；服务端不改写正文存储与后台预览里的标记。
+
+三步接入：
+
+```njk
+{# 1. 引入引擎（必须排在主题自身脚本之前） #}
+{{ shortcode_runtime() }}
+<script src="{{ theme_asset('js/shortcodes.js') }}" defer></script>
+
+{# 2. 正文容器标注扫描根：引擎只解析这些容器，导航与标题不参与 #}
+<div class="post-body" data-rn-shortcodes>{{ post.html }}</div>
+```
+
+```js
+// 3. 主题脚本里定义短代码（零构建，直接用全局对象；引擎未加载时推进队列也行）
+RiceNoteShortcodes.define({
+  name: 'warn',
+  render: function (context) {
+    var box = document.createElement('div');
+    box.className = 'df-warn';
+    if (context.attributes.title) { /* [warn title="注意"] */ }
+    box.innerHTML = context.bodyHtml; // 标记之间的内容，已由服务端渲染并消毒
+    return box;                       // 也可返回 HTML 字符串
+  }
+});
+```
+
+上下文：`name` / `attributes`（`[warn title="注意" flag]` → `{ title: '注意', flag: 'flag' }`）/
+`bodyHtml`（已消毒的内容，可跨段落）/ `bodyText` / `raw`（整体原文）/ `container` / `escapeHtml()`。
+返回 `null` 或 `undefined` 表示**保留原文**；返回空字符串表示不输出。
+
+- 支持：配对 `[name]…[/name]`（内容可跨段落）、参数、自闭合 `[name /]`；
+- 不解析：代码块、行内代码、`<script>` / `<style>`、HTML 注释；
+- 不支持：嵌套（内层标记会原样留在内容里）与交叉嵌套；
+- 纯文字场合（列表摘要、搜索结果、SEO 描述、RSS）由服务端剥掉标记只留文字；
+- 不引入引擎的主题不受影响，标记原样显示为文字，页面不报错。
+
+完整说明（含安全边界与历史摘要的注意事项）：`docs/theme-api/v1.md` 第 15 节。
 
 ---
 

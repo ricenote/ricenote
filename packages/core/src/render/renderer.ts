@@ -18,7 +18,7 @@ import type { HttpRequestLike, SlotRenderContext } from '@ricenote/plugin-sdk';
 import type { PaginationContext } from '@ricenote/theme-sdk';
 import { THEME_FILTERS } from '@ricenote/theme-sdk';
 import type { EffectiveSiteInfo, ThemeSettingValues } from '@ricenote/shared';
-import { ErrorCode, RiceNoteError } from '@ricenote/shared';
+import { ErrorCode, RiceNoteError, shortcodeRuntimeUrl } from '@ricenote/shared';
 import type { Logger } from '../logger.js';
 import type { RiceNoteConfig } from '../config/loader.js';
 import type { ThemeManager, LoadedTheme } from '../themes/manager.js';
@@ -29,6 +29,7 @@ import { HtmlCache } from './cache.js';
 import { TrustedHtml } from './safe-html.js';
 import { buildTemplateContext, viewerFromRequest } from './context.js';
 import { capabilityMatches } from '../capabilities.js';
+import { APP_VERSION } from '../version.js';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 /** dist/render/renderer.js → ../.. = packages/core ; src/render/renderer.ts → ../.. = packages/core */
@@ -336,6 +337,17 @@ export class ThemeRenderer {
       has_feature: (capability: string): boolean =>
         capabilityMatches(this.deps.enabledCapabilities(), capability),
       site_url: (pathname = '/'): string => absoluteUrl(site.url, pathname),
+      /**
+       * 短代码引擎的脚本标签。
+       *
+       * 引擎在前台解析正文里的短代码标记，具体展示由主题用
+       * `RiceNoteShortcodes.define()` 定义；主题不引入它时短代码原样显示为文字。
+       * 返回值标记为安全字符串，否则 Nunjucks 的自动转义会把标签转义掉。
+       */
+      shortcode_runtime: (): nunjucks.runtime.SafeString =>
+        new nunjucks.runtime.SafeString(
+          `<script src="${shortcodeRuntimeUrl(APP_VERSION)}" defer></script>`
+        ),
       slot: (slotName: string, data: Record<string, unknown> = {}): nunjucks.runtime.SafeString => {
         if (!registeredSlotNames.has(slotName)) {
           // 未注册的插槽输出空片段，避免模板出现占位符残留

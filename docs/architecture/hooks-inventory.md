@@ -312,10 +312,12 @@ Core 在插件启动时读取声明并注册菜单，同时：
 摘要：
 
 - 上下文变量：`site`、`page`、`theme`、`viewer`、`post`、`posts`、`content`、`pagination`、`seoDescription`
-- Helper：`theme_asset`、`url`、`slot`、`has_feature`、`site_url`
+- Helper：`theme_asset`、`url`、`slot`、`has_feature`、`site_url`、`shortcode_runtime`
 - 过滤器：`css_color`、`date`、`excerpt`、`number`、`json`
 - 页面类型（kind）：`home`、`post`、`page`、`archive`、`search`、`404`
 - 声明式差异化：`templates[kind]`、`pageTemplates`（供页面/文章选择）、`settings`
+- 短代码：主题用浏览器脚本 `RiceNoteShortcodes.define()` 定义标记的展示，正文容器标注
+  `data-rn-shortcodes` 作为扫描根；引擎由 Core 以 `/theme-sdk/v1/**` 托管（见 `docs/theme-api/v1.md` §15）
 
 ---
 
