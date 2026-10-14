@@ -8,7 +8,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.comments` |
-| version | `1.4.0` |
+| version | `1.5.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.comments@1` |
@@ -69,7 +69,29 @@
 
 ### 事件
 
-本插件**不发布事件**，也不订阅事件。
+本插件**只发布、不订阅**（能力 `events:publish`）。
+
+| 事件 | 何时广播 |
+| --- | --- |
+| `content.comment.created.v1` | 评论入库后（**含待审与垃圾**；订阅方按 `status` 自行取舍） |
+| `content.comment.status.changed.v1` | 审核动作**真正改变**状态时（`from` ≠ `status`；`delete` 不广播） |
+
+payload（两条事件共用的「评论快照」）：
+
+| 字段 | 说明 |
+| --- | --- |
+| `id` / `postId` | 评论 ID 与所属文章 ID |
+| `postTitle` / `postUrl` | 文章标题与前台地址（取不到时缺省） |
+| `parentId` | 被回复的评论 ID；非回复为 `null` |
+| `parentAuthorName` / `parentAuthorEmail` | **仅回复时**存在：「通知被回复的人」用它 —— 订阅方既拿不到也反查不了 `rn_comments` |
+| `authorName` / `authorEmail` | 评论作者；邮箱已归一化为小写（站长允许留空时为空字符串） |
+| `content` | 正文原文，**未消毒** —— 要展示请自行转义 |
+| `status` | 广播时的状态：`pending` / `approved` / `spam` / `trash` |
+| `from` | **仅** `status.changed` 携带：变更前的状态 |
+
+> 事件总线**不保证投递**（内存实现，进程重启即丢），适合"有新评论就立刻通知"这类场景；
+> 需要至少一次投递的订阅方，应另用公开契约（`recent()` / `listForAdmin()`）做一次对账回捞。
+> 通知类订阅方还应自行过滤 `status === 'spam'`（垃圾评论也广播，因为它是一个事实）。
 
 ### 后台界面
 

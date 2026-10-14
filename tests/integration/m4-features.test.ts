@@ -414,6 +414,62 @@ describe('rice.comments：闭环与反垃圾', () => {
       '文章页评论项应带上作者邮箱，供主题取头像'
     );
   });
+
+  it('评论事件广播给订阅方（回复事件带被回复者）', async () => {
+    const sample = await publishSample();
+    const service = comments();
+    const received: { event: string; payload: Record<string, unknown> }[] = [];
+    // 内核事件总线的签名是 on(source, eventName, handler)：source 只用于日志与泄漏排查
+    const offs = [
+      kernel!.events.on('m4-features', 'content.comment.created.v1', (payload) => {
+        received.push({
+          event: 'content.comment.created.v1',
+          payload: payload as Record<string, unknown>
+        });
+      }),
+      kernel!.events.on('m4-features', 'content.comment.status.changed.v1', (payload) => {
+        received.push({
+          event: 'content.comment.status.changed.v1',
+          payload: payload as Record<string, unknown>
+        });
+      })
+    ];
+
+    try {
+      const parent = await service.submit({
+        postId: sample.id,
+        authorName: '楼主',
+        authorEmail: 'owner@example.com',
+        content: '被回复的评论。',
+        ip: '10.0.0.9'
+      });
+      const child = await service.submit({
+        postId: sample.id,
+        parentId: parent.id,
+        authorName: '回复者',
+        authorEmail: 'Reply@Example.com',
+        content: '回复内容。',
+        ip: '10.0.0.10'
+      });
+      await service.moderate({ ids: [child.id], action: 'approve' });
+
+      const created = received.filter((item) => item.event === 'content.comment.created.v1');
+      assert.equal(created.length, 2, '两条评论各广播一次');
+
+      const reply = created[1]!;
+      assert.equal(reply.payload.parentAuthorEmail, 'owner@example.com', '回复事件应带上被回复者邮箱');
+      assert.equal(reply.payload.authorEmail, 'reply@example.com');
+      assert.equal(reply.payload.status, 'pending');
+      assert.ok(String(reply.payload.postUrl).includes(sample.slug), '应带上文章前台地址');
+
+      const changed = received.filter((item) => item.event === 'content.comment.status.changed.v1');
+      assert.equal(changed.length, 1);
+      assert.equal(changed[0]!.payload.from, 'pending');
+      assert.equal(changed[0]!.payload.status, 'approved');
+    } finally {
+      for (const off of offs) off();
+    }
+  });
 });
 
 describe('rice.seo：社交卡片、结构化数据与站点地图', () => {

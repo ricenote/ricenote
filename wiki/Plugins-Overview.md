@@ -21,7 +21,7 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **14 个官方插�
 | 固定链接 | `rice.permalink` | 1.0.0 | `permalink.routes@1` | ——（对 posts / pages / taxonomy 为可选依赖） | 固定链接 `/permalink` |
 | 分类与标签 | `rice.taxonomy` | 1.3.0 | `content.taxonomy@1` | —— | 分类与标签 `/taxonomy` |
 | 媒体库 | `rice.media` | 1.3.0 | `media.library@1` | —— | 媒体库 `/media` |
-| 评论 | `rice.comments` | 1.4.0 | `content.comments@1` | ——（对 posts / identity 为请求期可选依赖） | 评论审核 `/comments` |
+| 评论 | `rice.comments` | 1.5.0 | `content.comments@1` | ——（对 posts / identity 为请求期可选依赖） | 评论审核 `/comments` |
 | 搜索 | `rice.search` | 1.2.0 | `content.search@1` | —— | —— |
 | SEO | `rice.seo` | 1.2.1 | ——（消费 `content.posts@1`） | —— | —— |
 | 编辑增强 | `rice.editor-enhance` | 1.1.1 | ——（纯前端贡献） | —— | —— |
@@ -162,8 +162,12 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **14 个官方插�
   **来源 IP 只以加盐哈希留档，不落明文**。另有同源校验与蜜罐字段（蜜罐命中时静默返回成功）。
 - **正文安全**：按**纯文本**处理（入库即转义、输出只保留换行），因此不存在用户 HTML 进入模板的路径。
 - **前台**：通过插槽 `post.comments` 输出；支持**无 JavaScript 回退**（表单直接 POST 到 `/comments/submit`，服务端 302 回文章页并附 `?comment=<结果>`）。
+  评论项带 `data-rn-author-email`（访客没填时不输出该属性），**邮箱开放给主题**自行取头像。
 - **后台页面**：评论审核 `/comments`（`comment.moderate`）。
-- **设置**：常规（开关、先审后发、分页、字数上限、嵌套深度）与反垃圾两组。
+- **设置**：常规（开关、先审后发、**邮箱是否必填**、分页、字数上限、嵌套深度）与反垃圾两组。
+- **事件**：`content.comment.created.v1`（评论入库，含待审与垃圾）与
+  `content.comment.status.changed.v1`（审核改变状态，带 `from`）；payload 带作者与**被回复者**邮箱，
+  订阅方可据此自行发通知（内核不提供邮件能力）。
 - **可选依赖**：`content.posts@1` 与 `identity.users@1` 在**请求期惰性解析**，缺失时自动降级。
 
 ---

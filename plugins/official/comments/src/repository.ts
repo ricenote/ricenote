@@ -72,6 +72,26 @@ export async function findCommentById(db: PluginDatabase, id: number): Promise<C
   return rows[0];
 }
 
+/**
+ * 按 ID 批量读取（同一站点内）。
+ *
+ * 两处用到：审核前取"变更前的状态"，以及事件载荷里补上被回复评论的作者。
+ */
+export async function listByIds(
+  db: PluginDatabase,
+  siteId: string,
+  ids: number[]
+): Promise<CommentRow[]> {
+  const unique = [...new Set(ids.filter((id) => Number.isFinite(id)))];
+  if (unique.length === 0) return [];
+
+  const placeholders = unique.map(() => '?').join(', ');
+  return db.query<CommentRow>(
+    `SELECT ${COLUMNS} FROM rn_comments WHERE site_id = ? AND id IN (${placeholders})`,
+    [siteId, ...unique]
+  );
+}
+
 /** 读取某文章的全部已通过评论（升序，用于构建线程）。 */
 export async function listApprovedByPost(
   db: PluginDatabase,

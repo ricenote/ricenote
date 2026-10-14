@@ -19,7 +19,7 @@
 
   | 插件 | 版本 | 变化 |
   | --- | --- | --- |
-  | `rice.comments` | 1.3.1 → **1.4.0** | 新增：可关闭「要求填写邮箱」、把作者邮箱开放给主题 |
+  | `rice.comments` | 1.3.1 → **1.5.0** | 新增：可关闭「要求填写邮箱」、把作者邮箱开放给主题、发布评论事件 |
 
 ### Added（评论）
 
@@ -37,6 +37,26 @@
 - **前台输出邮箱不再脱敏**：邮箱以明文出现在文章页 HTML（`data-rn-author-email`）与公开接口
   `GET /api/comments` 中，任何访客与爬虫都能读取 —— 这是"把邮箱交给主题取头像"的必然代价，
   未使用头像的主题同样会输出该字段。
+
+### Added（评论事件）
+
+- `rice.comments` 开始**发布事件**，供第三方（例如以后的邮件通知插件）订阅 —— 这是"邮件通知评论"
+  缺的那一环：此前评论插件不发布任何事件，外部拿不到"有新评论"的信号。
+  - `content.comment.created.v1`：评论入库后广播（**含待审与垃圾**，订阅方按 `status` 自行取舍）；
+  - `content.comment.status.changed.v1`：审核动作**真正改变**状态时广播（带 `from`；删除不广播）。
+- payload 为「评论快照」：`id` / `postId` / `postTitle?` / `postUrl?` / `parentId` /
+  `parentAuthorName?` / `parentAuthorEmail?` / `authorName` / `authorEmail` / `content`（**未消毒**）/ `status`。
+  **被回复者的邮箱随事件一并下发**：订阅方既不能读 `rn_comments`（插件只能碰自己的表）也无法反查，
+  因此"通知被回复的人"只能这样拿到收件人。通知类订阅方等 `status.changed` 的 `approved` 即可，
+  不会给未通过的回复发信（否则待审/垃圾回复会变成给第三方发信的通道）。
+  能力声明无需改动（`events:publish` 早已声明）。
+- 文档同步：`docs/architecture/hooks-inventory.md` 事件表与 `wiki/Hooks-Inventory.md`（payload 列）
+  登记两条事件、`wiki/Plugins-Overview.md` 的评论条目补「事件 / 邮箱 / 邮箱必填」、插件 README 新增「事件」小节。
+
+### Changed（评论事件投递）
+
+- 事件总线**不保证投递**（内存实现，进程重启即丢）：它适合"有新评论就立刻通知"这类场景；
+  需要"至少一次"的订阅方须自行用公开契约（`recent()` / `listForAdmin()`）对账回捞 —— 已写进插件 README。
 
 ## [0.7.0] - 2026-10-14
 

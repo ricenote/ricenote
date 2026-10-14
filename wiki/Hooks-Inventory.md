@@ -117,6 +117,8 @@
 | `content.post.deleted.v1` | `rice.posts` | `{ postId, slug }` |
 | `content.pages.changed.v1` | `rice.pages` | `{ pageId, slug, status }` |
 | `content.pages.deleted.v1` | `rice.pages` | `{ pageId, slug }` |
+| `content.comment.created.v1` | `rice.comments` | `{ id, postId, postTitle?, postUrl?, parentId, parentAuthorName?, parentAuthorEmail?, authorName, authorEmail, content, status }` |
+| `content.comment.status.changed.v1` | `rice.comments` | 同上 + `{ from }` |
 
 事件名以**字符串字面量**使用（共享包里只有示例常量）。
 

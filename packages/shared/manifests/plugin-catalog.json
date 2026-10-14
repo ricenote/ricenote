@@ -164,7 +164,7 @@
     {
       "id": "rice.comments",
       "npm": "@ricenote/plugin-comments",
-      "version": "1.4.0",
+      "version": "1.5.0",
       "category": "recommended",
       "label": "评论",
       "description": "为文章提供访客评论与回复，支持审核与垃圾评论拦截。",

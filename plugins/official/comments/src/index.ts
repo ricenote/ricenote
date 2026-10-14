@@ -40,6 +40,9 @@ export default definePlugin({
       invalidate: (tags) => {
         theme.invalidate(tags);
       },
+      emit: async (event, payload) => {
+        await ctx.events.emit(event, payload);
+      },
       // 可选依赖：惰性解析，避免与拓扑排序顺序耦合
       posts: () => ctx.services.tryUse<ContentPostsService>(SERVICE_CONTRACTS.CONTENT_POSTS),
       users: () => ctx.services.tryUse<IdentityUsersService>('identity.users@1')

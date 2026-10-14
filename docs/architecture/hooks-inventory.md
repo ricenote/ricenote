@@ -223,6 +223,8 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 | `content.post.deleted.v1` | `rice.posts` | `rice.navigation`（仅当该文章被导航引用） | 文章删除 |
 | `content.pages.changed.v1` | `rice.pages` | `rice.navigation`（仅当该页面被导航引用） | 页面新建/更新 |
 | `content.pages.deleted.v1` | `rice.pages` | `rice.navigation`（仅当该页面被导航引用） | 页面删除 |
+| `content.comment.created.v1` | `rice.comments` | 无 | 评论入库（含待审与垃圾）；payload 带作者与被回复者邮箱，供通知类订阅方使用 |
+| `content.comment.status.changed.v1` | `rice.comments` | 无 | 审核真正改变状态（带 `from`）；删除不广播 |
 
 > `rice.navigation` 订阅内容事件的目的只有一个：判断"变了的内容是否被导航引用"，
 > 是则清空 HTML 缓存（导航栏出现在每个页面上，按标签失效覆盖不到）。
@@ -232,7 +234,8 @@ RiceNote 不存在 `ctx.hooks.register('...')` 这类通用钩子机制。
 > `events:publish` 与 `events:subscribe` —— 少声明一个不会静默降级，
 > 而是启动时直接抛 `RN_FORBIDDEN`（能力白名单是硬约束）。
 
-不发布任何事件的插件：`rice.media`、`rice.taxonomy`、`rice.comments`、`rice.seo`、`rice.search`。
+不发布任何事件的插件：`rice.media`、`rice.taxonomy`、`rice.seo`、`rice.search`
+（`rice.comments` 已改为发布上表里的两条评论事件）。
 订阅 `core.runtime.started.v1` 是本仓最常用的启动后钩子（见 `docs/plugin-api/v1.md` 6.1）。
 
 ---
