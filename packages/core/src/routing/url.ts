@@ -16,6 +16,13 @@ import { ErrorCode, RiceNoteError, absoluteUrl } from '@ricenote/shared';
 export { absoluteUrl };
 
 const PARAM_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)/g;
+/**
+ * 比较用的参数形态：允许参数后跟正则约束 `:slug(^[^/]+\.html$)`。
+ *
+ * 路径替换（`ctx.routes.overridePath`）登记的模式来自第三方插件，
+ * 归一化时要连约束一起吃掉，否则"同一结构、不同约束"会被误判为不同路径。
+ */
+const PARAM_SIGNATURE_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)(?:\([^)]*\))?/g;
 
 /** 把路径模板与参数合成为具体路径（不含站点前缀）。 */
 export function buildPath(
@@ -60,8 +67,8 @@ export function normalizePath(path: string): string {
   return normalized === '' ? '/' : normalized;
 }
 
-/** 生成用于比较的路由签名（忽略参数名差异，仅比较结构）。 */
+/** 生成用于比较的路由签名（忽略参数名与正则约束差异，仅比较结构）。 */
 export function routeSignature(method: string, path: string): string {
-  const structural = normalizePath(path).replace(PARAM_PATTERN, ':p');
+  const structural = normalizePath(path).replace(PARAM_SIGNATURE_PATTERN, ':p');
   return `${method.toUpperCase()} ${structural}`;
 }

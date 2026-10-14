@@ -192,7 +192,7 @@ onMounted(load);
           <li v-for="post in stats.recentPosts" :key="post.id" class="flex items-center justify-between gap-3 py-2.5">
             <div class="min-w-0">
               <a
-                :href="`/post/${post.slug}`"
+                :href="post.url || `/post/${post.slug}`"
                 target="_blank"
                 rel="noopener"
                 class="truncate text-sm text-foreground hover:text-primary"

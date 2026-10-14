@@ -19,6 +19,7 @@ import {
   type PageStatus
 } from '@ricenote/shared';
 import { markdownToPlainText, renderMarkdown } from './markdown.js';
+import { pageUrl } from './permalink.js';
 import {
   countPages,
   deletePageById,
@@ -79,12 +80,15 @@ export function createPagesService(deps: PagesServiceDeps): ContentPagesService 
         page: input.page,
         pageSize: input.pageSize || runtime.listPageSize
       });
-      return { items: result.items.map((row) => toPageSummary(row)), total: result.total };
+      return {
+        items: result.items.map((row) => toPageSummary(row, undefined, pageUrl(runtime, row))),
+        total: result.total
+      };
     },
 
     async findPublishedBySlug(slug): Promise<PageDetail | undefined> {
       const row = await findPublishedBySlug(db, siteId, normalizeSlug(slug, 'page'));
-      return row ? toPageDetail(row) : undefined;
+      return row ? toPageDetail(row, undefined, pageUrl(runtime, row)) : undefined;
     },
 
     async navItems() {
@@ -94,7 +98,7 @@ export function createPagesService(deps: PagesServiceDeps): ContentPagesService 
         id: row.id,
         title: row.title,
         slug: row.slug,
-        url: `/page/${row.slug}`
+        url: pageUrl(runtime, { id: row.id, slug: row.slug })
       }));
     },
 
@@ -106,7 +110,9 @@ export function createPagesService(deps: PagesServiceDeps): ContentPagesService 
       // 内容字段按**当前主题声明**过滤：换主题后旧键仍在库里，但不再出现在后台响应里
       const declared = await runtime.theme.contentFields();
       return {
-        items: result.items.map((row) => toPageSummary(row, readContentFields(runtime, row, declared))),
+        items: result.items.map((row) =>
+          toPageSummary(row, readContentFields(runtime, row, declared), pageUrl(runtime, row))
+        ),
         total: result.total
       };
     },
@@ -115,7 +121,7 @@ export function createPagesService(deps: PagesServiceDeps): ContentPagesService 
       const row = await findPageById(db, id);
       if (!row) return undefined;
       const declared = await runtime.theme.contentFields();
-      return toPageDetail(row, readContentFields(runtime, row, declared));
+      return toPageDetail(row, readContentFields(runtime, row, declared), pageUrl(runtime, row));
     },
 
     async save(input: { id?: number; authorId?: number; payload: PageSaveRequest }) {

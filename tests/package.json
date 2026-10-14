@@ -13,6 +13,8 @@
   "dependencies": {
     "@ricenote/core": "workspace:*",
     "@ricenote/plugin-navigation": "workspace:*",
+    "@ricenote/plugin-permalink": "workspace:*",
+    "@ricenote/plugin-posts": "workspace:*",
     "@ricenote/plugin-sdk": "workspace:*",
     "@ricenote/server": "workspace:*",
     "@ricenote/shared": "workspace:*",

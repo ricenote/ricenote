@@ -7,6 +7,46 @@
 
 ## [Unreleased]
 
+### Added（固定链接）
+
+- **新官方插件 `rice.permalink`「固定链接」**（目录 `plugins/official/permalink`，`category: optional`）：
+  为文章 / 独立页面 / 分类各配一套路径模板（`/archives/{cid}/`、`/{year}/{month}/{day}/{slug}.html` 等），
+  自带后台页「固定链接」（预设单选、参数标签、实时预览、风险提示），提供 `permalink.routes@1` 契约与
+  两个 server 作用域扩展点 `rice.permalink.schemes` / `rice.permalink.tokens`。
+  **内置默认模板与现有地址完全一致**（`/post/{slug}`、`/page/{slug}`、`/category/{slug}`），
+  未启用或未改设置时前台行为零变化。
+- **对外扩展点**：第三方内容插件可为自己内容类型**新增一整套路径方案**
+  （方案名 / 要接管的路由 / 参数与中文标签 / 默认模板 / 预览示例），
+  或为已有方案**追加自定义参数**（如 `{lang}`）并提供同步取值来源与命中校验；
+  接入后自动获得后台区块、模板校验、路径接管与地址生成，无需自建任何能力。
+- **内核新增最小能力 `ctx.routes.overridePath()` + `PageRouteSpec.overridable`**：
+  按路由名替换**路径**（不换 handler），与插件启动顺序无关、目标未声明可接管即拒绝、
+  路径冲突在装配期报错、停用即恢复内建路径。
+- **摘要统一携带前台地址**：`PostSummary.url` / `PageSummary.url` / `TermSummary.url`
+  （由内容插件按当前方案生成），订阅源、站点地图、导航、后台列表与仪表盘改为直接取用，
+  不再各自拼 `/post/:slug`。
+- `@ricenote/shared` 新增与业务无关的路径模板引擎
+  （`parsePathTemplate` / `validatePathTemplate` / `compilePathTemplate`），
+  一并提供"匹配模式"（参数独占一段）与"生成模式"（保留 `.html` 等字面量）两种视角。
+- `TaxonomyService` 新增 `findById` 与 `termsOfPosts`（后者避免列表页为拼地址而 N+1 查词条）。
+
+### Changed（地址与 HTTP 行为）
+
+- 前台 HTTP 实例开启尾斜杠宽容（`routerOptions.ignoreTrailingSlash`），
+  使 `/archives/12` 与 `/archives/12/` 命中同一条路由；`/admin/` 的重复注册随之移除。
+- **顺带修正**：分类归档页此前把 canonical 写死成详情页的地址（`/post/:slug`），
+  现在按归档自身地址输出。
+- 文章路径中的月 / 日补零为两位（`/2026/03/05/…`），且命中侧按同样形态比对，
+  使"不补零的写法"不会变成同一篇文章的第二个可访问地址。
+
+### Docs
+
+- `docs/plugin-api/v1.md` 新增 18.9 / 18.10：server 作用域锚点（固定链接接入）与路径接管能力；
+  路由与契约表同步补录。
+- `docs/architecture/hooks-inventory.md` 与 `wiki/Hooks-Inventory.md` 登记两个 server 扩展点、
+  可被接管路径的三条路由、`permalink.routes@1`、后台菜单、权限点与管理 API。
+- `wiki/Plugins-Overview.md` 增补「固定链接」小节，官方插件计数 13 → 14。
+
 ## [0.6.2] - 2026-10-13
 
 > 补丁版本：把版本号收敛为 `plugin-catalog.json` 单一来源，新增 `version:check` / `version:sync` /

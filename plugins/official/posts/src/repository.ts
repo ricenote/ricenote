@@ -186,15 +186,24 @@ export async function listPublishedByIds(
  * 供导航这类"出现在每个页面上的全局插槽"使用：只需要链接文案与地址，
  * 因此刻意不查作者与词条（`findPublishedById` 会连带查询，逐个调用即 N+1）。
  */
+export interface PostRefRow {
+  id: number;
+  title: string;
+  slug: string;
+  /** 供固定链接模板的 `{year}/{month}/{day}` 使用。 */
+  published_at: Date | string | null;
+  created_at: Date | string;
+}
+
 export async function publishedRefs(
   db: PluginDatabase,
   siteId: string,
   postIds: number[]
-): Promise<Array<{ id: number; title: string; slug: string }>> {
+): Promise<PostRefRow[]> {
   if (postIds.length === 0) return [];
   const placeholders = postIds.map(() => '?').join(', ');
-  return db.query<{ id: number; title: string; slug: string }>(
-    `SELECT id, title, slug FROM rn_posts
+  return db.query<PostRefRow>(
+    `SELECT id, title, slug, published_at, created_at FROM rn_posts
       WHERE site_id = ? AND status = 'published' AND id IN (${placeholders})`,
     [siteId, ...postIds]
   );

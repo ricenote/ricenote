@@ -22,6 +22,7 @@ import {
   type CoreThemeService
 } from '@ricenote/shared';
 import { registerAdminRoutes } from './admin.js';
+import { categoryUrl, tagUrl } from './permalink.js';
 import { registerPublicPages } from './pages.js';
 import {
   mediaOf,
@@ -71,7 +72,7 @@ export default definePlugin({
 
     registerPublicPages(ctx, runtime);
     registerAdminRoutes(ctx, { service, runtime });
-    registerPostSlot(ctx);
+    registerPostSlot(ctx, runtime);
 
     // 可选依赖的可用性在"全部插件启动完成"之后再上报，否则日志会因启动顺序而失真
     ctx.events.on('core.runtime.started.v1', () => {
@@ -142,7 +143,7 @@ function registerSearchSource(ctx: PluginContext, runtime: PostsRuntime): void {
  * `{{ slot('post.afterContent', { postId: post.id }) }}` 即可获得该区块；
  * 插件被禁用时插槽自动为空，主题代码无需任何修改。
  */
-function registerPostSlot(ctx: PluginContext): void {
+function registerPostSlot(ctx: PluginContext, runtime: PostsRuntime): void {
   const html = ctx.services.use<CoreHtmlService>(SERVICE_CONTRACTS.CORE_HTML);
   const taxonomyInternal = ctx.services.tryUse('taxonomy.internal@1');
 
@@ -154,7 +155,13 @@ function registerPostSlot(ctx: PluginContext): void {
         const post = context.data.post as
           | {
               id?: number;
-              terms?: { name: string; slug: string; type: string }[];
+              terms?: {
+                id?: number;
+                name: string;
+                slug: string;
+                type: string;
+                url?: string;
+              }[];
               updatedAt?: string;
             }
           | undefined;
@@ -166,8 +173,14 @@ function registerPostSlot(ctx: PluginContext): void {
         if (terms.length > 0) {
           const links = terms
             .map((term) => {
-              const segment = term.type === 'category' ? 'category' : 'tag';
-              return `<a class="rn-term" href="/${segment}/${encodeURIComponent(term.slug)}">${html.escape(term.name)}</a>`;
+              // 归档地址同样走固定链接方案：优先用词条自带的 url，
+              // 缺失时才回退到本地生成（分类可能是 `/category/{slug}/` 或自定义形式）
+              const href =
+                term.url ??
+                (term.type === 'category'
+                  ? categoryUrl(runtime, { id: term.id ?? 0, slug: term.slug })
+                  : tagUrl({ slug: term.slug }));
+              return `<a class="rn-term" href="${html.escape(href)}">${html.escape(term.name)}</a>`;
             })
             .join('');
           parts.push(`<div class="rn-post-terms"><span>相关</span>${links}</div>`);

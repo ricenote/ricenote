@@ -21,7 +21,7 @@
             {% if post.terms and post.terms.length %}
               <ul class="df-tags">
                 {% for term in post.terms %}
-                  <li><a href="{% if term.type == 'category' %}{{ url('term.category', { slug: term.slug }) }}{% else %}{{ url('term.tag', { slug: term.slug }) }}{% endif %}">{{ term.name }}</a></li>
+                  <li><a href="{% if term.url %}{{ term.url }}{% elif term.type == 'category' %}{{ url('term.category', { slug: term.slug }) }}{% else %}{{ url('term.tag', { slug: term.slug }) }}{% endif %}">{{ term.name }}</a></li>
                 {% endfor %}
               </ul>
             {% endif %}

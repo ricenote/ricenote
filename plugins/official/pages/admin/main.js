@@ -157,7 +157,7 @@ export default defineAdminPage({
 
     <template #cell-slug="{ row }">
       <a class="font-mono text-[11px] text-muted-foreground hover:text-foreground"
-        :href="'/page/' + row.slug" target="_blank" rel="noopener">/page/{{ row.slug }}</a>
+        :href="row.url || '/page/' + row.slug" target="_blank" rel="noopener">{{ row.url || '/page/' + row.slug }}</a>
     </template>
 
     <template #cell-template="{ row }">

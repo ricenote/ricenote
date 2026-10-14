@@ -385,6 +385,21 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  plugins/official/permalink:
+    devDependencies:
+      '@ricenote/plugin-sdk':
+        specifier: workspace:^
+        version: link:../../../packages/plugin-sdk
+      '@ricenote/shared':
+        specifier: workspace:^
+        version: link:../../../packages/shared
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   plugins/official/posts:
     dependencies:
       marked:
@@ -463,6 +478,12 @@ importers:
       '@ricenote/plugin-navigation':
         specifier: workspace:*
         version: link:../plugins/official/navigation
+      '@ricenote/plugin-permalink':
+        specifier: workspace:*
+        version: link:../plugins/official/permalink
+      '@ricenote/plugin-posts':
+        specifier: workspace:*
+        version: link:../plugins/official/posts
       '@ricenote/plugin-sdk':
         specifier: workspace:*
         version: link:../packages/plugin-sdk

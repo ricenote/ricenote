@@ -104,6 +104,26 @@
       "license": "MIT"
     },
     {
+      "id": "rice.permalink",
+      "npm": "@ricenote/plugin-permalink",
+      "version": "1.0.0",
+      "category": "optional",
+      "label": "固定链接",
+      "description": "为文章、独立页面与分类选择更友好的访问地址；第三方插件可为自己内容类型接入同一套方案。",
+      "capabilities": [
+        "database:own",
+        "routes:public",
+        "routes:admin",
+        "services:provide",
+        "services:consume",
+        "events:subscribe",
+        "extensions:declare"
+      ],
+      "requires": [],
+      "repository": "https://github.com/ricenote/plugin-permalink",
+      "license": "MIT"
+    },
+    {
       "id": "rice.taxonomy",
       "npm": "@ricenote/plugin-taxonomy",
       "version": "1.2.0",

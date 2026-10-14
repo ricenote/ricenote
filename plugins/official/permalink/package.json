@@ -1,0 +1,54 @@
+{
+  "name": "@ricenote/plugin-permalink",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "RiceNote 固定链接插件：用路径模板自定义文章、独立页面与分类的访问地址，并对外提供方案与参数的接入扩展点",
+  "keywords": [
+    "ricenote",
+    "plugin"
+  ],
+  "homepage": "https://github.com/ricenote/plugin-permalink",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ricenote/plugin-permalink.git"
+  },
+  "license": "MIT",
+  "author": "RiceNote",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "admin",
+    "migrations",
+    "manifest.json",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@ricenote/plugin-sdk": "^0.6.0",
+    "@ricenote/shared": "^0.6.0"
+  },
+  "peerDependenciesMeta": {
+    "@ricenote/plugin-sdk": {
+      "optional": true
+    },
+    "@ricenote/shared": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ricenote/plugin-sdk": "workspace:^",
+    "@ricenote/shared": "workspace:^",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
+  }
+}

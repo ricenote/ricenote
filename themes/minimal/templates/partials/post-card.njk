@@ -24,7 +24,7 @@
       <ul class="rn-terms">
         {% for term in post.terms %}
           <li>
-            <a href="{% if term.type == 'category' %}{{ url('term.category', { slug: term.slug }) }}{% else %}{{ url('term.tag', { slug: term.slug }) }}{% endif %}">
+            <a href="{% if term.url %}{{ term.url }}{% elif term.type == 'category' %}{{ url('term.category', { slug: term.slug }) }}{% else %}{{ url('term.tag', { slug: term.slug }) }}{% endif %}">
               {{ term.name }}
             </a>
           </li>

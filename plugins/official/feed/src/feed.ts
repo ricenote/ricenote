@@ -61,7 +61,8 @@ async function collectItems(deps: FeedDeps): Promise<FeedItem[]> {
 
   const output: FeedItem[] = [];
   for (const post of items.slice(0, settings.itemLimit)) {
-    const link = absoluteUrl(siteUrl, `/post/${post.slug}`);
+    // 地址由提供内容的插件按当前固定链接方案给出（此处不再自拼 `/post/:slug`）
+    const link = absoluteUrl(siteUrl, post.url ?? `/post/${post.slug}`);
     const pubDate = formatRfc822(post.publishedAt ?? post.updatedAt ?? post.createdAt);
 
     output.push({

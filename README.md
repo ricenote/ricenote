@@ -3,7 +3,7 @@
 插件优先的轻量级博客与内容管理系统（CMS）。
 
 - **小内核**：Core 只提供引导、安全边界、插件/主题注册、路由、服务、事件、数据库访问与渲染基础设施。
-- **业务皆插件**：文章、独立页面、导航栏、分类标签、媒体、用户与权限、评论、搜索、SEO 全部以独立插件实现，可独立开发、启停与升级。
+- **业务皆插件**：文章、独立页面、导航栏、固定链接、分类标签、媒体、用户与权限、评论、搜索、SEO 全部以独立插件实现，可独立开发、启停与升级。
 - **插件自带后台界面**：插件在 `admin/` 下写零构建的前端模块即可获得完整管理页面（后台提供通用宿主与 [`@ricenote/admin-sdk`](packages/admin-sdk) 组件库），Core 里不再有插件专属页面。
 - **三路来源安装插件**：npm Registry（含依赖解析与版本更新检查）、Git 仓库（tag / 提交 / 分支）、本地目录（含压缩包），后台与 CLI 共用同一套编排、任务队列与实时日志，升级失败自动回滚。
 - **零构建主题**：主题 = `theme.json` + `templates/*.njk` + `assets/*`，只需 HTML/CSS 与可选 JavaScript。
@@ -34,7 +34,7 @@ ricenote/
 │   ├── plugin-sdk/      # 插件稳定公共接口
 │   ├── theme-sdk/       # 主题 helper / filter / 校验器
 │   └── shared/          # DTO、错误码、capability 工具、Manifest Schema
-├── plugins/official/    # 官方插件（目录即插件）
+├── plugins/official/    # 官方插件（14 个，目录即插件）
 ├── themes/              # 主题（minimal / default）
 ├── storage/             # 上传、缓存、日志
 ├── docs/                # 架构、Plugin API、Theme API、ADR

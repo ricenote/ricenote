@@ -122,6 +122,36 @@ export async function termsOfPost(db: PluginDatabase, postId: number): Promise<T
   return rows.map((row) => toTermSummary(row));
 }
 
+/**
+ * 批量读取多篇文章的词条（列表页拼地址时避免 N+1）。
+ *
+ * 返回的键只包含确实有关联的文章；`postIds` 为空时直接返回空对象，不发查询。
+ */
+export async function termsOfPosts(
+  db: PluginDatabase,
+  postIds: readonly number[]
+): Promise<Record<number, TermSummary[]>> {
+  const ids = [...new Set(postIds)].filter((id) => Number.isInteger(id) && id > 0);
+  if (ids.length === 0) return {};
+
+  const placeholders = ids.map(() => '?').join(', ');
+  const rows = await db.query<TermRow & { post_id: number }>(
+    `SELECT r.post_id, t.id, t.site_id, t.type, t.name, t.slug, t.description
+       FROM rn_term_relations r
+       JOIN rn_terms t ON t.id = r.term_id
+      WHERE r.post_id IN (${placeholders})
+      ORDER BY t.type ASC, t.name ASC`,
+    ids
+  );
+
+  const grouped: Record<number, TermSummary[]> = {};
+  for (const row of rows) {
+    const postId = Number(row.post_id);
+    (grouped[postId] ??= []).push(toTermSummary(row));
+  }
+  return grouped;
+}
+
 export async function termIdsOfPost(db: PluginDatabase, postId: number): Promise<number[]> {
   const rows = await db.query<{ term_id: number }>(
     'SELECT term_id FROM rn_term_relations WHERE post_id = ?',

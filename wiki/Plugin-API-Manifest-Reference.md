@@ -203,6 +203,17 @@ if (!media) { /* 降级路径 */ }
 
 详见 [[命名扩展点注册表|Architecture-Extension-Registry]]。
 
+### 三个作用域的现有实例
+
+| 作用域 | 官方实例 | 贡献入口导出 | 备注 |
+| --- | --- | --- | --- |
+| `admin` | `rice.posts.editorBody`、`rice.media.picker` | 默认导出 `defineAdminContribution(...)` | 后台按 `permission` 过滤 |
+| `render` | 9 个标准插槽（`ctx.slots` 是其门面） | 默认导出 `{ name, render }` | 单组件抛错降级为空片段 |
+| `server` | `rice.permalink.schemes`、`rice.permalink.tokens` | 导出 `{ apply(payload, ctx) }` | 提供方用 `ctx.extensions.apply()` 串行触发（filter 语义） |
+
+`server` 作用域没有前端界面，因此只支持**声明式**贡献（命令式 `ctx.extensions.contribute`
+没有可 import 的入口）；提供方应使用 `onError: 'skip'` 让单个坏贡献不影响其它贡献。
+
 ---
 
 ## 7. `settingsSchema`

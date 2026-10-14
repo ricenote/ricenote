@@ -22,6 +22,8 @@ import {
   type TermSummary
 } from '@ricenote/shared';
 import type { PostRow } from './repository.js';
+// 运行时无循环依赖：permalink.ts 只以 type-only 方式引用本模块（编译后擦除）
+import { categoriesOf, postUrl } from './permalink.js';
 
 export interface RuntimeServiceResolver {
   tryUse<T>(name: string): T | undefined;
@@ -106,7 +108,7 @@ export interface PostViewModel {
    * 无声明或未填写时为空对象，模板的 `{% if post.fields.x %}` 自然为假。
    */
   fields: Record<string, unknown>;
-  terms: { id: number; name: string; slug: string; type: string }[];
+  terms: { id: number; name: string; slug: string; type: string; url?: string }[];
 }
 
 /** 主题中的文章列表视图模型。 */
@@ -187,6 +189,14 @@ export async function toPostViewModel(
      * 交由调用方在请求期传入，永远是当次请求的最新声明。
      */
     fields?: ContentFieldsSchema;
+    /**
+     * 当次请求（可选）。
+     *
+     * 传给固定链接方案里的第三方参数（它们可能按请求取值，例如当前语言）。
+     * 列表与详情都在请求期构造视图模型，因此一并带上；离线场景（如站点地图）
+     * 没有请求可用，第三方参数应按"无请求也能取值"的约定实现。
+     */
+    request?: unknown;
   }
 ): Promise<PostViewModel> {
   const terms = options.terms ?? (await loadTerms(runtime, row.id));
@@ -218,7 +228,19 @@ export async function toPostViewModel(
     ...(options.authorName ? { authorName: options.authorName } : {}),
     ...(publishedAt ? { publishedAt } : {}),
     updatedAt,
-    url: `/post/${row.slug}`,
+    // 地址由固定的链接方案生成（插件未启用时回退内建 `/post/:slug`）；
+    // 词条此处已加载，主分类不再额外查询，因此没有额外开销
+    url: postUrl(
+      runtime,
+      {
+        id: row.id,
+        slug: row.slug,
+        publishedAt: row.published_at,
+        createdAt: row.created_at,
+        categories: categoriesOf(terms)
+      },
+      options.request === undefined ? {} : { request: options.request }
+    ),
     status: row.status,
     ...(row.template ? { template: row.template } : {}),
     fields,
@@ -226,7 +248,9 @@ export async function toPostViewModel(
       id: term.id,
       name: term.name,
       slug: term.slug,
-      type: term.type
+      type: term.type,
+      // 归档地址由 taxonomy 侧按固定链接方案生成；模板应优先用它
+      ...(term.url ? { url: term.url } : {})
     }))
   };
 }
@@ -235,7 +259,12 @@ export async function toPostViewModel(
 export async function toPostViewModels(
   runtime: PostsRuntime,
   rows: PostRow[],
-  options: { withHtml: boolean; authorNames?: Record<number, string>; fields?: ContentFieldsSchema }
+  options: {
+    withHtml: boolean;
+    authorNames?: Record<number, string>;
+    fields?: ContentFieldsSchema;
+    request?: unknown;
+  }
 ): Promise<PostViewModel[]> {
   const output: PostViewModel[] = [];
   for (const row of rows) {
@@ -243,6 +272,7 @@ export async function toPostViewModels(
       await toPostViewModel(runtime, row, {
         withHtml: options.withHtml,
         fields: options.fields,
+        ...(options.request === undefined ? {} : { request: options.request }),
         ...(options.authorNames?.[row.author_id]
           ? { authorName: options.authorNames[row.author_id] }
           : {})

@@ -46,8 +46,8 @@ async function collectEntries(deps: SitemapDeps): Promise<{ entries: SitemapEntr
         break;
       }
       entries.push({
-        // PostSummary 不携带 url，按前台约定路径拼接
-        loc: absoluteUrl(siteUrl, `/post/${post.slug}`),
+        // 地址取内容插件给出的 `url`（按当前固定链接方案生成）
+        loc: absoluteUrl(siteUrl, post.url ?? `/post/${post.slug}`),
         ...(post.updatedAt ? { lastmod: post.updatedAt } : {})
       });
     }

@@ -165,7 +165,9 @@ export default defineAdminPage({
         <li v-for="term in categories" :key="term.id" class="flex items-center justify-between gap-3 py-2.5">
           <div class="min-w-0">
             <p class="truncate text-sm text-foreground">{{ term.name }}</p>
-            <p class="mt-0.5 font-mono text-[11px] text-muted-foreground">/category/{{ term.slug }}</p>
+            <p class="mt-0.5 font-mono text-[11px] text-muted-foreground">
+              {{ term.url || '/category/' + term.slug }}
+            </p>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-xs text-muted-foreground">{{ term.count ?? 0 }} 篇</span>

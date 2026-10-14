@@ -6,10 +6,12 @@
  */
 
 import type { PageRouteSpec, PluginContext } from '@ricenote/plugin-sdk';
+import type { TaxonomyService, TermSummary } from '@ricenote/shared';
 import {
   buildCollection,
   loadAuthorNames,
   loadContentFields,
+  loadTerms,
   parsePage,
   taxonomyInternalOf,
   taxonomyOf,
@@ -17,7 +19,22 @@ import {
   toPostViewModels,
   type PostsRuntime
 } from './runtime.js';
-import { findPublishedBySlug, listPublished, listPublishedByIds } from './repository.js';
+import {
+  findPublishedById,
+  findPublishedBySlug,
+  listPublished,
+  listPublishedByIds
+} from './repository.js';
+import {
+  categoriesOf,
+  categoryUrl,
+  categoryUrlBySlug,
+  matchesPostLookup,
+  postUrl,
+  readCategoryLookup,
+  readPostLookup,
+  tagUrl
+} from './permalink.js';
 
 interface Pagination {
   page: number;
@@ -69,6 +86,7 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
       const viewModels = await toPostViewModels(runtime, items, {
         withHtml: false,
         authorNames,
+        request,
         fields: await loadContentFields(runtime)
       });
 
@@ -92,22 +110,48 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
     path: '/post/:slug',
     kind: 'post',
     cacheable: true,
+    /*
+     * 路径可被「固定链接」插件按站点配置接管：它只把 `/post/:slug` 换成编译后的模板，
+     * 命中解析与渲染仍在这里（见 ./permalink.js）。
+     */
+    overridable: true,
     handler: async (request) => {
-      const slug = request.params.slug ?? '';
-      const row = await findPublishedBySlug(runtime.db, runtime.siteId, slug);
+      const params = request.params as Record<string, string>;
+      const lookup = readPostLookup(runtime, params);
 
-      if (!row) {
+      if (!lookup) {
         return {
           kind: '404',
           title: '文章不存在',
           status: 404,
-          data: { message: `未找到文章：${slug}` }
+          data: { message: '文章地址不合法' }
+        };
+      }
+
+      const row =
+        lookup.byId !== undefined
+          ? await findPublishedById(runtime.db, runtime.siteId, lookup.byId)
+          : await findPublishedBySlug(runtime.db, runtime.siteId, lookup.bySlug ?? '');
+
+      // 词条同时用于"主分类"与视图模型，读一次即可（详情页本来就要读）
+      const terms = row ? await loadTerms(runtime, row.id) : [];
+      const categories = categoriesOf(terms);
+
+      // 地址里带的年/月/日或分类必须与内容一致，否则那是"另一个地址"→ 404
+      if (!row || !matchesPostLookup(lookup, row, categories)) {
+        return {
+          kind: '404',
+          title: '文章不存在',
+          status: 404,
+          data: { message: `未找到文章：${lookup.bySlug ?? lookup.byId ?? ''}` }
         };
       }
 
       const authorNames = await loadAuthorNames(runtime, [row]);
       const post = await toPostViewModel(runtime, row, {
         withHtml: true,
+        terms,
+        request,
         fields: await loadContentFields(runtime),
         ...(authorNames[row.author_id] ? { authorName: authorNames[row.author_id] } : {})
       });
@@ -115,7 +159,17 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
       return {
         kind: 'post',
         title: row.seo_title ?? row.title,
-        canonicalUrl: `/post/${row.slug}`,
+        canonicalUrl: postUrl(
+          runtime,
+          {
+            id: row.id,
+            slug: row.slug,
+            publishedAt: row.published_at,
+            createdAt: row.created_at,
+            categories
+          },
+          { request }
+        ),
         // 文章自选的模板键：由 Core 渲染器解析为模板文件，键失效时回退到 templates.post
         ...(row.template ? { template: row.template } : {}),
         data: {
@@ -137,36 +191,54 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
     path,
     kind: 'archive',
     cacheable: true,
+    // 分类归档的路径可被「固定链接」插件接管；标签不纳入本次方案，保持内建形式
+    ...(termType === 'category' ? { overridable: true } : {}),
     handler: async (request) => {
-      const slug = request.params.slug ?? '';
+      const params = request.params as Record<string, string>;
+      const slug = params.slug ?? '';
       const page = parsePage(request.query.page);
       const taxonomy = taxonomyOf(runtime);
       const taxonomyInternal = taxonomyInternalOf(runtime);
+      const typeLabel = termType === 'category' ? '分类' : '标签';
 
       if (!taxonomy || !taxonomyInternal) {
+        const fallbackBase =
+          termType === 'category' ? categoryUrlBySlug(runtime, slug) : tagUrl({ slug });
         return {
           kind: 'archive',
-          title: termType === 'category' ? '分类' : '标签',
+          title: typeLabel,
           data: {
             term: { name: slug, slug, type: termType },
             posts: buildCollection([], 0, page, pageSize),
-            pagination: buildPagination(page, pageSize, 0, path.replace(':slug', slug)),
+            pagination: buildPagination(page, pageSize, 0, fallbackBase),
             unavailable: true
           }
         };
       }
 
-      const term = await taxonomy.findBySlug(slug);
+      // 模板含 `{mid}` 时按分类 ID 命中，否则按缩略名
+      const term =
+        termType === 'category'
+          ? await findCategoryByLookup(taxonomy, readCategoryLookup(runtime, params))
+          : await taxonomy.findBySlug(slug);
+
       if (!term || term.type !== termType) {
         return {
           kind: '404',
           title: '归档不存在',
           status: 404,
-          data: { message: `未找到${termType === 'category' ? '分类' : '标签'}：${slug}` }
+          data: { message: `未找到${typeLabel}：${slug}` }
         };
       }
 
-      const postIds = await taxonomyInternal.postIdsOfTerm(slug);
+      // 归档自身的地址：由固定链接方案生成（此前 canonical 写死成详情页的
+      // `/post/:slug`，导致分类页的规范地址一直指向错误的位置）
+      const basePath =
+        termType === 'category'
+          ? categoryUrl(runtime, { id: term.id, slug: term.slug }, { request })
+          : tagUrl({ slug: term.slug });
+
+      const postIds = await taxonomyInternal.postIdsOfTerm(term.slug);
       const { items, total } = await listPublishedByIds(runtime.db, runtime.siteId, postIds, {
         page,
         pageSize
@@ -175,18 +247,18 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
       const viewModels = await toPostViewModels(runtime, items, {
         withHtml: false,
         authorNames,
+        request,
         fields: await loadContentFields(runtime)
       });
-      const canonical = `/post/${slug}`;
 
       return {
         kind: 'archive',
         title: `${term.name} · ${siteTitle}`,
-        canonicalUrl: canonical,
+        canonicalUrl: basePath,
         data: {
           term: { id: term.id, name: term.name, slug: term.slug, type: term.type },
           posts: buildCollection(viewModels, total, page, pageSize),
-          pagination: buildPagination(page, pageSize, total, path.replace(':slug', slug))
+          pagination: buildPagination(page, pageSize, total, basePath)
         },
         cacheTags: [`term:${term.id}`, 'posts']
       };
@@ -207,6 +279,17 @@ export function registerPublicPages(ctx: PluginContext, runtime: PostsRuntime): 
   ctx.routes.page(archiveFor('term.tag', '/tag/:slug', 'tag'));
 
   runtime.logger.info('前台页面路由已注册', {
-    routes: ['/', '/post/:slug', '/category/:slug', '/tag/:slug']
+    routes: ['/', '/post/:slug', '/category/:slug', '/tag/:slug'],
+    permalinkOverridable: ['post.show', 'term.category']
   });
+}
+
+/** 按模板还原出的查询条件读词条（`{mid}` 走 ID，否则走缩略名）。 */
+async function findCategoryByLookup(
+  taxonomy: TaxonomyService,
+  lookup: { byId?: number; bySlug?: string } | undefined
+): Promise<TermSummary | undefined> {
+  if (!lookup) return undefined;
+  if (lookup.byId !== undefined) return taxonomy.findById(lookup.byId);
+  return taxonomy.findBySlug(lookup.bySlug ?? '');
 }

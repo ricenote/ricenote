@@ -177,7 +177,7 @@ export default defineAdminPage({
     empty-description="点击右上角「新建文章」开始写作。">
     <template #cell-title="{ row }">
       <p class="font-medium text-foreground">{{ row.title }}</p>
-      <p class="mt-0.5 font-mono text-[11px] text-muted-foreground">/post/{{ row.slug }}</p>
+      <p class="mt-0.5 font-mono text-[11px] text-muted-foreground">{{ row.url || '/post/' + row.slug }}</p>
     </template>
 
     <template #cell-status="{ row }">
@@ -197,7 +197,7 @@ export default defineAdminPage({
 
     <template #cell-actions="{ row }">
       <div class="flex items-center justify-end gap-1">
-        <a v-if="row.status === 'published'" :href="'/post/' + row.slug" target="_blank" rel="noopener"
+        <a v-if="row.status === 'published'" :href="row.url || '/post/' + row.slug" target="_blank" rel="noopener"
           class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" title="查看页面">
           <Icon name="eye" />
         </a>

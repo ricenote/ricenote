@@ -8,7 +8,8 @@
 
 import type { PageRouteSpec, PluginContext } from '@ricenote/plugin-sdk';
 import { normalizeSlug } from '@ricenote/shared';
-import { findPublishedBySlug } from './repository.js';
+import { pageUrl, readPageLookup } from './permalink.js';
+import { findPublishedById, findPublishedBySlug } from './repository.js';
 import { toPageContentViewModel, type PagesRuntime } from './runtime.js';
 
 export function registerPublicPages(ctx: PluginContext, runtime: PagesRuntime): void {
@@ -18,17 +19,40 @@ export function registerPublicPages(ctx: PluginContext, runtime: PagesRuntime): 
     kind: 'page',
     // 缓存开关来自插件设置：关闭后便于调试主题
     cacheable: runtime.cacheEnabled,
+    /*
+     * 路径可被「固定链接」插件按站点配置接管：它只把 `/page/:slug` 换成编译后的模板，
+     * 命中解析与渲染仍在这里（见 ./permalink.js）。
+     */
+    overridable: true,
     handler: async (request) => {
-      const raw = request.params.slug ?? '';
-      const slug = normalizeSlug(raw, 'page');
-      const row = await findPublishedBySlug(runtime.db, runtime.siteId, slug);
+      const params = request.params as Record<string, string>;
+      const lookup = readPageLookup(runtime, params);
+
+      if (!lookup) {
+        return {
+          kind: '404',
+          title: '页面不存在',
+          status: 404,
+          data: { message: '页面地址不合法' }
+        };
+      }
+
+      // 模板含 `{cid}` 时按 ID 查，否则按缩略名查（与 posts 同一套约定）
+      const row =
+        lookup.byId !== undefined
+          ? await findPublishedById(runtime.db, runtime.siteId, lookup.byId)
+          : await findPublishedBySlug(
+              runtime.db,
+              runtime.siteId,
+              normalizeSlug(lookup.bySlug ?? '', 'page')
+            );
 
       if (!row) {
         return {
           kind: '404',
           title: '页面不存在',
           status: 404,
-          data: { message: `未找到页面：${raw}` }
+          data: { message: `未找到页面：${lookup.bySlug ?? lookup.byId ?? ''}` }
         };
       }
 
@@ -39,7 +63,7 @@ export function registerPublicPages(ctx: PluginContext, runtime: PagesRuntime): 
       return {
         kind: 'page',
         title: row.seo_title ?? row.title,
-        canonicalUrl: `/page/${row.slug}`,
+        canonicalUrl: pageUrl(runtime, { id: row.id, slug: row.slug, request }),
         ...(row.template ? { template: row.template } : {}),
         data: {
           content,
@@ -58,5 +82,8 @@ export function registerPublicPages(ctx: PluginContext, runtime: PagesRuntime): 
   };
 
   ctx.routes.page(detail);
-  runtime.logger.info('前台页面路由已注册', { routes: ['/page/:slug'] });
+  runtime.logger.info('前台页面路由已注册', {
+    routes: ['/page/:slug'],
+    permalinkOverridable: ['page.show']
+  });
 }

@@ -44,6 +44,10 @@
 
 模板里用 `url('post.show', { slug })` 生成地址；未注册时降级为 `#`。
 
+`post.show`、`term.category`、`page.show` 声明了 `overridable: true`：启用「固定链接」插件后，
+这三条的**路径**会被站点配置的路径模板接管（handler 不变），停用插件即恢复内建地址。
+其余路由拒绝被接管。
+
 ### 2.2 原始路由（`raw`）
 
 | 路径 | 提供者 | 能力 |
@@ -76,6 +80,7 @@
 | `/media`、`/media/:mediaId` | `rice.media` | `media.manage` |
 | `/comments`、`/comments/counts`、`/comments/moderate` | `rice.comments` | `comment.moderate` |
 | `/friend-links/items`、`/friend-links/items/:linkId` | `rice.friend-links` | `link.view` / `link.manage` |
+| `/permalink/settings`（GET / PUT）、`/permalink/preview` | `rice.permalink` | `permalink.view` / `permalink.manage` |
 
 ### 2.4 Core 管理端点
 
@@ -138,6 +143,7 @@
 | `media.library@1` | `rice.media` | [[契约参考\|Plugin-API-Service-Contracts]] |
 | `content.search@1` | `rice.search` | 同上（**数据源注册表**） |
 | `content.comments@1` | `rice.comments` | 同上 |
+| `permalink.routes@1` | `rice.permalink` | [[契约参考\|Plugin-API-Service-Contracts]] |
 
 ---
 
@@ -152,6 +158,7 @@
 | `pages.list` | 页面 | `/pages` | `page.view` | 15 | `rice.pages` |
 | `pages.editor` | 页面编辑 | `/pages/editor` | `page.manage` | — | `rice.pages`（`hidden`） |
 | `navigation.items` | 导航栏 | `/navigation` | `nav.view` | 18 | `rice.navigation` |
+| `permalink.settings` | 固定链接 | `/permalink` | `permalink.view` | 16 | `rice.permalink` |
 | `taxonomy.terms` | 分类与标签 | `/taxonomy` | `post.view` | 15 | `rice.taxonomy` |
 | `media.library` | 媒体库 | `/media` | `media.manage` | 10 | `rice.media` |
 | `comments.moderate` | 评论审核 | `/comments` | `comment.moderate` | 20 | `rice.comments` |
@@ -180,6 +187,7 @@ Core 校验全局唯一并聚合（`core.security@1` 的 `listDeclaredPermission
 | 内容 | `media.manage` | `rice.media` |
 | 互动 | `comment.moderate` | `rice.comments` |
 | 外观 | `nav.view`、`nav.manage` | `rice.navigation` |
+| 外观 | `permalink.view`、`permalink.manage` | `rice.permalink` |
 | 外观 | `link.view`、`link.manage` | `rice.friend-links` |
 | 外观 | `theme.view`、`theme.manage` | Core |
 | 扩展 | `plugin.view`、`plugin.manage`、`plugin.install` | Core |
@@ -217,7 +225,7 @@ media:store         extensions:declare extensions:contribute
 | --- | --- |
 | `render` | 9 个标准插槽（见第 1 节） |
 | `admin` | `rice.posts.listActions`、`rice.posts.editorToolbar`、`rice.posts.editorBody`、`rice.pages.listActions`、`rice.pages.editorToolbar`、`rice.pages.editorBody`、`rice.media.picker` |
-| `server` | 目前无内置扩展点（供插件之间自定义） |
+| `server` | `rice.permalink.schemes`（新增一整套路径方案）、`rice.permalink.tokens`（为已有方案追加参数） |
 
 | 扩展点 | 提供者 | `replaceable` | 已知贡献者 |
 | --- | --- | --- | --- |
@@ -228,6 +236,8 @@ media:store         extensions:declare extensions:contribute
 | `rice.pages.editorToolbar` | `rice.pages` | true | `rice.editor-enhance`（append） |
 | `rice.pages.editorBody` | `rice.pages` | true | `rice.editor-enhance`（replace） |
 | `rice.media.picker` | `rice.media` | **false** | `rice.media` 自身（replace，提供默认面板） |
+| `rice.permalink.schemes` | `rice.permalink` | **false** | 暂无官方消费者（供第三方内容插件接入） |
+| `rice.permalink.tokens` | `rice.permalink` | **false** | 暂无官方消费者（供第三方插件追加参数） |
 
 裁决规则：存在 `replace` → 只呈现胜出者（`order` 最大）；否则全部 `append` 按 `order` 降序。
 

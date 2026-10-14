@@ -41,8 +41,17 @@ function toFieldsJson(fields: Record<string, unknown> | undefined): string | nul
   return fields && Object.keys(fields).length > 0 ? JSON.stringify(fields) : null;
 }
 
-/** 把数据库行映射为列表项；`fields` 由调用方传入（已按当前主题声明过滤）。 */
-export function toPageSummary(row: PageRow, fields?: Record<string, unknown>): PageSummary {
+/**
+ * 把数据库行映射为列表项。
+ *
+ * `fields` 与 `url` 由调用方传入：前者已按当前主题声明过滤，后者由固定链接方案
+ * 生成（本模块不依赖任何服务，保持纯映射）。
+ */
+export function toPageSummary(
+  row: PageRow,
+  fields?: Record<string, unknown>,
+  url?: string
+): PageSummary {
   const publishedAt = toOptionalIso(row.published_at);
   return {
     id: row.id,
@@ -54,15 +63,20 @@ export function toPageSummary(row: PageRow, fields?: Record<string, unknown>): P
     sortOrder: Number(row.sort_order),
     ...(row.seo_title ? { seoTitle: row.seo_title } : {}),
     ...(row.seo_description ? { seoDescription: row.seo_description } : {}),
+    ...(url ? { url } : {}),
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
     ...(publishedAt ? { publishedAt } : {})
   };
 }
 
-export function toPageDetail(row: PageRow, fields?: Record<string, unknown>): PageDetail {
+export function toPageDetail(
+  row: PageRow,
+  fields?: Record<string, unknown>,
+  url?: string
+): PageDetail {
   return {
-    ...toPageSummary(row, fields),
+    ...toPageSummary(row, fields, url),
     content: row.content,
     html: row.content_html
   };
@@ -175,6 +189,21 @@ export async function findPublishedBySlug(
      WHERE site_id = ? AND slug = ? AND status = 'published'
      LIMIT 1`,
     [siteId, slug]
+  );
+  return rows[0];
+}
+
+/** 按 ID 读取已发布页面（固定链接模板使用 `{cid}` 时前台走这条路径）。 */
+export async function findPublishedById(
+  db: PluginDatabase,
+  siteId: string,
+  id: number
+): Promise<PageRow | undefined> {
+  const rows = await db.query<PageRow>(
+    `SELECT ${COLUMNS} FROM rn_pages
+     WHERE site_id = ? AND id = ? AND status = 'published'
+     LIMIT 1`,
+    [siteId, id]
   );
   return rows[0];
 }
