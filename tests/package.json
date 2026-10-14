@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/tests",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "description": "RiceNote 单元与集成测试",

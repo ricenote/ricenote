@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/plugin-seo",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "description": "RiceNote SEO 插件：社交卡片、结构化数据、站点地图与爬虫协议",
   "keywords": [
@@ -34,8 +34,8 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@ricenote/plugin-sdk": "^0.6.0",
-    "@ricenote/shared": "^0.6.0"
+    "@ricenote/plugin-sdk": "^0.7.0",
+    "@ricenote/shared": "^0.7.0"
   },
   "peerDependenciesMeta": {
     "@ricenote/plugin-sdk": {

@@ -10,7 +10,7 @@
 | 项 | 值 |
 | --- | --- |
 | id | `rice.taxonomy` |
-| version | `1.2.0` |
+| version | `1.3.0` |
 | apiVersion | `^1.0.0` |
 | entry | `./dist/index.js` |
 | provides | `content.taxonomy@1`、`taxonomy.internal@1` |

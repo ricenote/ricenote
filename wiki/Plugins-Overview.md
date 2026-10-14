@@ -15,17 +15,17 @@ RiceNote 的业务能力全部由插件实现。仓库随附 **14 个官方插�
 | --- | --- | --- | --- | --- | --- |
 | 身份与认证 | `rice.identity` | 1.4.0 | `identity.auth@1`、`identity.users@1` | —— | 用户 `/users` |
 | 角色与权限 | `rice.authorization` | 1.4.0 | `identity.authorization@1` | `identity.users@1` | 角色与权限 `/roles` |
-| 文章 | `rice.posts` | 1.7.0 | `content.posts@1` | `identity.users@1` | 文章 `/posts`、编辑文章 `/posts/editor` |
-| 页面 | `rice.pages` | 1.4.0 | `content.pages@1` | —— | 页面 `/pages`、页面编辑 `/pages/editor` |
+| 文章 | `rice.posts` | 1.8.0 | `content.posts@1` | `identity.users@1` | 文章 `/posts`、编辑文章 `/posts/editor` |
+| 页面 | `rice.pages` | 1.5.0 | `content.pages@1` | —— | 页面 `/pages`、页面编辑 `/pages/editor` |
 | 导航栏 | `rice.navigation` | 1.2.0 | `content.navigation@1` | —— | 导航栏 `/navigation` |
 | 固定链接 | `rice.permalink` | 1.0.0 | `permalink.routes@1` | ——（对 posts / pages / taxonomy 为可选依赖） | 固定链接 `/permalink` |
-| 分类与标签 | `rice.taxonomy` | 1.2.0 | `content.taxonomy@1` | —— | 分类与标签 `/taxonomy` |
+| 分类与标签 | `rice.taxonomy` | 1.3.0 | `content.taxonomy@1` | —— | 分类与标签 `/taxonomy` |
 | 媒体库 | `rice.media` | 1.3.0 | `media.library@1` | —— | 媒体库 `/media` |
-| 评论 | `rice.comments` | 1.3.0 | `content.comments@1` | ——（对 posts / identity 为请求期可选依赖） | 评论审核 `/comments` |
+| 评论 | `rice.comments` | 1.3.1 | `content.comments@1` | ——（对 posts / identity 为请求期可选依赖） | 评论审核 `/comments` |
 | 搜索 | `rice.search` | 1.2.0 | `content.search@1` | —— | —— |
-| SEO | `rice.seo` | 1.2.0 | ——（消费 `content.posts@1`） | —— | —— |
+| SEO | `rice.seo` | 1.2.1 | ——（消费 `content.posts@1`） | —— | —— |
 | 编辑增强 | `rice.editor-enhance` | 1.1.1 | ——（纯前端贡献） | —— | —— |
-| RSS 订阅 | `rice.feed` | 1.1.0 | ——（消费 `content.posts@1`） | —— | —— |
+| RSS 订阅 | `rice.feed` | 1.1.1 | ——（消费 `content.posts@1`） | —— | —— |
 | 友情链接 | `rice.friend-links` | 1.1.1 | —— | —— | 友情链接 `/friend-links` |
 | _示例：阅读时长_ | `acme.reading-time` | 1.1.0 | —— | —— | —— |
 

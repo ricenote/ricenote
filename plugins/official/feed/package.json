@@ -1,6 +1,6 @@
 {
   "name": "@ricenote/plugin-feed",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "RiceNote RSS 订阅插件：标准 RSS 2.0 订阅源与自动发现链接",
   "keywords": [
@@ -32,8 +32,8 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@ricenote/plugin-sdk": "^0.6.0",
-    "@ricenote/shared": "^0.6.0"
+    "@ricenote/plugin-sdk": "^0.7.0",
+    "@ricenote/shared": "^0.7.0"
   },
   "peerDependenciesMeta": {
     "@ricenote/plugin-sdk": {

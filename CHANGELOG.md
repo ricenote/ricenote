@@ -7,6 +7,26 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-14
+
+### Changed（版本与插件发布）
+
+- **应用版本 0.6.2 → 0.7.0**：本次为**次版本跃迁**，因此官方插件声明的**最低宿主版本**
+  （`package.json` 里的宿主 `peerDependencies`）由 `^0.6.0` 提升到 **`^0.7.0`**。
+  该值由 `plugin-catalog.json` 派生（`pnpm version:sync` 写回、`pnpm version:check` 校验），
+  **请勿手改插件 `package.json`**；旧宿主上的插件需走插件更新流程，不要手改区间。
+- **官方插件版本**（代码有变化的 6 个，其余 8 个不动；新插件首次发布）：
+
+  | 插件 | 版本 | 变化 |
+  | --- | --- | --- |
+  | `rice.posts` | 1.7.0 → **1.8.0** | 新增：可按固定链接方案生成地址、摘要携带 `url`、分类批量查询 |
+  | `rice.pages` | 1.4.0 → **1.5.0** | 新增：可按固定链接方案生成地址、摘要携带 `url` |
+  | `rice.taxonomy` | 1.2.0 → **1.3.0** | 新增：`findById` 与 `termsOfPosts`（避免列表页为拼地址而 N+1 查词条） |
+  | `rice.feed` | 1.1.0 → **1.1.1** | 修正：条目地址取统一生成结果；全文模式剥离短代码标记 |
+  | `rice.seo` | 1.2.0 → **1.2.1** | 修正：站点地图地址取统一生成结果 |
+  | `rice.comments` | 1.3.0 → **1.3.1** | 修正：回退地址取统一生成结果 |
+  | `rice.permalink` | **1.0.0** | 新插件，随本版本首次发布 |
+
 ### Added（固定链接）
 
 - **新官方插件 `rice.permalink`「固定链接」**（目录 `plugins/official/permalink`，`category: optional`）：
@@ -1146,7 +1166,8 @@
 - 管理 API 全链路 CSRF 校验（双重提交 Cookie + 会话绑定签名）、能力校验 fail-closed、登录失败限流，且所有管理写操作写入审计日志。
 - 日志自动脱敏（`password`/`secret`/`token`/`authorization`/`cookie` 等键名替换为 `[redacted]`）。
 
-[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/ricenote/ricenote/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/ricenote/ricenote/releases/tag/v0.7.0
 [0.6.2]: https://github.com/ricenote/ricenote/releases/tag/v0.6.2
 [0.6.1]: https://github.com/ricenote/ricenote/releases/tag/v0.6.1
 [0.6.0]: https://github.com/ricenote/ricenote/releases/tag/v0.6.0
